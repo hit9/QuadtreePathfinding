@@ -1,0 +1,5 @@
+*.out
+CMakeUserPresets.json
+.cache
+build
+.env
