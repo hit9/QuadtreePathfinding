@@ -40,22 +40,38 @@ using CellCollector = std::function<void(int x, int y)>;
 // QdNodeCollector is the type of the function that collects quadtree nodes of the path finder.
 using QdNodeCollector = std::function<void(const QdNode *node)>;
 
-// Vertex in the abstract graph.
-// 3 kinds of vertexes:
-// 1. start and target.
-// 2. gates between adjacent quadtree nodes.
-struct Vertex {
-  // v is the cell id of this vertex.
-  int v;
-  // the node this vertex locates.
-  QdNode *node;
-};
-
 // Euclidean distance calculator with given cost unit.
 template <int CostUnit>
 int EuclideanDistance(int x1, int y1, int x2, int y2) {
   return std::floor(std::hypot(abs(x1 - x2), abs(y1 - y2)) * CostUnit);
 }
+
+// Gate (a => b), where a and b is the cell id.
+// A Gate always belongs to a node, here is the aNode,
+// and is determined by the key (a, bNode).
+//
+//  +-------+--------+
+//  |    [a => b]    |
+//  +-------+--------+
+//    aNode   bNode
+struct Gate {
+  // cell in aNode.
+  int a;
+  // the other node.
+  QdNode *bNode;
+  // the other connected end in b.
+  int b;
+  // the key is (a, bNode).
+  bool operator==(const Gate &other) const { return a == other.a && bNode == other.bNode; }
+};
+
+// Hashing support for gate, uniqued by (a, bNode).
+struct GateHasher {
+  std::size_t operator()(const Gate &g) const;
+};
+
+// A set of gates inside a node.
+using GateSet = std::unordered_set<Gate, GateHasher>;
 
 class PathFinder {
  public:
@@ -115,19 +131,12 @@ class PathFinder {
   QdTree tree;
 
   // ~~~~~~~ Graph ~~~~~~~~
-
   // edges[v] => { v =>  cost(u => v) }
   std::vector<std::unordered_map<int, int>> edges;
 
+  // ~~~~~~~ Gates (group by nodes) ~~~~~~~~
   // Stores all the gate cells, groupped by node.
-  //
-  //  gates[a] => hashmap { u => Gate{ v, b} }
-  //
-  //  +----+----+
-  //  |  [u|v]  |
-  //  +----+----+
-  //    a     b
-  std::unordered_map<QdNode *, std::unordered_map<int, Vertex>> gates;
+  std::unordered_map<QdNode *, GateSet> gates;
 
   // ~~~~~~~ A* context (for reusing memory allocation purpose) ~~~~~~~~
   // f[v] is the shortest path from s to v.

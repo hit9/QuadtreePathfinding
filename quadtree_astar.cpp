@@ -1,7 +1,7 @@
 #include "quadtree_astar.hpp"
 
 #include <algorithm>
-#include <iostream>
+#include <functional>
 #include <queue>
 #include <unordered_map>
 #include <utility>
@@ -28,6 +28,20 @@ int PathFinder::unpackx(int v) const { return v / m; }
 // unpacky unpacks a cell id v's y axis.
 int PathFinder::unpacky(int v) const { return v % m; }
 
+static const std::size_t __FNV_BASE = 14695981039346656037ULL;
+static const std::size_t __FNV_PRIME = 1099511628211ULL;
+
+// Hashing for gate.
+std::size_t GateHasher::operator()(const Gate &g) const {
+  // combine them via FNV hash.
+  std::size_t h = __FNV_BASE;
+  h ^= std::hash<int>{}(g.a);
+  h *= __FNV_PRIME;
+  h ^= std::hash<QdNode *>{}(g.bNode);
+  h *= __FNV_PRIME;
+  return h;
+}
+
 PathFinder::PathFinder(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance,
                        int step, bool use4directions)
     : w(w),
@@ -45,9 +59,9 @@ PathFinder::PathFinder(int w, int h, ObstacleChecker isObstacle, DistanceCalcula
 }
 
 void PathFinder::Gates(CellCollector &collector) const {
-  for (const auto it : gates) {
-    for (const auto &[v, _] : it.second) {
-      auto [x, y] = unpackxy(v);
+  for (const auto it : gates) {  // it is [aNode, gate set]
+    for (const auto &gate : it.second) {
+      auto [x, y] = unpackxy(gate.a);
       collector(x, y);
     }
   }
@@ -80,25 +94,30 @@ void PathFinder::Build() {
 }
 
 void PathFinder::Update(int x, int y) {
+  // Special case:
+  //   When the (x,y) always locates in a single-cell 1x1 node before and after the tree
+  //   adjustment. Changing this cell's value won't trigger spliting and merging, the ssf
+  //   determines this fact. In this case, we should call handleNewNode and handleRemovedNode
+  //   manually to ensure the gates are still maintained in this scenario, as if this node is
+  //   removed or created.
   auto b = isObstacle(x, y);
+  auto node = tree.Find(x, y);
+  // Is it 1x1 node before?
+  auto before1x1 = (node->x1 == node->x2 && node->y1 == node->y2);
   if (b)
     tree.Add(x, y, true);
   else
     tree.Remove(x, y, true);
 
-  // Special case:
-  // When the leaf node contains only a single 1x1 cell.
-  // Changing this cell's value won't trigger spliting and merging.
-  // We should call handleNewNode and handleRemovedNode manually to ensure the gates are still
-  // maintained in this scenario, as if this node is removed or created.
-  auto node = tree.Find(x, y);
-  if (node != nullptr) {
-    if (node->x1 == node->x2 && node->y1 == node->y2) {
-      if (b)
-        handleRemovedNode(node);
-      else
-        handleNewNode(node);
-    }
+  // Refresh the node it locates.
+  node = tree.Find(x, y);
+  // Is it 1x1 node after?
+  auto after1x1 = (node->x1 == node->x2 && node->y1 == node->y2);
+  if (before1x1 && after1x1) {
+    if (b)
+      handleRemovedNode(node);
+    else
+      handleNewNode(node);
   }
 }
 
@@ -107,8 +126,9 @@ void PathFinder::Update(int x, int y) {
 // The given node must not be a obstacle node.
 // All cells inside a non-obstacle node are reachable to each other.
 void PathFinder::addVertex(QdNode *node, int v) {
-  // v is reachable to any existing vertex in the same node.
-  for (auto &[u, _] : gates[node]) {
+  // v is reachable to any existing gate cells in the same node.
+  for (auto &gate : gates[node]) {
+    auto u = gate.a;
     if (u != v) {
       int dist = calcDistance(u, v);
       // add edge (u => v)
@@ -122,8 +142,9 @@ void PathFinder::addVertex(QdNode *node, int v) {
 // Remove a cell v locating at given node from the abstract graph.
 // It will remove all edges between this cell and other existing gate cells in this node.
 void PathFinder::removeVertex(QdNode *node, int v) {
-  // remove edges from other gate to v inside node.
-  for (auto &[u, _] : gates[node]) {
+  // remove edges from other gate cell to v inside node.
+  for (auto gate : gates[node]) {
+    auto u = gate.a;
     edges[u].erase(v);
   }
   // remove all edges starting from v.
@@ -148,10 +169,10 @@ void PathFinder::addConnection(QdNode *aNode, int a, QdNode *bNode, int b) {
 
   int dist = calcDistance(a, b);
   // gate (a => b)
-  gates[aNode][a] = {b, bNode};
+  gates[aNode].insert({a, bNode, b});
   edges[a].insert({b, dist});
   // gate (b => a)
-  gates[bNode][b] = {a, aNode};
+  gates[bNode].insert({b, aNode, a});
   edges[b].insert({a, dist});
 }
 
@@ -164,11 +185,10 @@ void PathFinder::handleRemovedNode(QdNode *aNode) {
   auto it = gates.find(aNode);
   if (it == gates.end()) return;
 
-  for (auto &[a, bVertex] : it->second) {
-    auto [b, bNode] = bVertex;
+  for (auto [a, bNode, b] : it->second) {  // it is [aNode, set of gates in aNode]
     // remove gate (b => a) in bNode.
     edges[b].erase(a);
-    gates[bNode].erase(b);
+    gates[bNode].erase({b, aNode, a});
     // clears all edges starting from a.
     edges[a].clear();
   }
@@ -189,12 +209,14 @@ void PathFinder::handleNewNode(QdNode *aNode) {
   std::vector<QdNode *> neighbours[8];
   // d is direction (0~3 NESW; 4~7 Diagonal).
   int d;
-  quadtree::Visitor<bool> visitor = [&neighbours, &d](QdNode *bNode) {
+  quadtree::Visitor<bool> visitor = [this, &neighbours, &d](QdNode *bNode) {
     // cares only about non-obstacle nodes.
     if (bNode->objects.empty()) neighbours[d].push_back(bNode);
   };
   int maxd = use4directions ? 4 : 8;
-  for (d = 0; d < maxd; d++) tree.FindNeighbourLeafNodes(aNode, d, visitor);
+  for (d = 0; d < maxd; d++) {
+    tree.FindNeighbourLeafNodes(aNode, d, visitor);
+  }
 
   // Diagonal directions.
   // For each diagonal direction, there is at most one neighbour node.

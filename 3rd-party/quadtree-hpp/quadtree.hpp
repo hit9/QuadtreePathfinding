@@ -1,7 +1,7 @@
 // Optimized quadtrees on grid rectangles in C++.
 // https://github.com/hit9/quadtree-hpp
 //
-// BSD license. Chao Wang, Version: 0.1.5
+// BSD license. Chao Wang, Version: 0.1.6
 //
 // Coordinate conventions:
 //
@@ -881,11 +881,11 @@ const int GET_LEAF_NODES_AT_DIRECTION_JUMP_TABLE[8][4][2] = {
     // 0:N, 1:E, 2:S, 3:W
     // clang-format off
     {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b000, useless, leaf node
-    {{ 0,  0}, { 0,  0}, { 0,  0}, { 0,  0}},  // 0b001, (0---), single grid
+    {{0,  -1}, {0,  -1}, {0,  -1}, {0,  -1}},  // 0b001, (0---), single grid
     {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b010, useless
-    {{ 0,  1}, {-1,  1}, { 0,  1}, { 0, -1}},  // 0b011, (01--) horizonal 1x2 grids, [ 0 | 1 ]
+    {{ 0,  1}, {-1,  1}, { 0,  1}, {0,  -1}},  // 0b011, (01--) horizonal 1x2 grids, [ 0 | 1 ]
     {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b100, useless
-    {{ 0, -1}, { 0,  2}, { 2,  0}, { 0,  2}},  // 0b101, (0-2-) vertical 2x1 grids [ 0 ]
+    {{ 0, -1}, { 0,  2}, {-1,  2}, { 0,  2}},  // 0b101, (0-2-) vertical 2x1 grids [ 0 ]
                                                //                                  [ 2 ]
     {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b110, useless
     {{ 0,  1}, { 1,  3}, { 2,  3}, { 0,  2}},  // 0b111, 4 grids
