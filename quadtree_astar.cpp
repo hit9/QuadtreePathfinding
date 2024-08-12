@@ -1,7 +1,8 @@
 #include "quadtree_astar.hpp"
 
 #include <algorithm>
-#include <functional>
+#include <cmath>
+#include <iostream>
 #include <queue>
 #include <unordered_map>
 #include <utility>
@@ -10,14 +11,6 @@
 namespace quadtree_astar {
 
 static const int inf = 0x3f3f3f3f;
-
-// ssf returns true to stop a quadtree node to split.
-// Where w and h are the width and height of the node's region.
-// n is the number of obstacles in this node.
-// This ssf will stop the spliting if:
-// 1. there's no obstacles in this node.
-// 2. or, the cells in this nodes are all obstacles.
-bool ssf(int w, int h, int n) { return n == 0 || (w * h == n); };
 
 // packxy packs a cell (x,y) to an integeral id v.
 int PathFinder::packxy(int x, int y) const { return m * x + y; }
@@ -31,37 +24,39 @@ int PathFinder::unpacky(int v) const { return v % m; }
 static const std::size_t __FNV_BASE = 14695981039346656037ULL;
 static const std::size_t __FNV_PRIME = 1099511628211ULL;
 
-// Hashing for gate.
-std::size_t GateHasher::operator()(const Gate &g) const {
-  // combine them via FNV hash.
-  std::size_t h = __FNV_BASE;
-  h ^= std::hash<int>{}(g.a);
-  h *= __FNV_PRIME;
-  h ^= std::hash<QdNode *>{}(g.bNode);
-  h *= __FNV_PRIME;
-  return h;
-}
-
 PathFinder::PathFinder(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance,
-                       int step, bool use4directions)
+                       int step, int maxNodeWidth, int maxNodeHeight)
     : w(w),
       h(h),
       step(step),
       m(std::max(w, h)),
       n(w * h),
-      use4directions(use4directions),
+      maxNodeWidth(maxNodeWidth == -1 ? w : maxNodeWidth),
+      maxNodeHeight(maxNodeHeight == -1 ? h : maxNodeHeight),
       isObstacle(isObstacle),
       distance(distance),
-      tree(QdTree(w, h, ssf)) {
+      tree(QdTree(w, h)) {
   edges.resize(n), f.resize(n), vis.resize(n), from.resize(n);
+  // ssf returns true to stop a quadtree node to split.
+  // Where w and h are the width and height of the node's region.
+  // n is the number of obstacles in this node.
+  // This ssf will stop the spliting if:
+  // 1. there's no obstacles in this node.
+  // 2. or, the cells in this nodes are all obstacles.
+  // The quadtree node will always to split if its width and height exceeds
+  // maxNodeWidth and maxNodeHeight.
+  tree.SetSsf([this](int w, int h, int n) {
+    return (w <= this->maxNodeWidth && h <= this->maxNodeWidth) && (n == 0 || (w * h == n));
+  });
+  // handleRemovedNode and handleNewNode maintains the sections and gates on quadtree adjustments.
   tree.SetAfterLeafRemovedCallback([this](QdNode *node) { handleRemovedNode(node); });
   tree.SetAfterLeafCreatedCallback([this](QdNode *node) { handleNewNode(node); });
 }
 
 void PathFinder::Gates(CellCollector &collector) const {
-  for (const auto it : gates) {  // it is [aNode, gate set]
-    for (const auto &gate : it.second) {
-      auto [x, y] = unpackxy(gate.a);
+  for (const auto &[aNode, m] : gates) {
+    for (const auto &[a, _] : m) {
+      auto [x, y] = unpackxy(a);
       collector(x, y);
     }
   }
@@ -122,19 +117,18 @@ void PathFinder::Update(int x, int y) {
 }
 
 // Add a cell v locating at given node to the abstract graph as a vertex.
-// It will create edges between this cell and other existing gate cells in this node.
+// It will create edges between v and other existing gate cells in this node.
 // The given node must not be a obstacle node.
 // All cells inside a non-obstacle node are reachable to each other.
 void PathFinder::addVertex(QdNode *node, int v) {
   // v is reachable to any existing gate cells in the same node.
-  for (auto &gate : gates[node]) {
-    auto u = gate.a;
-    if (u != v) {
-      int dist = calcDistance(u, v);
-      // add edge (u => v)
-      edges[u].insert({v, dist});
-      // add edge (v => u)
-      edges[v].insert({u, dist});
+  for (const auto &[a, _] : gates[node]) {
+    if (a != v) {
+      int dist = calcDistance(a, v);
+      // add edge (a => v)
+      edges[a].insert({v, dist});
+      // add edge (v => a)
+      edges[v].insert({a, dist});
     }
   }
 }
@@ -143,9 +137,8 @@ void PathFinder::addVertex(QdNode *node, int v) {
 // It will remove all edges between this cell and other existing gate cells in this node.
 void PathFinder::removeVertex(QdNode *node, int v) {
   // remove edges from other gate cell to v inside node.
-  for (auto gate : gates[node]) {
-    auto u = gate.a;
-    edges[u].erase(v);
+  for (const auto &[a, _] : gates[node]) {
+    if (a != v) edges[a].erase(v);
   }
   // remove all edges starting from v.
   edges[v].clear();
@@ -169,10 +162,10 @@ void PathFinder::addConnection(QdNode *aNode, int a, QdNode *bNode, int b) {
 
   int dist = calcDistance(a, b);
   // gate (a => b)
-  gates[aNode].insert({a, bNode, b});
+  gates[aNode][a].insert({b, bNode});
   edges[a].insert({b, dist});
   // gate (b => a)
-  gates[bNode].insert({b, aNode, a});
+  gates[bNode][b].insert({a, aNode});
   edges[b].insert({a, dist});
 }
 
@@ -185,15 +178,19 @@ void PathFinder::handleRemovedNode(QdNode *aNode) {
   auto it = gates.find(aNode);
   if (it == gates.end()) return;
 
-  for (auto [a, bNode, b] : it->second) {  // it is [aNode, set of gates in aNode]
-    // remove gate (b => a) in bNode.
-    edges[b].erase(a);
-    gates[bNode].erase({b, aNode, a});
-    // clears all edges starting from a.
-    edges[a].clear();
+  // Remove any bNode's edges pointing to any one of aNode's gates a.
+  for (const auto &[a, c] : it->second) {
+    for (auto [b, bNode] : c) {
+      // remove gate (b => a) in bNode.
+      gates[bNode][b].erase(a);
+      edges[b].erase(a);
+    }
   }
 
-  // remove all gates in aNode.
+  for (const auto &[a, _] : it->second) {
+    // clears all edges starting form a.
+    edges[a].clear();
+  }
   gates.erase(it);
 }
 
@@ -213,15 +210,14 @@ void PathFinder::handleNewNode(QdNode *aNode) {
     // cares only about non-obstacle nodes.
     if (bNode->objects.empty()) neighbours[d].push_back(bNode);
   };
-  int maxd = use4directions ? 4 : 8;
-  for (d = 0; d < maxd; d++) {
+  for (d = 0; d < 8; d++) {
     tree.FindNeighbourLeafNodes(aNode, d, visitor);
   }
 
   // Diagonal directions.
   // For each diagonal direction, there is at most one neighbour node.
   // And we just need to pick only one pair of cells to create a connection.
-  for (d = 4; d < maxd; d++) {
+  for (d = 4; d < 8; d++) {
     if (neighbours[d].size()) {
       auto bNode = neighbours[d][0];
       int a, b;
@@ -240,7 +236,13 @@ void PathFinder::handleNewNode(QdNode *aNode) {
     for (auto bNode : neighbours[d]) {
       ncs.clear();
       getNeighbourCellsHV(d, aNode, bNode, ncs);
-      for (auto [a, b] : ncs) addConnection(aNode, a, bNode, b);
+      for (auto [a, b] : ncs) {
+        addConnection(aNode, a, bNode, b);
+        std::cout << "add connection: direction: " << d << " aNode:" << aNode->x1 << ","
+                  << aNode->y1 << " bNode:" << bNode->x1 << "," << bNode->y1
+                  << " a: " << unpackx(a) << "," << unpacky(a) << " b:" << unpackx(b) << ","
+                  << unpacky(b) << std::endl;
+      }
     }
   }
 }
@@ -314,17 +316,33 @@ void PathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &co
   if (isObstacle(x1, y1) || isObstacle(x2, y2)) return;
 
   int s = packxy(x1, y1), t = packxy(x2, y2);
+  if (s == t) {
+    collector(x1, y1);
+    return;
+  }
+
   // find the quadtree node where the s and t locate.
   auto sNode = tree.Find(x1, y1), tNode = tree.Find(x2, y2);
+  // is the start a gate cell?
+  auto sIsGate = gates[sNode].find(s) != gates[sNode].end();
+  // is the target a gate cell?
+  auto tIsGate = gates[tNode].find(t) != gates[tNode].end();
 
-  // add s and t to the abstract graph temporarily.
-  addVertex(sNode, s);
-  addVertex(tNode, t);
+  // add s and t to the abstract graph temporarily, if not exist.
+  if (!sIsGate) addVertex(sNode, s);
+  if (!tIsGate) addVertex(tNode, t);
+
+  // Incase s and t are in the same node.
+  if (tNode == sNode && !sIsGate && !tIsGate) {
+    int dist = calcDistance(s, t);
+    edges[s].insert({t, dist});
+    edges[t].insert({s, dist});
+  }
 
   // resets context
   std::fill(f.begin(), f.end(), inf);
   std::fill(vis.begin(), vis.end(), false);
-  std::fill(from.begin(), from.end(), inf);
+  from[t] = inf;
 
   // A* smallest-first queue.
   // P is { cost, cell id }
@@ -339,8 +357,8 @@ void PathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &co
     if (u == t) break;  // found
     if (vis[u]) continue;
     vis[u] = true;
-    for (const auto [v, w] : edges[u]) {
-      auto g = f[u] + w;
+    for (const auto [v, c] : edges[u]) {
+      auto g = f[u] + c;
       auto h = calcDistance(v, t);
       auto cost = g + h;
       if (f[v] > g) {
@@ -352,10 +370,14 @@ void PathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &co
   }
 
   // remove s and t from the graph
-  removeVertex(sNode, s);
-  removeVertex(tNode, t);
+  if (sNode == tNode && !sIsGate && !tIsGate) {
+    edges[s].erase(t);
+    edges[t].erase(s);
+  }
+  if (!sIsGate) removeVertex(sNode, s);
+  if (!tIsGate) removeVertex(tNode, t);
 
-  if (from[t] == inf) return;
+  if (from[t] == inf) return;  // failed
 
   // collects route cells backward.
   std::vector<int> routes;
@@ -368,6 +390,27 @@ void PathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &co
   for (int i = routes.size() - 1; i >= 0; --i) {
     auto [x, y] = unpackxy(routes[i]);
     collector(x, y);
+  }
+}
+
+void PathFinder::ComputePathToNextRoute(int x1, int y1, int x2, int y2,
+                                        CellCollector &collector) const {
+  int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;
+  int dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1;
+  int err = dx + dy, e2;
+  while (true) {
+    collector(x1, y1);
+    e2 = 2 * err;
+    if (e2 >= dy) {
+      if (x1 == x2) break;
+      err += dy;
+      x1 += sx;
+    }
+    if (e2 <= dx) {
+      if (y1 == y2) break;
+      err += dx;
+      y1 += sy;
+    }
   }
 }
 
