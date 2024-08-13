@@ -1,7 +1,7 @@
 // Optimized quadtrees on grid rectangles in C++.
 // https://github.com/hit9/quadtree-hpp
 //
-// BSD license. Chao Wang, Version: 0.1.7
+// BSD license. Chao Wang, Version: 0.1.9
 //
 // Coordinate conventions:
 //
@@ -468,6 +468,17 @@ void Quadtree<Object, ObjectHasher>::splitHelper2(NodeT* node, NodeSet& createdL
   //      |      |      |
   //  x2 -+------+------+-
   int x3 = x1 + (x2 - x1) / 2, y3 = y1 + (y2 - y1) / 2;
+
+  // determines which side each axis x3 and y3 belongs, take y axis for instance:
+  // by default, we assume y3 belongs to the left side.
+  // but if the ids of y1 and y3 are going to dismatch, which means the y3 should belong to the
+  // right side, that is we should minus y3 by 1.
+  // And minus by 1 should be enough, because y3-2 always equals to y3-4, y3-8,.. until y1.
+  // Potential optimization: how to avoid the division here?
+  uint64_t k = 1 << (d + 1);
+  if ((k * x3 / h) != (k * x1 / h)) --x3;
+  if ((k * y3 / w) != (k * y1 / w)) --y3;
+
   // clang-format off
   node->children[0] = splitHelper1(d + 1, x1, y1, x3, y3, node->objects, createdLeafNodes);
   node->children[1] = splitHelper1(d + 1, x1, y3 + 1, x3, y2, node->objects, createdLeafNodes);
@@ -879,32 +890,54 @@ void Quadtree<Object, ObjectKeyHasher>::findNeighbourLeafNodesHV(NodeT* node, in
 
 // Jump table for: [flag][direction] => {children index (-1 for invalid)}
 // Checkout the document of function getLeafNodesAtDirection for the flag's meaning.
-const int GET_LEAF_NODES_AT_DIRECTION_JUMP_TABLE[8][4][2] = {
-    // 0:N, 1:E, 2:S, 3:W
+const int GET_LEAF_NODES_AT_DIRECTION_JUMP_TABLE[10][4][2] = {
     // clang-format off
-    {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b000, useless, leaf node
-    {{0,  -1}, {0,  -1}, {0,  -1}, {0,  -1}},  // 0b001, (0---), single grid
-    {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b010, useless
-    {{ 0,  1}, {-1,  1}, { 0,  1}, {0,  -1}},  // 0b011, (01--) horizonal 1x2 grids, [ 0 | 1 ]
-    {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b100, useless
-    {{ 0, -1}, { 0,  2}, {-1,  2}, { 0,  2}},  // 0b101, (0-2-) vertical 2x1 grids [ 0 ]
-                                               //                                  [ 2 ]
-    {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0b110, useless
-    {{ 0,  1}, { 1,  3}, { 2,  3}, { 0,  2}},  // 0b111, 4 grids
+    // 0:N       1:E        2:S       3:W
+    {{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},  // 0, 0b0000 leaf node
+    {{0,  -1}, {0,  -1}, {0,  -1}, {0,  -1}},  // 1, 0b0001 (0---), single grid
+    {{1,  -1}, {1,  -1}, {1,  -1}, {1,  -1}},  // 2, 0b0010 (-1--), single grid
+    {{2,  -1}, {2,  -1}, {2,  -1}, {2,  -1}},  // 3, 0b0100 (--2-), single grid
+    {{3,  -1}, {3,  -1}, {3,  -1}, {3,  -1}},  // 4, 0b1000 (---3), single grid
+    {{ 0,  1}, {-1,  1}, { 0,  1}, {0,  -1}},  // 5, 0b0011 (01--) horizonal 1x2 grids, [ 0 | 1 ]
+    {{ 2,  3}, {-1,  3}, { 2,  3}, {2,  -1}},  // 6, 0b1100 (--23) horizonal 1x2 grids, [ 2 | 3 ]
+    {{ 0, -1}, { 0,  2}, {-1,  2}, { 0,  2}},  // 7, 0b0101 (0-2-) vertical 2x1 grids [ 0 ]
+                                               //                                     [ 2 ]
+    {{ 1, -1}, { 1,  3}, {-1,  3}, { 1,  3}},  // 8, 0b1010 (-1-3) vertical 2x1 grids [ 1 ]
+                                               //                                     [ 3 ]
+    {{ 0,  1}, { 1,  3}, { 2,  3}, { 0,  2}},  // 9, 0b1111, 4 grids
     // clang-format on
+};
+
+const int GET_LEAF_NODES_AT_DIRECTION_MASK_TO_FLAG_TABLE[16] = {
+    0,   // 0 => 0b0000
+    1,   // 1 => 0b0001
+    2,   // 2 => 0b0010
+    5,   // 3 => 0b0011
+    3,   // 4 => 0b0100
+    7,   // 5 => 0b0101
+    -1,  // 6 => 0b0110
+    -1,  // 7 => 0b0111
+    4,   // 8 => 0b1000
+    -1,  // 9 => 0b1001
+    8,   // 10 => 0b1010
+    -1,  // 11 => 0b1011
+    6,   // 12 => 0b1100
+    -1,  // 13 => 0b1101
+    -1,  // 14 => 0b1110
+    9,   // 15 => 0b1111
 };
 
 //
 // Collects all leaf nodes in given node recursively at given direction.
-// There are 5 cases:
+// There are 5 cases (10 in detail):
 //      0 | 1
 //     ---+---
 //      2 | 3
-// 1. node has 1 non-null child (0---), flag 0b001 (child 0 is the 1st bit)
-// 2. node has 2 non-null children, horizonal layout (01--), flag 0b011 (child 1 is the 2nd bit)
-// 3. node has 2 non-null children, vertical layout (0-2-), flag 0b101 (child 2 is the 3rd bit)
-// 4. node has 4 non-null children (0123), flag 0b111
-// 5. node has non children, flag 0
+// 1. node has none children, it's a leaf node.
+// 2. node has 1 non-null child, (0---,-1--, --2- or ---3).
+// 3. node has 2 non-null children, horizonal layout (01-- or 23--).
+// 4. node has 3 non-null children, vertical layout (0-2- or -1-3)
+// 5. node has 4 non-null children (0123)
 template <typename Object, typename ObjectKeyHasher>
 void Quadtree<Object, ObjectKeyHasher>::getLeafNodesAtDirection(NodeT* node, int direction,
                                                                 VisitorT& visitor) const {
@@ -913,10 +946,15 @@ void Quadtree<Object, ObjectKeyHasher>::getLeafNodesAtDirection(NodeT* node, int
     return;
   }
   // layout flag of children inside this node.
-  int flag = 0;
-  if (node->children[0] != nullptr) flag |= 0b001;
-  if (node->children[1] != nullptr) flag |= 0b010;
-  if (node->children[2] != nullptr) flag |= 0b100;
+  int mask = 0;
+  if (node->children[0] != nullptr) mask |= 0b0001;
+  if (node->children[1] != nullptr) mask |= 0b0010;
+  if (node->children[2] != nullptr) mask |= 0b0100;
+  if (node->children[3] != nullptr) mask |= 0b1000;
+
+  int flag = GET_LEAF_NODES_AT_DIRECTION_MASK_TO_FLAG_TABLE[mask];
+  if (flag == -1) return;
+
   // the children to go down, (at most 2)
   const auto& t = GET_LEAF_NODES_AT_DIRECTION_JUMP_TABLE[flag][direction];
   if (t[0] != -1) getLeafNodesAtDirection(node->children[t[0]], direction, visitor);
