@@ -90,6 +90,7 @@ using NeighbourVertexVisitor = std::function<void(int v, int cost)>;
 class IDirectedGraph {
  public:
   // Initialize the graph, where the n is the total number of vertices.
+  // It's called by a path finder.
   virtual void Init(int n) = 0;
   // Add an edge from vertex u to v with given cost.
   virtual void AddEdge(int u, int v, int cost) = 0;
@@ -158,16 +159,15 @@ class QuadtreeMap {
   // Returns the width of the map.
   int W() const { return w; }
   // Returns the height of the map.
-  int H() const { return w; }
+  int H() const { return h; }
   // Returns the number of cells of the map.
-  int N() const { return w; }
+  int N() const { return n; }
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
   // Returns true if the given cell (x,y) is an obstacle.
   bool IsObstacle(int x, int y) const;
   // Register a directed graph and keep it updated synchronously with the quadtree map
   // A quadtree map can register multiple directed graphs.
-  // The given graph's Init method will be called right before the registeration.
   void RegisterGraph(IDirectedGraph *g);
   // ~~~~~~~~~~~~~ Gates and Nodes ~~~~~~~~~~~~~~~~~
   // Get the quadtree node for given cell (x,y).

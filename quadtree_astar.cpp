@@ -3,8 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>  // for std::function, std::greater
-#include <iostream>
-#include <queue>  // for std::priority_queue
+#include <queue>       // for std::priority_queue
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -106,17 +105,15 @@ int QuadtreeMap::Distance(int u, int v) const {
 
 bool QuadtreeMap::IsObstacle(int x, int y) const { return isObstacle(x, y); }
 
-void QuadtreeMap::RegisterGraph(IDirectedGraph *g) {
-  g->Init(n);
-  graphs.push_back(g);
-}
+void QuadtreeMap::RegisterGraph(IDirectedGraph *g) { graphs.push_back(g); }
 
 QdNode *QuadtreeMap::FindNode(int x, int y) const { return tree.Find(x, y); }
 
 bool QuadtreeMap::IsGate(QdNode *node, int u) const {
   auto it = gates.find(node);
   if (it == gates.end()) return false;
-  return it->second.find(u) != it->second.end();
+  auto &m = it->second;
+  return m.find(u) != m.end();
 }
 
 void QuadtreeMap::ForEachGateInNode(QdNode *node, std::function<void(int u)> &visitor) const {
@@ -407,6 +404,8 @@ void IPathFinder::ComputePathToNextRoute(int x1, int y1, int x2, int y2,
 AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : m(m) {
   // allocates memory
   f.resize(m.N()), from.resize(m.N()), vis.resize(m.N());
+  // Inits the graph.
+  g.Init(m.N());
 }
 
 IDirectedGraph *AStarPathFinder::GetGraph() { return &g; }
@@ -512,7 +511,6 @@ void AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollecto
   routes.push_back(t);
   int v = t;
   while (v != s) {
-    std::cout << m.UnpackX(v) << "," << m.UnpackY(v) << std::endl;
     v = from[v];
     routes.push_back(v);
   }
