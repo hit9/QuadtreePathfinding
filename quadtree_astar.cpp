@@ -85,7 +85,7 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
   // The quadtree node will always to split if its width and height exceeds
   // maxNodeWidth and maxNodeHeight.
   tree.SetSsf([this](int w, int h, int n) {
-    return (w <= this->maxNodeWidth && h <= this->maxNodeWidth) && (n == 0 || (w * h == n));
+    return (w <= this->maxNodeWidth && h <= this->maxNodeHeight) && (n == 0 || (w * h == n));
   });
   // handleRemovedNode and handleNewNode maintains the sections and gates on quadtree adjustments.
   tree.SetAfterLeafRemovedCallback([this](QdNode *node) { handleRemovedNode(node); });
