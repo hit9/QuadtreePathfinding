@@ -1,9 +1,42 @@
-// Hierarchical astar path finding on quadtree for equal-weighted 2D grid map.
-// Source Code: https://github.com/hit9/quadtree-astar
+// Hierarchical path finding on quadtree for equal-weighted 2D grid map.
+// Source Code: https://github.com/hit9/quadtree-path-finding
 // License: BSD. Version: 0.1.0. Author: Chao Wang, hit9[At]icloud.com.
+//
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
-// 1. An abstract graph is maintained dynamically based on a quadtree.
-// 2. A* performs path finding on an abstract graph.
+//
+// Concepts and Mechanisms
+// ~~~~~~~~~~~~~~~~~~~~~~~
+//
+// 1. A QuadtreeMap is a 2D grid map maintained by a quadtree.
+// 2. The quadtree splits the grid map into multiple sections.
+// 3. A section contains no obstacles or all obstacles.
+// 4. In a section without any obstacles, the shortest path inside it will be a straight line.
+// 4. There are multiple connections between adjacent quadtree nodes (aka sections).
+// 5. And a connection is composed of two adjacent gate cells, one on each side.
+// 6. All gates compose an abstract graph, and the path finder works on it.
+// 7. We first find the route cells (start, gates and target), and the fill the straight lines
+//    between them.
+//
+// Code Example
+// ~~~~~~~~~~~~
+//
+//   // Setup the map
+//   auto isObstacle = [](int x, int y) { return grid[x][y]; };
+//   auto distance = quadtree_astar::EuclideanDistance<10>;
+//   qdpf::QuadtreeMap m(w, h, isObstacle, distance);
+//
+//   // Setup the path finder.
+//   qdpf::AStarPathFinder pf(m);
+//
+//   // Bind them and build the tree.
+//   m.RegisterGraph(pf.GetGraph());
+//   m.Build();
+//
+//   // Compute routes
+//   pf.ComputeRoutes(x1,y1,x2,y2, collector);
+//
+//   // Fill the detailed path.
+//   pf.ComputePathToNextRoute()
 
 #ifndef QUADTREE_ASTAR_HPP
 #define QUADTREE_ASTAR_HPP
@@ -48,29 +81,106 @@ using CellCollector = std::function<void(int x, int y)>;
 // QdNodeCollector is the type of the function that collects quadtree nodes of the path finder.
 using QdNodeCollector = std::function<void(const QdNode *node)>;
 
-// PathFinder is an A* path finder on a quadtree maintained 2D grid map.
-class PathFinder {
+// NeighbourVertexVisitor is the type of the function that visit neighbor vertices of a given
+// vertex in a directed graph.
+using NeighbourVertexVisitor = std::function<void(int v, int cost)>;
+
+// IDirectedGraph is the interface of a directed graph.
+// It's a pure virtual class so that the subclasses should implement all the virtual methods.
+class IDirectedGraph {
+ public:
+  // Initialize the graph, where the n is the total number of vertices.
+  virtual void Init(int n) = 0;
+  // Add an edge from vertex u to v with given cost.
+  virtual void AddEdge(int u, int v, int cost) = 0;
+  // Remove an edge from vertex u to v.
+  virtual void RemoveEdge(int u, int v) = 0;
+  // Clears all edges starting from vertex.
+  virtual void ClearEdgeFrom(int u) = 0;
+  // Call given visitor function for each neighbor vertex of given vertex u.
+  virtual void ForEachNeighbours(int u, NeighbourVertexVisitor &visitor) const = 0;
+  // Clears all edges.
+  virtual void Clear() = 0;
+};
+
+// SimpleDirectedGraph is a simple implementation of IDirectedGraph.
+class SimpleDirectedGraph : public IDirectedGraph {
+ public:
+  void Init(int n) override;
+  void AddEdge(int u, int v, int cost) override;
+  void RemoveEdge(int u, int v) override;
+  void ClearEdgeFrom(int u) override;
+  void ForEachNeighbours(int u, NeighbourVertexVisitor &visitor) const override;
+  void Clear() override;
+
+ protected:
+  // edges[v] => { v =>  cost(u => v) }
+  std::vector<std::unordered_map<int, int>> edges;
+};
+
+// SimpleUnorderedMapDirectedGraph is a simple directed graph storing in an unordered_map.
+// This uses less memory than SimpleDirectedGraph for sparse graph.
+class SimpleUnorderedMapDirectedGraph : public IDirectedGraph {
+ public:
+  void Init(int n) override;
+  void AddEdge(int u, int v, int cost) override;
+  void RemoveEdge(int u, int v) override;
+  void ClearEdgeFrom(int u) override;
+  void ForEachNeighbours(int u, NeighbourVertexVisitor &visitor) const override;
+  void Clear() override;
+
+ protected:
+  // edges[v] => { v =>  cost(u => v) }
+  std::unordered_map<int, std::unordered_map<int, int>> edges;
+};
+
+// QuadtreeMap maintains a 2D grid map by a quadtree.
+class QuadtreeMap {
  public:
   // Parameters:
-  // w, h: width and height of the grid map.
-  // isObstacle(x,y) returns true if cell (x,y) is an obstacle, it should be fast.
-  // distance: the function calculates the distance between too cells.
-  // step: number of interval cells when picking gate cells.
-  // maxNodeWidth, maxNodeHeight: the max width and height of a quadtree node's rectangle.
-  PathFinder(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance, int step = 1,
-             int maxNodeWidth = -1, int maxNodeHeight = -1);
+  // * w, h: width and height of the grid map.
+  // * isObstacle(x,y) returns true if cell (x,y) is an obstacle, it should be fast.
+  // * distance: the function calculates the distance between too cells.
+  // * step: number of interval cells when picking gate cells.
+  // * maxNodeWidth, maxNodeHeight: the max width and height of a quadtree node's rectangle.
+  QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance, int step = 1,
+              int maxNodeWidth = -1, int maxNodeHeight = -1);
+  // ~~~~~~~~~~~~~~~ Cell ID Packing ~~~~~~~~~~~
+  // PackXY packs a cell position (x,y) to an integral id v.
+  int PackXY(int x, int y) const;
+  // UnpackXY unpacks a vertex id v to a two-dimensional position (x,y).
+  std::pair<int, int> UnpackXY(int v) const;
+  // Unpacks a cell id v's x axis.
+  int UnpackX(int v) const;
+  // Unpacks a cell id v's y axis.
+  int UnpackY(int v) const;
+  // ~~~~~~~~~~~~~ Basic methods ~~~~~~~~~~~~~~~~~
+  // Returns the width of the map.
+  int W() const { return w; }
+  // Returns the height of the map.
+  int H() const { return w; }
+  // Returns the number of cells of the map.
+  int N() const { return w; }
+  // Returns the distance between two vertices u and v.
+  int Distance(int u, int v) const;
+  // Returns true if the given cell (x,y) is an obstacle.
+  bool IsObstacle(int x, int y) const;
+  // Register a directed graph and keep it updated synchronously with the quadtree map
+  // A quadtree map can register multiple directed graphs.
+  // The given graph's Init method will be called right before the registeration.
+  void RegisterGraph(IDirectedGraph *g);
+  // ~~~~~~~~~~~~~ Gates and Nodes ~~~~~~~~~~~~~~~~~
+  // Get the quadtree node for given cell (x,y).
+  QdNode *FindNode(int x, int y) const;
+  // Is given cell u locating at given node a gate?
+  bool IsGate(QdNode *node, int u) const;
+  // Visit each gate cell inside a node and call given visitor with it.
+  void ForEachGateInNode(QdNode *node, std::function<void(int u)> &visitor) const;
+  // ~~~~~~~~~~~~~ Map Maintaining ~~~~~~~~~~~~~~~~~
   // Build the underlying quadtree right after construction.
   void Build();
   // Update should be called after any cell (x,y)'s value is changed.
   void Update(int x, int y);
-  // ComputeRoutes computes the route cells from (x1,y1) to (x2,y2) based on A* algorithm.
-  // The route cells are composed of three kinds of cells:
-  // start(x1,y1), gate cells in the middle and target(x2,y2).
-  void ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector);
-  // ComputePathToNextRoute computes the detail cells from current route (x1,y1) to next route
-  // (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected.
-  void ComputePathToNextRoute(int x1, int y1, int x2, int y2, CellCollector &collector) const;
-
   // ~~~~~~~~~~ Debuging Purpose ~~~~~~~~~~~~
   // Collects the quadtree's leaf nodes.
   void Nodes(QdNodeCollector &collector) const;
@@ -78,37 +188,17 @@ class PathFinder {
   void Gates(CellCollector &collector) const;
 
  private:
-  int packxy(int x, int y) const;
-  std::pair<int, int> unpackxy(int v) const;
-  int unpackx(int v) const;
-  int unpacky(int v) const;
-
-  int calcDistance(int u, int v) const;
-  void addVertex(QdNode *node, int v);
-  void removeVertex(QdNode *node, int v);
-  void addConnection(QdNode *aNode, int a, QdNode *bNode, int b);
-  void handleNewNode(QdNode *aNode);
-  void handleRemovedNode(QdNode *aNode);
-  void getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a, int &b);
-  void getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNode,
-                           std::vector<std::pair<int, int>> &ncs);
-
- private:
-  using P = std::pair<int, int>;
-
   const int w, h, step;
-  const int m;  // max of (w,h)
+  const int s;  // max side of (w,h)
   const int n;  // w x h
   const int maxNodeWidth, maxNodeHeight;
-
   ObstacleChecker isObstacle;
   DistanceCalculator distance;
-
   // the quadtree on this grid map.
   QdTree tree;
-  // ~~~~~~~ Graph ~~~~~~~~
-  // edges[v] => { v =>  cost(u => v) }
-  std::vector<std::unordered_map<int, int>> edges;
+  // the abstract graphs to update
+  std::vector<IDirectedGraph *> graphs;
+
   // ~~~~~~~ Gates (group by nodes) ~~~~~~~~
   // Stores all the gate cells, group by node.
   //
@@ -121,10 +211,73 @@ class PathFinder {
   //
   // Format: gates[aNode][a][b] => bNode.
   std::unordered_map<QdNode *, std::unordered_map<int, std::unordered_map<int, QdNode *>>> gates;
+
+  // ~~~~~~~~~~~~~~ Internals ~~~~~~~~~~~~~~~
+  void addVertex(QdNode *node, int v);
+  void removeVertex(QdNode *node, int v);
+  void addConnection(QdNode *aNode, int a, QdNode *bNode, int b);
+  void handleNewNode(QdNode *aNode);
+  void handleRemovedNode(QdNode *aNode);
+  void getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a, int &b) const;
+  void getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNode,
+                           std::vector<std::pair<int, int>> &ncs) const;
+};
+
+// IPathFinder is the base class for all path finder implementations.
+class IPathFinder {
+ public:
+  // ~~~~~~~~~~~~~~~~~~ API (must override)  ~~~~~~~~~~~~~~~~
+  // Returns the pointer to the path finder's graph .
+  virtual IDirectedGraph *GetGraph() = 0;
+  // ComputeRoutes computes the route cells from (x1,y1) to (x2,y2).
+  // The route cells are composed of three kinds of cells:
+  // start(x1,y1), gate cells in the middle and target(x2,y2).
+  virtual void ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) = 0;
+
+  // ~~~~~~~~~~~~~~~~~~ API (optional override)  ~~~~~~~~~~~~~~~~
+  // ComputePathToNextRoute computes the detail cells from current route (x1,y1) to next route
+  // (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected.
+  // The default implementation is based on Bresenham's line algorithm.
+  // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+  // Ref: https://members.chello.at/easyfilter/bresenham.html
+  virtual void ComputePathToNextRoute(int x1, int y1, int x2, int y2,
+                                      CellCollector &collector) const;
+};
+
+// AStarPathFinder implements path finding on a QuadtreeMap based on A* algorithm.
+class AStarPathFinder : public IPathFinder {
+ public:
+  AStarPathFinder(const QuadtreeMap &m);
+  // ~~~~~~~~~~~~~~ Implements IPathFinder ~~~~~~~~~~~~~~
+  IDirectedGraph *GetGraph() override;
+  void ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) override;
+
+ protected:
+  // P is a pair of integers.
+  using P = std::pair<int, int>;
+
+  const QuadtreeMap &m;
+  SimpleDirectedGraph g;
+  // tmp graph is to store edges between start/target and other gate cells.
+  SimpleUnorderedMapDirectedGraph tmp;
+
   // ~~~~~~~~ A* context (reusing for less reallocation) ~~~~~~~
   std::vector<int> f;
   std::vector<bool> vis;
   std::vector<int> from;
+
+  // BuildTmpGraph builds the temporary graph to store edges between start/target and other gates
+  // in the same nodes. This is a helper function.
+  // Parameters:
+  // 1. s and t are the ids of cell start and target.
+  // 2. (x1,y1) and (x2,y2) are the positions of cell start and target.
+  void BuildTmpGraph(int s, int t, int x1, int y1, int x2, int y2);
+  // ForEachNeighboursWithST iterates each neighbor vertex connecting from given vertex u.
+  // What's the deference with the graph's ForEachNeighbours is: it will check both the grid map's
+  // abstract graph and the temporary graph (storing the start,target info).
+  void ForEachNeighboursWithST(int u, NeighbourVertexVisitor &visitor) const;
+  // helper function to add a vertex u to the given node in the temporary graph.
+  void addVertexToTmpGraph(int u, QdNode *node);
 };
 
 }  // namespace quadtree_astar
