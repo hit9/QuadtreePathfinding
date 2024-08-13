@@ -23,10 +23,10 @@
 //   // Setup the map
 //   auto isObstacle = [](int x, int y) { return grid[x][y]; };
 //   auto distance = quadtree_astar::EuclideanDistance<10>;
-//   qdpf::QuadtreeMap m(w, h, isObstacle, distance);
+//   quadtree_astar::QuadtreeMap m(w, h, isObstacle, distance);
 //
 //   // Setup the path finder.
-//   qdpf::AStarPathFinder pf(m);
+//   quadtree_astar::AStarPathFinder pf(m);
 //
 //   // Bind them and build the tree.
 //   m.RegisterGraph(pf.GetGraph());
