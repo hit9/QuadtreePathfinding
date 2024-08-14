@@ -275,11 +275,11 @@ void Visualizer::reset() {
 void Visualizer::createsWallsOnInit() {
   spdlog::info("Creates walls in the middle on init");
 
-  float z = (float)options.w / options.createWallsOnInit;
+  float z = (float)options.w / (options.createWallsOnInit + 1);
   int w = options.h / 4;
   int x1 = 0, x2 = options.h - w;
-  for (int k = 0; k < options.createWallsOnInit; k++) {
-    int y = std::min(static_cast<int>(z * k) + 1, options.w - 1);
+  for (int k = 1; k <= options.createWallsOnInit; k++) {
+    int y = std::min(static_cast<int>(z * k), options.w - 1);
     for (int x = x1; x < x2; x++) {
       GRIDS[x][y] ^= 1;
       mp.Update(x, y);
