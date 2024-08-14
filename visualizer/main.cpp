@@ -12,10 +12,10 @@
 #include "quadtree_astar.hpp"
 
 // pixels per grid side.
-const int GRID_SIZE = 10;
+int GRID_SIZE = 16;
 
 // Max value of w and h.
-const int N = 300;
+const int N = 1000;
 
 int GRIDS[N][N];
 
@@ -121,6 +121,10 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
       .help("number of walls to create on init")
       .default_value(0)
       .store_into(options.createWallsOnInit);
+  program.add_argument("-gs", "--grid-cell-size-in-pixels")
+      .help("grid cell size in pixels")
+      .default_value(16)
+      .store_into(GRID_SIZE);
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& e) {
@@ -272,17 +276,19 @@ void Visualizer::createsWallsOnInit() {
   spdlog::info("Creates walls in the middle on init");
 
   float z = (float)options.w / options.createWallsOnInit;
-  int hole = 0;
-
+  int w = options.h / 4;
+  int x1 = 0, x2 = options.h - w;
   for (int k = 0; k < options.createWallsOnInit; k++) {
     int y = std::min(static_cast<int>(z * k) + 1, options.w - 1);
-    for (int x = 0; x < options.h; x++) {
-      if (x != hole) {
-        GRIDS[x][y] ^= 1;
-        mp.Update(x, y);
-      }
+    for (int x = x1; x < x2; x++) {
+      GRIDS[x][y] ^= 1;
+      mp.Update(x, y);
     }
-    hole = hole ? 0 : (options.h - 1);
+    if (x1 == 0)
+      x1 += w, x2 += w;
+    else {
+      x1 = 0, x2 -= w;
+    }
   }
 }
 
@@ -386,13 +392,13 @@ void Visualizer::draw() {
   auto drawRouteCell = [this](int x, int y) {
     SDL_Rect rect = {y * GRID_SIZE, x * GRID_SIZE, GRID_SIZE, GRID_SIZE};
     SDL_Rect inner = {rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2};
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // green
+    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
     SDL_RenderFillRect(renderer, &inner);
   };
   auto drawPathCell = [this](int x, int y) {
     SDL_Rect rect = {y * GRID_SIZE, x * GRID_SIZE, GRID_SIZE, GRID_SIZE};
     SDL_Rect inner = {rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2};
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // green
+    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
     SDL_RenderFillRect(renderer, &inner);
   };
 
