@@ -36,15 +36,14 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options);
 
 class Visualizer {
  public:
-  Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::AStarPathFinder& pf,
-             Options& options);
+  Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::IPathFinder* pf, Options& options);
   int Init();
   void Start();
   void Destroy();
 
  private:
   quadtree_astar::QuadtreeMap& mp;
-  quadtree_astar::AStarPathFinder& pf;
+  quadtree_astar::IPathFinder* pf;
   Options& options;
   SDL_Window* window;
   SDL_Renderer* renderer;
@@ -89,7 +88,7 @@ int main(int argc, char* argv[]) {
   // Path finder.
   quadtree_astar::AStarPathFinder pf(mp);
   // Visualizer.
-  Visualizer visualizer(mp, pf, options);
+  Visualizer visualizer(mp, &pf, options);
   if (visualizer.Init() != 0) return -1;
   visualizer.Start();
   visualizer.Destroy();
@@ -135,7 +134,7 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
   return 0;
 }
 
-Visualizer::Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::AStarPathFinder& pf,
+Visualizer::Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::IPathFinder* pf,
                        Options& options)
     : mp(mp), pf(pf), options(options) {}
 
@@ -165,7 +164,7 @@ int Visualizer::Init() {
   }
   // Build the quadtree map.
   spdlog::info("Visualizer init done");
-  mp.RegisterGraph(pf.GetGraph());
+  mp.RegisterGraph(pf->GetGraph());
   mp.Build();
   spdlog::info("quadtree-astar path finder build done");
 
@@ -310,7 +309,7 @@ void Visualizer::calculateRoutes() {
 
   startAt = std::chrono::high_resolution_clock::now();
   quadtree_astar::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
-  pf.ComputeRoutes(x1, y1, x2, y2, c);
+  pf->ComputeRoutes(x1, y1, x2, y2, c);
   endAt = std::chrono::high_resolution_clock::now();
   spdlog::info("routes calculated, cost {}us. please right click anywhere to show full path",
                std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count());
@@ -332,7 +331,7 @@ void Visualizer::calculatePath() {
     auto [x, y] = routes[0];
     for (int i = 1; i < routes.size(); i++) {
       auto [x2, y2] = routes[i];
-      pf.ComputePathToNextRoute(x, y, x2, y2, c);
+      pf->ComputePathToNextRoute(x, y, x2, y2, c);
       x = x2, y = y2;
     }
     endAt = std::chrono::high_resolution_clock::now();
