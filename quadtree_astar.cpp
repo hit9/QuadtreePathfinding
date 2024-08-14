@@ -398,21 +398,14 @@ void IPathFinder::ComputePathToNextRoute(int x1, int y1, int x2, int y2,
 }
 
 //////////////////////////////////////
-/// AStarPathFinder
+/// PathFinderHelper
 //////////////////////////////////////
 
-AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : m(m) {
-  // allocates memory
-  f.resize(m.N()), from.resize(m.N()), vis.resize(m.N());
-  // Inits the graph.
-  g.Init(m.N());
-}
-
-IDirectedGraph *AStarPathFinder::GetGraph() { return &g; }
+PathFinderHelper::PathFinderHelper(const QuadtreeMap &m, IDirectedGraph *g) : m(m), g(g) {}
 
 // Add given vertex u to locating at given node the temporarily graph tmp.
 // It will establish edges between u and all gate cells in node.
-void AStarPathFinder::addVertexToTmpGraph(int u, QdNode *node) {
+void PathFinderHelper::addVertexToTmpGraph(int u, QdNode *node) {
   std::function<void(int)> visitor = [this, u](int v) {
     if (u != v) {
       int dist = m.Distance(u, v);
@@ -423,7 +416,7 @@ void AStarPathFinder::addVertexToTmpGraph(int u, QdNode *node) {
   m.ForEachGateInNode(node, visitor);
 }
 
-void AStarPathFinder::BuildTmpGraph(int s, int t, int x1, int y1, int x2, int y2) {
+void PathFinderHelper::BuildTmpGraph(int s, int t, int x1, int y1, int x2, int y2) {
   // Find the quadtree node where the s and t locate.
   auto sNode = m.FindNode(x1, y1), tNode = m.FindNode(x2, y2);
 
@@ -445,10 +438,23 @@ void AStarPathFinder::BuildTmpGraph(int s, int t, int x1, int y1, int x2, int y2
   }
 }
 
-void AStarPathFinder::ForEachNeighboursWithST(int u, NeighbourVertexVisitor &visitor) const {
-  g.ForEachNeighbours(u, visitor);
+void PathFinderHelper::ForEachNeighboursWithST(int u, NeighbourVertexVisitor &visitor) const {
+  g->ForEachNeighbours(u, visitor);
   tmp.ForEachNeighbours(u, visitor);
 }
+
+//////////////////////////////////////
+/// AStarPathFinder
+//////////////////////////////////////
+
+AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : PathFinderHelper(m, &g) {
+  // allocates memory
+  f.resize(m.N()), from.resize(m.N()), vis.resize(m.N());
+  // Inits the graph.
+  g.Init(m.N());
+}
+
+IDirectedGraph *AStarPathFinder::GetGraph() { return &g; }
 
 void AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) {
   // Can't route to or start from obstacles.
@@ -489,6 +495,7 @@ void AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollecto
     if (u == t) break;  // found
     if (vis[u]) continue;
     vis[u] = true;
+    neighbours.clear();
     ForEachNeighboursWithST(u, visitor);
     for (const auto [v, c] : neighbours) {
       auto g = f[u] + c;
@@ -500,7 +507,6 @@ void AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollecto
         from[v] = u;
       }
     }
-    neighbours.clear();
   }
 
   // Not found.

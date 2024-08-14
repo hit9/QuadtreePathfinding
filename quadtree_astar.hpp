@@ -238,33 +238,23 @@ class IPathFinder {
   // ComputePathToNextRoute computes the detail cells from current route (x1,y1) to next route
   // (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected.
   // The default implementation is based on Bresenham's line algorithm.
+  // You can override it with a custom implementation.
   // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
   // Ref: https://members.chello.at/easyfilter/bresenham.html
   virtual void ComputePathToNextRoute(int x1, int y1, int x2, int y2,
                                       CellCollector &collector) const;
 };
 
-// AStarPathFinder implements path finding on a QuadtreeMap based on A* algorithm.
-class AStarPathFinder : public IPathFinder {
+// PathFinderHelper is a mixin class to provide some util functions.
+class PathFinderHelper {
  public:
-  AStarPathFinder(const QuadtreeMap &m);
-  // ~~~~~~~~~~~~~~ Implements IPathFinder ~~~~~~~~~~~~~~
-  IDirectedGraph *GetGraph() override;
-  void ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) override;
+  PathFinderHelper(const QuadtreeMap &m, IDirectedGraph *g);
 
  protected:
-  // P is a pair of integers.
-  using P = std::pair<int, int>;
-
   const QuadtreeMap &m;
-  SimpleDirectedGraph g;
+  IDirectedGraph *g;
   // tmp graph is to store edges between start/target and other gate cells.
   SimpleUnorderedMapDirectedGraph tmp;
-
-  // ~~~~~~~~ A* context (reusing for less reallocation) ~~~~~~~
-  std::vector<int> f;
-  std::vector<bool> vis;
-  std::vector<int> from;
 
   // BuildTmpGraph builds the temporary graph to store edges between start/target and other gates
   // in the same nodes. This is a helper function.
@@ -278,6 +268,26 @@ class AStarPathFinder : public IPathFinder {
   void ForEachNeighboursWithST(int u, NeighbourVertexVisitor &visitor) const;
   // helper function to add a vertex u to the given node in the temporary graph.
   void addVertexToTmpGraph(int u, QdNode *node);
+};
+
+// AStarPathFinder implements path finding on a QuadtreeMap based on A* algorithm.
+class AStarPathFinder : public IPathFinder, public PathFinderHelper {
+ public:
+  AStarPathFinder(const QuadtreeMap &m);
+  // ~~~~~~~~~~~~~~ Implements IPathFinder ~~~~~~~~~~~~~~
+  IDirectedGraph *GetGraph() override;
+  void ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) override;
+
+ protected:
+  // P is a pair of integers.
+  using P = std::pair<int, int>;
+
+  SimpleDirectedGraph g;
+
+  // ~~~~~~~~ A* context (reusing for less reallocation) ~~~~~~~
+  std::vector<int> f;
+  std::vector<bool> vis;
+  std::vector<int> from;
 };
 
 }  // namespace quadtree_astar
