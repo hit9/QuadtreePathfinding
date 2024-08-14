@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <argparse/argparse.hpp>
 #include <chrono>
 #include <cstring>
@@ -11,7 +12,7 @@
 #include "quadtree_astar.hpp"
 
 // pixels per grid side.
-const int GRID_SIZE = 24;
+const int GRID_SIZE = 10;
 
 // Max value of w and h.
 const int N = 300;
@@ -26,6 +27,7 @@ using Cell = std::pair<int, int>;  // {x,y}
 struct Options {
   int w = 10, h = 10, step = 1;
   int maxNodeWidth = -1, maxNodeHeight = -1;
+  int createWallsOnInit = 0;
 };
 
 // Parse options from command line.
@@ -71,6 +73,7 @@ class Visualizer {
   void calculateRoutes();
   void calculatePath();
   void reset();
+  void createsWallsOnInit();
 };
 
 int main(int argc, char* argv[]) {
@@ -115,6 +118,10 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
       .help("max node height")
       .default_value(-1)
       .store_into(options.maxNodeHeight);
+  program.add_argument("-cw", "--create-walls")
+      .help("number of walls to create on init")
+      .default_value(0)
+      .store_into(options.createWallsOnInit);
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& e) {
@@ -162,6 +169,7 @@ int Visualizer::Init() {
   mp.Build();
   spdlog::info("quadtree-astar path finder build done");
 
+  if (options.createWallsOnInit > 0) createsWallsOnInit();
   return 0;
 }
 
@@ -259,6 +267,24 @@ void Visualizer::reset() {
   path.clear();
   routes.clear();
   spdlog::info("reset");
+}
+
+void Visualizer::createsWallsOnInit() {
+  spdlog::info("Creates walls in the middle on init");
+
+  float z = (float)options.w / options.createWallsOnInit;
+  int hole = 0;
+
+  for (int k = 0; k < options.createWallsOnInit; k++) {
+    int y = std::min(static_cast<int>(z * k) + 1, options.w - 1);
+    for (int x = 0; x < options.h; x++) {
+      if (x != hole) {
+        GRIDS[x][y] ^= 1;
+        mp.Update(x, y);
+      }
+    }
+    hole = hole ? 0 : (options.h - 1);
+  }
 }
 
 void Visualizer::recordToInvertObstacelCell(int x, int y) {
