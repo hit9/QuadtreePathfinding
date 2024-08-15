@@ -144,6 +144,13 @@ class SimpleUnorderedMapDirectedGraph : public IDirectedGraph {
   std::unordered_map<int, std::unordered_map<int, int>> edges;
 };
 
+// StepFunction is the type of a function to specific a dynamic gate picking step.
+// The argument length is the length (number of cells) of the adjacent side of two neighbor nodes.
+// We should make sure the return value is always > 0.
+// An example: [](int length) { return length / 8 + 1; }
+// For this example, we use larger step on large rectangles, and smaller step on small rectangles.
+using StepFunction = std::function<int(int length)>;
+
 // QuadtreeMap maintains a 2D grid map by a quadtree.
 class QuadtreeMap {
  public:
@@ -152,9 +159,11 @@ class QuadtreeMap {
   // * isObstacle(x,y) returns true if cell (x,y) is an obstacle, it should be fast.
   // * distance: the function calculates the distance between two cells.
   // * step: number of interval cells when picking gate cells at N(0)/E(1)/S(2)/W(3) sides.
+  // * stepf: dynamic step function, checkout StepFunction's document. Use it if it's set,
+  //   otherwise use the constant step instead.
   // * maxNodeWidth, maxNodeHeight: the max width and height of a quadtree node's rectangle.
   QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance, int step = 1,
-              int maxNodeWidth = -1, int maxNodeHeight = -1);
+              StepFunction stepf = nullptr, int maxNodeWidth = -1, int maxNodeHeight = -1);
   // ~~~~~~~~~~~~~~~ Cell ID Packing ~~~~~~~~~~~
   // PackXY packs a cell position (x,y) to an integral id v.
   int PackXY(int x, int y) const;
@@ -203,6 +212,7 @@ class QuadtreeMap {
   const int maxNodeWidth, maxNodeHeight;
   ObstacleChecker isObstacle;
   DistanceCalculator distance;
+  StepFunction stepf;
   // the quadtree on this grid map.
   QdTree tree;
   // the abstract graphs to update

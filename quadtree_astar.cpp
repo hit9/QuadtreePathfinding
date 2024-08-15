@@ -65,10 +65,11 @@ void SimpleUnorderedMapDirectedGraph::Clear() { edges.clear(); }
 //////////////////////////////////////
 
 QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance,
-                         int step, int maxNodeWidth, int maxNodeHeight)
+                         int step, StepFunction stepf, int maxNodeWidth, int maxNodeHeight)
     : w(w),
       h(h),
       step(step),
+      stepf(stepf),
       s(std::max(w, h)),
       n(w * h),
       maxNodeWidth(maxNodeWidth == -1 ? w : maxNodeWidth),
@@ -146,7 +147,7 @@ void QuadtreeMap::Build() {
       // On the first build, we care only about the obstacles.
       // the grid map will be splited into multiple sections,
       // and gates will be created for the first time.
-      if (isObstacle(x, y)) tree.Add(x, y, true);
+      if (isObstacle(x, y)) Update(x, y);
     }
   }
 }
@@ -352,22 +353,27 @@ void QuadtreeMap::getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a
 //           S:2
 void QuadtreeMap::getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNode,
                                       std::vector<std::pair<int, int>> &ncs) const {
-  int x1, y1, x2, y2;
+  int x1, y1, x2, y2, d;
   switch (direction) {
     case 0:  // N
       x1 = aNode->x1, y1 = std::max(aNode->y1, bNode->y1), y2 = std::min(aNode->y2, bNode->y2);
-      for (int y = y1; y <= y2; y += step) ncs.push_back({PackXY(x1, y), PackXY(x1 - 1, y)});
+      d = stepf == nullptr ? step : stepf(y2 - y1 + 1);
+      for (int y = y1; y <= y2; y += d) ncs.push_back({PackXY(x1, y), PackXY(x1 - 1, y)});
       break;
     case 1:  // E
       y2 = aNode->y2, x1 = std::max(aNode->x1, bNode->x1), x2 = std::min(aNode->x2, bNode->x2);
-      for (int x = x1; x <= x2; x += step) ncs.push_back({PackXY(x, y2), PackXY(x, y2 + 1)});
+      d = stepf == nullptr ? step : stepf(x2 - x1 + 1);
+      for (int x = x1; x <= x2; x += d) ncs.push_back({PackXY(x, y2), PackXY(x, y2 + 1)});
       break;
     case 2:  // S
       x2 = aNode->x2, y1 = std::max(aNode->y1, bNode->y1), y2 = std::min(aNode->y2, bNode->y2);
-      for (int y = y1; y <= y2; y += step) ncs.push_back({PackXY(x2, y), PackXY(x2 + 1, y)});
+      d = stepf == nullptr ? step : stepf(y2 - y1 + 1);
+      for (int y = y1; y <= y2; y += d) ncs.push_back({PackXY(x2, y), PackXY(x2 + 1, y)});
+      break;
     case 3:  // W
       y1 = aNode->y1, x1 = std::max(aNode->x1, bNode->x1), x2 = std::min(aNode->x2, bNode->x2);
-      for (int x = x1; x <= x2; x += step) ncs.push_back({PackXY(x, y1), PackXY(x, y1 - 1)});
+      d = stepf == nullptr ? step : stepf(x2 - x1 + 1);
+      for (int x = x1; x <= x2; x += d) ncs.push_back({PackXY(x, y1), PackXY(x, y1 - 1)});
       break;
   }
 }

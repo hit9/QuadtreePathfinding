@@ -25,7 +25,7 @@ int TO_INVERT_OBSTACLES[N][N];
 using Cell = std::pair<int, int>;  // {x,y}
 
 struct Options {
-  int w = 10, h = 10, step = 1;
+  int w = 10, h = 10, step = -1;
   int maxNodeWidth = -1, maxNodeHeight = -1;
   int createWallsOnInit = 0;
 };
@@ -99,10 +99,11 @@ int main(int argc, char* argv[]) {
   Options options;
   if (ParseOptionsFromCommandline(argc, argv, options) != 0) return -1;
   // Quadtree map.
-  quadtree_astar::QuadtreeMap mp(
-      options.w, options.h, [](int x, int y) -> bool { return GRIDS[x][y]; },
-      quadtree_astar::EuclideanDistance<10>, options.step, options.maxNodeWidth,
-      options.maxNodeHeight);
+  auto distance = quadtree_astar::EuclideanDistance<10>;
+  auto isObstacle = [](int x, int y) -> bool { return GRIDS[x][y]; };
+  auto stepf = options.step != -1 ? nullptr : [](int z) -> int { return z / 8 + 1; };
+  quadtree_astar::QuadtreeMap mp(options.w, options.h, isObstacle, distance, options.step, stepf,
+                                 options.maxNodeWidth, options.maxNodeHeight);
   // Path finder.
   quadtree_astar::AStarPathFinder pf(mp);
   // Visualizer.
@@ -124,8 +125,8 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
       .default_value(8)
       .store_into(options.h);
   program.add_argument("-s", "--step")
-      .help("step to pick gates")
-      .default_value(3)
+      .help("step to pick gates. we use a stepf by default")
+      .default_value(-1)
       .store_into(options.step);
   program.add_argument("-wn", "--max-node-width")
       .help("max node width")
