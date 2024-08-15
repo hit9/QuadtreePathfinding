@@ -15,9 +15,10 @@ and then build a graph on top to perform A* search.
 Demo
 ----
 
-| <!-- -->                                           | <!-- -->                                         |
-| -------------------------------------------------- | ------------------------------------------------ |
-| gate step=1 ![](misc/quadtree-astar-step-1.gif)    |  gate step=3 ![](misc/quadtree-astar-step-1.gif) |
+| <!-- -->                                           |
+| -------------------------------------------------- |
+| gate step=1 ![](misc/quadtree-astar-step-1.gif)    |
+| gate step=3 ![](misc/quadtree-astar-step-3.gif)    |
 
 
 Concepts and Mechanisms
@@ -36,7 +37,7 @@ Concepts and Mechanisms
 Code Example
 ------------
 
-Checks [simple-example](main.cpp).
+Checks [simple-example](simple-example/main.cpp).
 
 Visualizer
 ----------
@@ -60,6 +61,7 @@ Operations:
 1. Click the left mouse button to add or remove obstacles, drag the left-mouse for batch.
 2. Click the right mouse button to set start and target cells.
    Right click again to show the routes, and again to show the path.
+
 
 License
 -------
