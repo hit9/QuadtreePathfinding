@@ -15,7 +15,7 @@
 int GRID_SIZE = 16;
 
 // Max value of w and h.
-const int N = 1000;
+const int N = 5000;
 
 int GRIDS[N][N];
 
@@ -36,17 +36,30 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options);
 
 class Visualizer {
  public:
-  Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::IPathFinder* pf, Options& options);
+  Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::AStarPathFinder* pf,
+             Options& options);
   int Init();
   void Start();
   void Destroy();
 
  private:
   quadtree_astar::QuadtreeMap& mp;
-  quadtree_astar::IPathFinder* pf;
+  quadtree_astar::AStarPathFinder* pf;
   Options& options;
   SDL_Window* window;
   SDL_Renderer* renderer;
+
+  // the weight and height of the window.
+  int windowW, windowH;
+  // width and height in pixels of the map.
+  int mapW, mapH;
+  // camera's left-up position, the camera is the window
+  int cameraX = 0;
+  int cameraY = 0;
+  // total scrolls in x and y during a frame.
+  int scrollDx = 0;
+  int scrollDy = 0;
+
   // start(x1,y1) and target (x2,y2)
   int x1, y1, x2, y2;
 
@@ -66,6 +79,11 @@ class Visualizer {
   bool isMouseDown = false;
 
   void draw();
+  void handleCameraMovements();
+  bool isInsideCamera(int x, int y);
+  bool isOverlapsCamera(const SDL_Rect& rect);
+  void updateRectRelativeToCamera(SDL_Rect& rect);
+  std::pair<int, int> getCellAtMousePosition(SDL_Event& e) const;
   int handleInputs();
   void handleInvertObstacles();
   void recordToInvertObstacelCell(int x, int y);
@@ -138,9 +156,9 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
   return 0;
 }
 
-Visualizer::Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::IPathFinder* pf,
+Visualizer::Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::AStarPathFinder* pf,
                        Options& options)
-    : mp(mp), pf(pf), options(options) {}
+    : mp(mp), pf(pf), options(options), mapW(options.w * GRID_SIZE), mapH(options.h * GRID_SIZE) {}
 
 int Visualizer::Init() {
   // Init SDL
@@ -148,11 +166,19 @@ int Visualizer::Init() {
     spdlog::error("SDL init error: {}", SDL_GetError());
     return -1;
   }
+  // Get display bounds
+  SDL_Rect displayBounds;
+  if (SDL_GetDisplayBounds(0, &displayBounds) != 0) {
+    printf("Failed to get display bounds: %s\n", SDL_GetError());
+    return 1;
+  }
+
+  windowW = std::min(mapW, displayBounds.w);
+  windowH = std::min(mapH, displayBounds.h);
+
   // Creates window.
-  int window_w = options.w * GRID_SIZE;
-  int window_h = options.h * GRID_SIZE;
   window = SDL_CreateWindow("quadtree-astar visualizer", SDL_WINDOWPOS_CENTERED,
-                            SDL_WINDOWPOS_CENTERED, window_w, window_h, SDL_WINDOW_SHOWN);
+                            SDL_WINDOWPOS_CENTERED, windowW, windowH, SDL_WINDOW_SHOWN);
   if (window == nullptr) {
     spdlog::error("Create window error: {}", SDL_GetError());
     SDL_Quit();
@@ -186,7 +212,8 @@ void Visualizer::Start() {
   while (true) {
     // quit on -1
     if (handleInputs() == -1) break;
-
+    // camera
+    handleCameraMovements();
     // Background: white
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
@@ -198,12 +225,13 @@ void Visualizer::Start() {
 }
 
 // helper function to get mouse position.
-std::pair<int, int> GetMousePosition(SDL_Event& e) {
-  return {e.button.y / GRID_SIZE, e.button.x / GRID_SIZE};
+std::pair<int, int> Visualizer::getCellAtMousePosition(SDL_Event& e) const {
+  return {(e.button.y + cameraY) / GRID_SIZE, (e.button.x + cameraX) / GRID_SIZE};
 }
 
 int Visualizer::handleInputs() {
   SDL_Event e;
+  scrollDx = 0, scrollDy = 0;
   while (SDL_PollEvent(&e)) {
     switch (e.type) {
       case SDL_QUIT:  // quit
@@ -218,11 +246,21 @@ int Visualizer::handleInputs() {
           reset();
           return 0;
         }
+        if (e.key.keysym.sym == SDLK_UP || e.key.keysym.sym == SDLK_k) scrollDy -= 50;
+        if (e.key.keysym.sym == SDLK_DOWN || e.key.keysym.sym == SDLK_j) scrollDy += 50;
+        if (e.key.keysym.sym == SDLK_LEFT || e.key.keysym.sym == SDLK_h) scrollDx -= 50;
+        if (e.key.keysym.sym == SDLK_RIGHT || e.key.keysym.sym == SDLK_l) scrollDx += 50;
+        break;
+      case SDL_MOUSEWHEEL:
+        if (e.wheel.x > 0) scrollDx -= 50;  // left
+        if (e.wheel.x < 0) scrollDx += 50;  // right
+        if (e.wheel.y > 0) scrollDy -= 50;  // up
+        if (e.wheel.y < 0) scrollDy += 50;  // down
         break;
       case SDL_MOUSEBUTTONUP:
         if (e.button.button == SDL_BUTTON_LEFT) {
           if (isMouseDown) {
-            auto [x, y] = GetMousePosition(e);
+            auto [x, y] = getCellAtMousePosition(e);
             recordToInvertObstacelCell(x, y);
             handleInvertObstacles();
             isMouseDown = false;
@@ -237,10 +275,10 @@ int Visualizer::handleInputs() {
       case SDL_MOUSEBUTTONDOWN:
         if (e.button.button == SDL_BUTTON_LEFT) {  // Invert obstacles.
           isMouseDown = true;
-          auto [x, y] = GetMousePosition(e);
+          auto [x, y] = getCellAtMousePosition(e);
           recordToInvertObstacelCell(x, y);
         } else if (e.button.button == SDL_BUTTON_RIGHT) {  // Set start/target
-          auto [x, y] = GetMousePosition(e);
+          auto [x, y] = getCellAtMousePosition(e);
           if (state == 0) {  // waiting start point
             reset();
             x1 = x, y1 = y;
@@ -292,6 +330,7 @@ void Visualizer::createsWallsOnInit() {
   }
 }
 
+// record cell (x,y) to be inverted the obstacle value.
 void Visualizer::recordToInvertObstacelCell(int x, int y) {
   if (x >= 0 && x < options.h && y >= 0 && y < options.w && !TO_INVERT_OBSTACLES[x][y]) {
     TO_INVERT_OBSTACLES[x][y] = 1;
@@ -346,6 +385,33 @@ void Visualizer::calculatePath() {
   }
 }
 
+bool Visualizer::isInsideCamera(int x, int y) {
+  return (x >= 0 && x <= windowW && y >= 0 && y <= windowH);
+}
+
+bool Visualizer::isOverlapsCamera(const SDL_Rect& rect) {
+  return isInsideCamera(rect.x, rect.y) || isInsideCamera(rect.x + rect.w, rect.y + rect.h);
+}
+
+void Visualizer::handleCameraMovements() {
+  if (scrollDx == 0 && scrollDy == 0) return;
+  cameraX += scrollDx;
+  cameraY += scrollDy;
+  // bounds check.
+  cameraX = std::max(0, cameraX);
+  cameraY = std::max(0, cameraY);
+  cameraX = std::min(cameraX, mapW - windowW);
+  cameraY = std::min(cameraY, mapH - windowH);
+  // clear after the scroll applied.
+  scrollDx = 0;
+  scrollDy = 0;
+}
+
+void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
+  rect.x -= cameraX;
+  rect.y -= cameraY;
+}
+
 // 1. Draw grid border and obstacles.
 // 2. Draw gates.
 // 3. Draw quadtree leaf node borders.
@@ -353,23 +419,36 @@ void Visualizer::calculatePath() {
 // 5. Show cells to invert on mouse down.
 void Visualizer::draw() {
   // Grids and obstacles.
+  // (i,j) is the cell's position.
+  // (x,y) is the grid in pixel (in SDL coordinates).
   for (int i = 0, y = 0; i < options.h; i++, y += GRID_SIZE) {
     for (int j = 0, x = 0; j < options.w; j++, x += GRID_SIZE) {
       SDL_Rect rect = {x, y, GRID_SIZE, GRID_SIZE};
-      SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);  // light gray
-      SDL_RenderDrawRect(renderer, &rect);
+      updateRectRelativeToCamera(rect);
+      if (isOverlapsCamera(rect)) {
+        SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);  // light gray
+        SDL_RenderDrawRect(renderer, &rect);
+      }
       if (GRIDS[i][j]) {
         SDL_Rect inner = {x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2};
-        SDL_SetRenderDrawColor(renderer, 64, 64, 64, 255);  // gray
-        SDL_RenderFillRect(renderer, &inner);
+        updateRectRelativeToCamera(inner);
+        if (isOverlapsCamera(inner)) {
+          SDL_SetRenderDrawColor(renderer, 64, 64, 64, 255);  // gray
+          SDL_RenderFillRect(renderer, &inner);
+        }
       }
     }
   }
   // Gates.
   quadtree_astar::CellCollector c2 = [this](int x, int y) {
-    SDL_Rect rect = {y * GRID_SIZE + 1, x * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2};
-    SDL_SetRenderDrawColor(renderer, 173, 216, 230, 255);  // light blue
-    SDL_RenderFillRect(renderer, &rect);
+    int x1 = y * GRID_SIZE + 1;
+    int y1 = x * GRID_SIZE + 1;
+    SDL_Rect rect = {x1, y1, GRID_SIZE - 2, GRID_SIZE - 2};
+    updateRectRelativeToCamera(rect);
+    if (isOverlapsCamera(rect)) {
+      SDL_SetRenderDrawColor(renderer, 173, 216, 230, 255);  // light blue
+      SDL_RenderFillRect(renderer, &rect);
+    }
   };
 
   mp.Gates(c2);
@@ -382,24 +461,32 @@ void Visualizer::draw() {
     // Outer liner rectangle (border width 2)
     SDL_Rect rect1 = {x, y, w, h};
     SDL_Rect rect2 = {x + 1, y + 1, w - 2, h - 2};
+    updateRectRelativeToCamera(rect1);
+    updateRectRelativeToCamera(rect2);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // black
-    SDL_RenderDrawRect(renderer, &rect1);
-    SDL_RenderDrawRect(renderer, &rect2);
+    if (isOverlapsCamera(rect1)) SDL_RenderDrawRect(renderer, &rect1);
+    if (isOverlapsCamera(rect2)) SDL_RenderDrawRect(renderer, &rect2);
   };
   mp.Nodes(c1);
 
   // Routes and path.
   auto drawRouteCell = [this](int x, int y) {
-    SDL_Rect rect = {y * GRID_SIZE, x * GRID_SIZE, GRID_SIZE, GRID_SIZE};
-    SDL_Rect inner = {rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2};
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
-    SDL_RenderFillRect(renderer, &inner);
+    SDL_Rect tmp = {y * GRID_SIZE, x * GRID_SIZE, GRID_SIZE, GRID_SIZE};
+    SDL_Rect inner = {tmp.x + 1, tmp.y + 1, tmp.w - 2, tmp.h - 2};
+    updateRectRelativeToCamera(inner);
+    if (isOverlapsCamera(inner)) {
+      SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
+      SDL_RenderFillRect(renderer, &inner);
+    }
   };
   auto drawPathCell = [this](int x, int y) {
-    SDL_Rect rect = {y * GRID_SIZE, x * GRID_SIZE, GRID_SIZE, GRID_SIZE};
-    SDL_Rect inner = {rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2};
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
-    SDL_RenderFillRect(renderer, &inner);
+    SDL_Rect tmp = {y * GRID_SIZE, x * GRID_SIZE, GRID_SIZE, GRID_SIZE};
+    SDL_Rect inner = {tmp.x + 1, tmp.y + 1, tmp.w - 2, tmp.h - 2};
+    updateRectRelativeToCamera(inner);
+    if (isOverlapsCamera(inner)) {
+      SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
+      SDL_RenderFillRect(renderer, &inner);
+    }
   };
 
   switch (state) {
@@ -417,7 +504,10 @@ void Visualizer::draw() {
   // Draw cells to invert.
   for (auto [x, y] : toInverts) {
     SDL_Rect inner = {y * GRID_SIZE + 1, x * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2};
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // red
-    SDL_RenderFillRect(renderer, &inner);
+    updateRectRelativeToCamera(inner);
+    if (isOverlapsCamera(inner)) {
+      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // red
+      SDL_RenderFillRect(renderer, &inner);
+    }
   }
 }
