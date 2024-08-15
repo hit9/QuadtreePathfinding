@@ -1,7 +1,6 @@
 // Hierarchical path finding on quadtree for equal-weighted 2D grid map.
-// Source Code: https://github.com/hit9/quadtree-astar
 // License: BSD. Version: 0.1.0. Author: Chao Wang, hit9[At]icloud.com.
-//
+// Source Code: https://github.com/hit9/quadtree-astar
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 //
 // Concepts and Mechanisms
@@ -17,6 +16,16 @@
 // 7. We first find the route cells (start, gates and target), and the fill the straight lines
 //    between them.
 //
+// Coordinates
+// ~~~~~~~~~~~
+//    0      w
+//  0 +---------------> y
+//    |
+// h  |
+//    |
+//    v
+//    x
+//
 // Code Example
 // ~~~~~~~~~~~~
 //
@@ -25,7 +34,7 @@
 //   auto distance = quadtree_astar::EuclideanDistance<10>;
 //   quadtree_astar::QuadtreeMap m(w, h, isObstacle, distance);
 //
-//   // Setup the path finder.
+//   // Setup an A* path finder.
 //   quadtree_astar::AStarPathFinder pf(m);
 //
 //   // Bind them and build the tree.
@@ -60,7 +69,7 @@ using QdNode = quadtree::Node<bool>;
 // cell (x,y) is an obstacle.
 using ObstacleChecker = std::function<bool(int x, int y)>;
 
-// Euclidean distance calculator with given cost unit.
+// Euclidean distance calculator with a given cost unit.
 template <int CostUnit>
 int EuclideanDistance(int x1, int y1, int x2, int y2) {
   return std::floor(std::hypot(abs(x1 - x2), abs(y1 - y2)) * CostUnit);
@@ -90,13 +99,13 @@ using NeighbourVertexVisitor = std::function<void(int v, int cost)>;
 class IDirectedGraph {
  public:
   // Initialize the graph, where the n is the total number of vertices.
-  // It's called by a path finder.
+  // This method should be called by a path finder.
   virtual void Init(int n) = 0;
   // Add an edge from vertex u to v with given cost.
   virtual void AddEdge(int u, int v, int cost) = 0;
   // Remove an edge from vertex u to v.
   virtual void RemoveEdge(int u, int v) = 0;
-  // Clears all edges starting from vertex.
+  // Clears all edges starting from vertex u.
   virtual void ClearEdgeFrom(int u) = 0;
   // Call given visitor function for each neighbor vertex of given vertex u.
   virtual void ForEachNeighbours(int u, NeighbourVertexVisitor &visitor) const = 0;
@@ -141,8 +150,8 @@ class QuadtreeMap {
   // Parameters:
   // * w, h: width and height of the grid map.
   // * isObstacle(x,y) returns true if cell (x,y) is an obstacle, it should be fast.
-  // * distance: the function calculates the distance between too cells.
-  // * step: number of interval cells when picking gate cells.
+  // * distance: the function calculates the distance between two cells.
+  // * step: number of interval cells when picking gate cells at N(0)/E(1)/S(2)/W(3) sides.
   // * maxNodeWidth, maxNodeHeight: the max width and height of a quadtree node's rectangle.
   QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance, int step = 1,
               int maxNodeWidth = -1, int maxNodeHeight = -1);
@@ -214,7 +223,6 @@ class QuadtreeMap {
 
   // ~~~~~~~~~~~~~~ Internals ~~~~~~~~~~~~~~~
   void addVertex(QdNode *node, int v);
-  void removeVertex(QdNode *node, int v);
   void addConnection(QdNode *aNode, int a, QdNode *bNode, int b);
   void handleNewNode(QdNode *aNode);
   void handleRemovedNode(QdNode *aNode);
@@ -226,15 +234,14 @@ class QuadtreeMap {
 // IPathFinder is the base class for all path finder implementations.
 class IPathFinder {
  public:
-  // ~~~~~~~~~~~~~~~~~~ API (must override)  ~~~~~~~~~~~~~~~~
   // Returns the pointer to the path finder's graph .
   virtual IDirectedGraph *GetGraph() = 0;
-  // ComputeRoutes computes the route cells from (x1,y1) to (x2,y2).
-  // The route cells are composed of three kinds of cells:
-  // start(x1,y1), gate cells in the middle and target(x2,y2).
-  virtual void ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) = 0;
+};
 
-  // ~~~~~~~~~~~~~~~~~~ API (optional override)  ~~~~~~~~~~~~~~~~
+// PathFinderHelper is a mixin class to provide some util functions.
+class PathFinderHelper {
+ public:
+  PathFinderHelper(const QuadtreeMap &m, IDirectedGraph *g);
   // ComputePathToNextRoute computes the detail cells from current route (x1,y1) to next route
   // (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected.
   // The default implementation is based on Bresenham's line algorithm.
@@ -243,12 +250,6 @@ class IPathFinder {
   // Ref: https://members.chello.at/easyfilter/bresenham.html
   virtual void ComputePathToNextRoute(int x1, int y1, int x2, int y2,
                                       CellCollector &collector) const;
-};
-
-// PathFinderHelper is a mixin class to provide some util functions.
-class PathFinderHelper {
- public:
-  PathFinderHelper(const QuadtreeMap &m, IDirectedGraph *g);
 
  protected:
   const QuadtreeMap &m;
@@ -276,7 +277,13 @@ class AStarPathFinder : public IPathFinder, public PathFinderHelper {
   AStarPathFinder(const QuadtreeMap &m);
   // ~~~~~~~~~~~~~~ Implements IPathFinder ~~~~~~~~~~~~~~
   IDirectedGraph *GetGraph() override;
-  void ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) override;
+  // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
+  // ComputeRoutes computes the route cells from (x1,y1) to (x2,y2).
+  // The route cells are composed of three kinds of cells:
+  // start(x1,y1), gate cells in the middle and target(x2,y2).
+  // Returns -1 if the path finding is failed.
+  // Returns the distance of the shortest path on success (>=0).
+  int ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector);
 
  protected:
   // P is a pair of integers.

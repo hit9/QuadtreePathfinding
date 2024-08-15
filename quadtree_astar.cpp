@@ -76,7 +76,7 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
       isObstacle(isObstacle),
       distance(distance),
       tree(QdTree(w, h)) {
-  // ssf returns true to stop a quadtree node to split.
+  // ssf returns true to stop a quadtree node to continue to split.
   // Where w and h are the width and height of the node's region.
   // n is the number of obstacles in this node.
   // This ssf will stop the spliting if:
@@ -87,7 +87,7 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
   tree.SetSsf([this](int w, int h, int n) {
     return (w <= this->maxNodeWidth && h <= this->maxNodeHeight) && (n == 0 || (w * h == n));
   });
-  // handleRemovedNode and handleNewNode maintains the sections and gates on quadtree adjustments.
+  // handleRemovedNode and handleNewNode maintain the sections and gates on quadtree adjustments.
   tree.SetAfterLeafRemovedCallback([this](QdNode *node) { handleRemovedNode(node); });
   tree.SetAfterLeafCreatedCallback([this](QdNode *node) { handleNewNode(node); });
 }
@@ -181,7 +181,7 @@ void QuadtreeMap::Update(int x, int y) {
 
 // Add a cell v locating at given node to the abstract graph as a vertex.
 // It will create edges between v and other existing gate cells in this node.
-// The given node must not be a obstacle node.
+// The given node must not be an obstacle node.
 // All cells inside a non-obstacle node are reachable to each other.
 void QuadtreeMap::addVertex(QdNode *node, int v) {
   auto it = gates.find(node);
@@ -373,31 +373,6 @@ void QuadtreeMap::getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNod
 }
 
 //////////////////////////////////////
-/// IPathFinder
-//////////////////////////////////////
-
-void IPathFinder::ComputePathToNextRoute(int x1, int y1, int x2, int y2,
-                                         CellCollector &collector) const {
-  int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;
-  int dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1;
-  int err = dx + dy, e2;
-  while (true) {
-    collector(x1, y1);
-    e2 = 2 * err;
-    if (e2 >= dy) {
-      if (x1 == x2) break;
-      err += dy;
-      x1 += sx;
-    }
-    if (e2 <= dx) {
-      if (y1 == y2) break;
-      err += dx;
-      y1 += sy;
-    }
-  }
-}
-
-//////////////////////////////////////
 /// PathFinderHelper
 //////////////////////////////////////
 
@@ -443,6 +418,27 @@ void PathFinderHelper::ForEachNeighboursWithST(int u, NeighbourVertexVisitor &vi
   tmp.ForEachNeighbours(u, visitor);
 }
 
+void PathFinderHelper::ComputePathToNextRoute(int x1, int y1, int x2, int y2,
+                                              CellCollector &collector) const {
+  int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;
+  int dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1;
+  int err = dx + dy, e2;
+  while (true) {
+    collector(x1, y1);
+    e2 = 2 * err;
+    if (e2 >= dy) {
+      if (x1 == x2) break;
+      err += dy;
+      x1 += sx;
+    }
+    if (e2 <= dx) {
+      if (y1 == y2) break;
+      err += dx;
+      y1 += sy;
+    }
+  }
+}
+
 //////////////////////////////////////
 /// AStarPathFinder
 //////////////////////////////////////
@@ -456,13 +452,13 @@ AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : PathFinderHelper(m, &g)
 
 IDirectedGraph *AStarPathFinder::GetGraph() { return &g; }
 
-void AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) {
+int AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollector &collector) {
   // Can't route to or start from obstacles.
-  if (m.IsObstacle(x1, y1) || m.IsObstacle(x2, y2)) return;
+  if (m.IsObstacle(x1, y1) || m.IsObstacle(x2, y2)) return -1;
   // Same point.
   if (x1 == x2 && y1 == y2) {
     collector(x1, y1);
-    return;
+    return 0;
   }
 
   int s = m.PackXY(x1, y1), t = m.PackXY(x2, y2);
@@ -510,7 +506,7 @@ void AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollecto
   }
 
   // Not found.
-  if (from[t] == inf) return;
+  if (from[t] == inf) return -1;
 
   // Collects route cells backward.
   std::vector<int> routes;
@@ -524,6 +520,7 @@ void AStarPathFinder::ComputeRoutes(int x1, int y1, int x2, int y2, CellCollecto
     auto [x, y] = m.UnpackXY(routes[i]);
     collector(x, y);
   }
+  return f[t];
 }
 
 }  // namespace quadtree_astar
