@@ -366,7 +366,7 @@ void Visualizer::calculatePath() {
   quadtree_astar::CellCollector c = [this](int x, int y) {
     if (path.size()) {
       auto [x2, y2] = path.back();
-      if ((x1 == x && y1 == y)) return;
+      if ((x2 == x && y2 == y)) return;
     }
     path.push_back({x, y});
   };

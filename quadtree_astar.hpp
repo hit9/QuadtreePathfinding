@@ -10,10 +10,10 @@
 // 2. The quadtree splits the grid map into multiple sections.
 // 3. A section contains no obstacles or all obstacles.
 // 4. In a section without any obstacles, the shortest path inside it will be a straight line.
-// 4. There are multiple connections between adjacent quadtree nodes (aka sections).
-// 5. And a connection is composed of two adjacent gate cells, one on each side.
-// 6. All gates compose an abstract graph, and the path finder works on it.
-// 7. We first find the route cells (start, gates and target), and the fill the straight lines
+// 5. There are multiple connections between adjacent quadtree nodes (aka sections).
+// 6. And a connection is composed of two adjacent gate cells, one on each side.
+// 7. All gates compose an abstract graph, and the path finder works on it.
+// 8. We first find the route cells (start, gates and target), and the fill the straight lines
 //    between them.
 //
 // Coordinates
