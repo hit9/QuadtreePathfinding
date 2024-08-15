@@ -195,10 +195,10 @@ int Visualizer::Init() {
   // Build the quadtree map.
   spdlog::info("Visualizer init done");
   mp.RegisterGraph(pf->GetGraph());
+  if (options.createWallsOnInit > 0) createsWallsOnInit();
   mp.Build();
   spdlog::info("quadtree-astar path finder build done");
 
-  if (options.createWallsOnInit > 0) createsWallsOnInit();
   return 0;
 }
 
@@ -320,7 +320,6 @@ void Visualizer::createsWallsOnInit() {
     int y = std::min(static_cast<int>(z * k), options.w - 1);
     for (int x = x1; x < x2; x++) {
       GRIDS[x][y] ^= 1;
-      mp.Update(x, y);
     }
     if (x1 == 0)
       x1 += w, x2 += w;
