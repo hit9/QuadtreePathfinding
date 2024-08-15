@@ -62,6 +62,12 @@ Operations:
 2. Click the right mouse button to set start and target cells.
    Right click again to show the routes, and again to show the path.
 
+Problems Unsolved (Plan)
+------------------------
+
+1. Dynamical weighted A*.
+2. How to implement flow-field pathfinding on quadtree?
+
 
 License
 -------
