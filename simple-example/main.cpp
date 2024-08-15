@@ -1,5 +1,5 @@
 // how to build:
-// clang++ main.cpp ../quadtree_astar.cpp  -I ../3rd-party/
+// clang++ main.cpp ../quadtree_astar.cpp  -I ../3rd-party/ -I../
 // ./a.out
 
 #include <iostream>
@@ -10,7 +10,7 @@
 
 const int N = 8;
 
-const int grid[N][N] = {
+int grid[N][N] = {
     // 8x8
     // clang-format off
     {0, 0, 0, 0, 0, 0, 0, 0},
@@ -37,6 +37,10 @@ int main(void) {
   // Bind them and build the tree.
   m.RegisterGraph(pf.GetGraph());
   m.Build();
+
+  // Add an obstacle
+  grid[1][5] = 1;
+  m.Update(1, 5);
 
   // Compute routes
   std::vector<std::pair<int, int>> routes;
