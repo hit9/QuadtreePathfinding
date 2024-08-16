@@ -241,7 +241,11 @@ void QuadtreeMap::handleRemovedNode(QdNode *aNode) {
   for (const auto &[a, c] : m) {
     for (auto [b, bNode] : c) {
       // remove gate (b => a) in bNode.
-      gates[bNode][b].erase(a);
+      auto &m1 = gates[bNode][b];
+      auto t1 = m1.find(a);
+      if (t1 != m1.end()) m1.erase(a);
+      // remove the gate b's map m1 if it's empty.
+      if (m1.empty()) gates[bNode].erase(b);
       for (auto g : graphs) {
         g->RemoveEdge(b, a);
       }
