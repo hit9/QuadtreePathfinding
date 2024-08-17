@@ -555,11 +555,12 @@ void PathFinderHelper::ComputePathToNextRouteCell(int x1, int y1, int x2, int y2
 AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : PathFinderHelper(m, &g) { g.Init(m.N()); }
 IDirectedGraph<int> *AStarPathFinder::GetGateGraph() { return &g; }
 
-void AStarPathFinder::Reset(int x1, int y1, int x2, int y2) {
-  x1 = x1, y1 = y1, x2 = x2, y2 = y2;
+void AStarPathFinder::Reset(int x1_, int y1_, int x2_, int y2_) {
+  x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
   s = m.PackXY(x1, y1), t = m.PackXY(x2, y2);
   sNode = m.FindNode(x1, y1), tNode = m.FindNode(x2, y2);
   nodePath.clear();
+  gateCellsOnNodePath.clear();
   // Rebuild the tmp graph.
   tmp.Clear();
   BuildTmpGateGraph(s, t, x1, y1, x2, y2, sNode, tNode);
@@ -593,6 +594,19 @@ void AStarPathFinder::VisitComputedNodeRoutes(QdNodeVisitor &visitor) const {
   for (const auto [node, cost] : nodePath) visitor(node);
 }
 
+// Collects the gate cells on node path if ComputeNodeRoutes is successfully called and any further
+// ComputeGateRoutes call specifics the useNodePath true.
+// Notes that the start and target should be also collected.
+void AStarPathFinder::collectGateCellsOnNodePath() {
+  gateCellsOnNodePath.insert(s);
+  gateCellsOnNodePath.insert(t);
+  // A visitor to collect all gate cells of a node.
+  // TODO: optimization, we may should collect only the gates between aNode and next node on the
+  // path.
+  GateVisitor visitor = [this](const Gate *gate) { gateCellsOnNodePath.insert(gate->a); };
+  for (auto [node, _] : nodePath) m.ForEachGateInNode(node, visitor);
+}
+
 int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
   // Can't route to or start from obstacles.
   if (m.IsObstacle(x1, y1) || m.IsObstacle(x2, y2)) return -1;
@@ -601,6 +615,9 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
     collector(x1, y1);
     return 0;
   }
+  if (useNodePath) collectGateCellsOnNodePath();
+  // If useNodePath and nodePath is empty, return -1;
+  // if useNodePath then collect all gate cells for these node.
   // Path finding on gate cells.
   using A = AStar<int, inf>;
   A astar;
@@ -609,10 +626,23 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
     auto [x, y] = m.UnpackXY(u);
     collector(x, y);
   };
+  // A temporary neighbour cells vector.
+  // We firstly copy neighbour cells with costs into this temp vector.
+  // Filters the gate cells we care on the node path, and then feed back to AStar.
+  std::vector<std::pair<int, int>> neighbourCells;
+  // Here is the key mechanism: avoid visiting cells not inside gateCellsOnNodePath if
+  // useNodePath is true. let's rewrite the visitor here.
+  NeighbourVertexVisitor<int> visitor1 = [this, &neighbourCells, &useNodePath](int v, int cost) {
+    if (useNodePath && gateCellsOnNodePath.find(v) == gateCellsOnNodePath.end()) return;
+    neighbourCells.push_back({v, cost});
+  };
   // collector for neighbour gate cells.
-  A::NeighboursCollector neighborsCollector = [this](int u, NeighbourVertexVisitor<int> &visitor) {
-    // TODO: here is the key: how to avoid not in node gate cells.
-    ForEachNeighbourGateWithST(u, visitor);
+  A::NeighboursCollector neighborsCollector = [this, &visitor1, &neighbourCells](
+                                                  int u, NeighbourVertexVisitor<int> &visitor) {
+    // Firstly, selects neighbour cells into neighbourCells via visitor1.
+    ForEachNeighbourGateWithST(u, visitor1);
+    // And then, feed back into the astar's visitor.
+    for (auto [v, cost] : neighbourCells) visitor(v, cost);
   };
   // distance calculator.
   A::Distance distance1 = [this](int u, int v) { return m.Distance(u, v); };

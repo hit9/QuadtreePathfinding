@@ -335,7 +335,7 @@ class QuadtreeMap {
 template <typename K, typename V>
 class DefaultKV {
  public:
-  DefaultKV(int defaultValue) : defaultValue(defaultValue) {}
+  DefaultKV(V defaultValue) : defaultValue(defaultValue) {}
   V &operator[](K k);              // set k by reference
   const V &operator[](K k) const;  // get value
  public:
@@ -443,8 +443,13 @@ class AStarPathFinder : public IPathFinder, public PathFinderHelper {
   int x1, y1, x2, y2;
   int s, t;
   QdNode *sNode, *tNode;
-  using P = std::pair<const QdNode *, int>;  // { node, cost }
+  // the path of nodes if ComputeNodeRoutes is called successfully.
+  using P = std::pair<QdNode *, int>;  // { node, cost }
   std::vector<P> nodePath;
+  // the gate cells on the node path if ComputeNodeRoutes is called successfully.
+  std::unordered_set<int> gateCellsOnNodePath;
+
+  void collectGateCellsOnNodePath();
 };
 
 //////////////////////////////////////////
@@ -569,7 +574,8 @@ int AStar<Vertex, NullVertex>::Compute(int n, NeighboursCollector &neighborsColl
   q.push({f[s], s});
 
   // A function to visit neighbor vertices.
-  std::vector<P> neighbours;
+  // each item: { vertex, cost from u to v }
+  std::vector<std::pair<Vertex, int>> neighbours;
   NeighbourVertexVisitor<Vertex> visitor = [&neighbours](Vertex v, int cost) {
     neighbours.push_back({v, cost});
   };
@@ -581,7 +587,7 @@ int AStar<Vertex, NullVertex>::Compute(int n, NeighboursCollector &neighborsColl
     if (vis[u]) continue;
     vis[u] = true;
     neighbours.clear();
-    neighboursCollector(u, visitor);
+    neighborsCollector(u, visitor);
     for (const auto [v, c] : neighbours) {
       auto g = f[u] + c;
       auto h = distance(v, t);

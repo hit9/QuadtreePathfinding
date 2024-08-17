@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "quadtree_astar.hpp"
+#include "quadtree_pathfinding.hpp"
 
 // pixels per grid side.
 int GRID_SIZE = 16;
@@ -36,15 +36,15 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options);
 
 class Visualizer {
  public:
-  Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::AStarPathFinder* pf,
+  Visualizer(quadtree_pathfinding::QuadtreeMap& mp, quadtree_pathfinding::AStarPathFinder* pf,
              Options& options);
   int Init();
   void Start();
   void Destroy();
 
  private:
-  quadtree_astar::QuadtreeMap& mp;
-  quadtree_astar::AStarPathFinder* pf;
+  quadtree_pathfinding::QuadtreeMap& mp;
+  quadtree_pathfinding::AStarPathFinder* pf;
   Options& options;
   SDL_Window* window;
   SDL_Renderer* renderer;
@@ -99,13 +99,13 @@ int main(int argc, char* argv[]) {
   Options options;
   if (ParseOptionsFromCommandline(argc, argv, options) != 0) return -1;
   // Quadtree map.
-  auto distance = quadtree_astar::EuclideanDistance<10>;
+  auto distance = quadtree_pathfinding::EuclideanDistance<10>;
   auto isObstacle = [](int x, int y) -> bool { return GRIDS[x][y]; };
   auto stepf = options.step != -1 ? nullptr : [](int z) -> int { return z / 8 + 1; };
-  quadtree_astar::QuadtreeMap mp(options.w, options.h, isObstacle, distance, options.step, stepf,
-                                 options.maxNodeWidth, options.maxNodeHeight);
+  quadtree_pathfinding::QuadtreeMap mp(options.w, options.h, isObstacle, distance, options.step,
+                                       stepf, options.maxNodeWidth, options.maxNodeHeight);
   // Path finder.
-  quadtree_astar::AStarPathFinder pf(mp);
+  quadtree_pathfinding::AStarPathFinder pf(mp);
   // Visualizer.
   Visualizer visualizer(mp, &pf, options);
   if (visualizer.Init() != 0) return -1;
@@ -157,8 +157,8 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
   return 0;
 }
 
-Visualizer::Visualizer(quadtree_astar::QuadtreeMap& mp, quadtree_astar::AStarPathFinder* pf,
-                       Options& options)
+Visualizer::Visualizer(quadtree_pathfinding::QuadtreeMap& mp,
+                       quadtree_pathfinding::AStarPathFinder* pf, Options& options)
     : mp(mp), pf(pf), options(options), mapW(options.w * GRID_SIZE), mapH(options.h * GRID_SIZE) {}
 
 int Visualizer::Init() {
@@ -195,7 +195,7 @@ int Visualizer::Init() {
   }
   // Build the quadtree map.
   spdlog::info("Visualizer init done");
-  mp.RegisterGraph(pf->GetGraph());
+  mp.RegisterGateGraph(pf->GetGateGraph());
   if (options.createWallsOnInit > 0) createsWallsOnInit();
   mp.Build();
   spdlog::info("quadtree-astar path finder build done");
@@ -351,10 +351,22 @@ void Visualizer::handleInvertObstacles() {
 
 void Visualizer::calculateRoutes() {
   std::chrono::high_resolution_clock::time_point startAt, endAt;
-
+  pf->Reset(x1, y1, x2, y2);
+  // calculate node route path.
   startAt = std::chrono::high_resolution_clock::now();
-  quadtree_astar::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
-  pf->ComputeRoutes(x1, y1, x2, y2, c);
+  quadtree_pathfinding::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
+  int ret = pf->ComputeNodeRoutes();
+  endAt = std::chrono::high_resolution_clock::now();
+  if (-1 == ret) {
+    spdlog::info("can't find path (node path not determined)");
+    return;
+  }
+  spdlog::info("node routes calculated, cost {}us",
+               std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count());
+  // calculate gate route path.
+  startAt = std::chrono::high_resolution_clock::now();
+  // TODO: fixme
+  pf->ComputeGateRoutes(c, false);
   endAt = std::chrono::high_resolution_clock::now();
   spdlog::info("routes calculated, cost {}us. please right click anywhere to show full path",
                std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count());
@@ -363,7 +375,7 @@ void Visualizer::calculateRoutes() {
 void Visualizer::calculatePath() {
   std::chrono::high_resolution_clock::time_point startAt, endAt;
   startAt = std::chrono::high_resolution_clock::now();
-  quadtree_astar::CellCollector c = [this](int x, int y) {
+  quadtree_pathfinding::CellCollector c = [this](int x, int y) {
     if (path.size()) {
       auto [x2, y2] = path.back();
       if ((x2 == x && y2 == y)) return;
@@ -376,7 +388,7 @@ void Visualizer::calculatePath() {
     auto [x, y] = routes[0];
     for (int i = 1; i < routes.size(); i++) {
       auto [x2, y2] = routes[i];
-      pf->ComputePathToNextRoute(x, y, x2, y2, c);
+      pf->ComputePathToNextRouteCell(x, y, x2, y2, c);
       x = x2, y = y2;
     }
     endAt = std::chrono::high_resolution_clock::now();
@@ -440,7 +452,8 @@ void Visualizer::draw() {
     }
   }
   // Gates.
-  quadtree_astar::CellCollector c2 = [this](int x, int y) {
+  quadtree_pathfinding::GateVisitor c2 = [this](const quadtree_pathfinding::Gate* gate) {
+    auto [x, y] = mp.UnpackXY(gate->a);
     int x1 = y * GRID_SIZE + 1;
     int y1 = x * GRID_SIZE + 1;
     SDL_Rect rect = {x1, y1, GRID_SIZE - 2, GRID_SIZE - 2};
@@ -453,7 +466,7 @@ void Visualizer::draw() {
 
   mp.Gates(c2);
   // Quadtree nodes borders.
-  quadtree_astar::QdNodeCollector c1 = [this](const quadtree_astar::QdNode* node) {
+  quadtree_pathfinding::QdNodeVisitor c1 = [this](const quadtree_pathfinding::QdNode* node) {
     int x = node->y1 * GRID_SIZE;
     int y = node->x1 * GRID_SIZE;
     int w = (node->y2 - node->y1 + 1) * GRID_SIZE;
