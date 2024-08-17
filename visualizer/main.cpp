@@ -366,7 +366,7 @@ void Visualizer::calculateRoutes() {
   // calculate gate route path.
   startAt = std::chrono::high_resolution_clock::now();
   // TODO: fixme
-  pf->ComputeGateRoutes(c, false);
+  pf->ComputeGateRoutes(c, true);
   endAt = std::chrono::high_resolution_clock::now();
   spdlog::info("routes calculated, cost {}us. please right click anywhere to show full path",
                std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count());

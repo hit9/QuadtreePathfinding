@@ -643,6 +643,7 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
     ForEachNeighbourGateWithST(u, visitor1);
     // And then, feed back into the astar's visitor.
     for (auto [v, cost] : neighbourCells) visitor(v, cost);
+    neighbourCells.clear();
   };
   // distance calculator.
   A::Distance distance1 = [this](int u, int v) { return m.Distance(u, v); };
