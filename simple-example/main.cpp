@@ -44,6 +44,8 @@ int main(void) {
   pf.Reset(0, 0, 7, 7);
 
   std::cout << "node route path:" << std::endl;
+  // ComputeNodeRoutes is much faster than ComputeGateRoutes to test whether the target is
+  // reachable.
   if (pf.ComputeNodeRoutes() == -1) {
     std::cout << "unreachable!" << std::endl;
     return -1;
@@ -59,7 +61,11 @@ int main(void) {
   quadtree_pathfinding::CellCollector collector = [&routes](int x, int y) {
     routes.push_back({x, y});
   };
-  pf.ComputeGateRoutes(collector);
+  // The second boolean argument specifics whether to use only the gate cells on the computed node
+  // path. This will make the ComputeGateRoutes runs much faster, but less optimal.
+  // We can just use ComputeGateRoutes(collector, false) directly without calling ComputeGateRoutes
+  // in advance if we don't use the node path.
+  pf.ComputeGateRoutes(collector, true);
   for (auto [x, y] : routes) std::cout << x << "," << y << std::endl;
 
   std::cout << "collect detailed path..." << std::endl;
