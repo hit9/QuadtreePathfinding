@@ -28,6 +28,7 @@ struct Options {
   int w = 10, h = 10, step = -1;
   int maxNodeWidth = -1, maxNodeHeight = -1;
   int createWallsOnInit = 0;
+  bool useNodePath = false;
 };
 
 // Parse options from command line.
@@ -144,6 +145,10 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
       .help("grid cell size in pixels")
       .default_value(16)
       .store_into(GRID_SIZE);
+  program.add_argument("-u", "--use-node-path")
+      .help("use node path to filter less gate cells for computing route cells.")
+      .default_value(false)
+      .store_into(options.useNodePath);
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& e) {
@@ -308,6 +313,7 @@ void Visualizer::reset() {
   state = 0;
   path.clear();
   routes.clear();
+  pf->Reset(0, 0, 0, 0);
   spdlog::info("reset");
 }
 
@@ -366,7 +372,7 @@ void Visualizer::calculateRoutes() {
   // calculate gate route path.
   startAt = std::chrono::high_resolution_clock::now();
   // TODO: fixme
-  pf->ComputeGateRoutes(c, true);
+  pf->ComputeGateRoutes(c, options.useNodePath);
   endAt = std::chrono::high_resolution_clock::now();
   spdlog::info("routes calculated, cost {}us. please right click anywhere to show full path",
                std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count());
@@ -430,6 +436,17 @@ void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
 // 4. Show Path and start/target
 // 5. Show cells to invert on mouse down.
 void Visualizer::draw() {
+  quadtree_pathfinding::QdNodeVisitor visitor = [this](const quadtree_pathfinding::QdNode* node) {
+    int h = (node->x2 - node->x1) * GRID_SIZE - 2;
+    int w = (node->y2 - node->y1) * GRID_SIZE - 2;
+    int x = node->y1 * GRID_SIZE + 1;
+    int y = node->x1 * GRID_SIZE + 1;
+    SDL_Rect rect = {x, y, w, h};
+    SDL_SetRenderDrawColor(renderer, 255, 200, 128, 255);  // light orange
+    SDL_RenderFillRect(renderer, &rect);
+  };
+  if (pf->NodePathSize()) pf->VisitComputedNodeRoutes(visitor);
+
   // Grids and obstacles.
   // (i,j) is the cell's position.
   // (x,y) is the grid in pixel (in SDL coordinates).

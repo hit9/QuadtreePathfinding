@@ -424,6 +424,7 @@ class AStarPathFinder : public IPathFinder, public PathFinderHelper {
   // ~~~~~~~~~~~~~~ Implements IPathFinder ~~~~~~~~~~~~~~
   IDirectedGraph<int> *GetGateGraph() override;
   // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
+  std::size_t NodePathSize() const { return nodePath.size(); }
   // Sets the start(x1,y1) and target(x2,y2).
   void Reset(int x1, int y1, int x2, int y2);
   // ComputeNodeRoutes computes the path of quadtree nodes from the start cell's node to the target
