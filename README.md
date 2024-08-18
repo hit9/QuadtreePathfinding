@@ -15,24 +15,28 @@ and then build a graph on top to perform A* search.
 Demo
 ----
 
-| <!-- -->                                           |
-| -------------------------------------------------- |
-| gate step=1 ![](misc/quadtree-astar-step-1.gif)    |
-| gate step=3 ![](misc/quadtree-astar-step-3.gif)    |
+| <!-- -->                                                          |
+| ------------------------------------------------------------------|
+| gate step=1 ![](misc/quadtree-pathfinding-1.gif)                  |
+| gate step=3 ![](misc/quadtree-pathfinding-2.gif)                  |
+| gate step=1 use node path ![](misc/quadtree-pathfinding-2.gif)    |
 
 
 Concepts and Mechanisms
 ------------------------
 
-1. A QuadtreeMap is a 2D grid map dynamatically maintained by a quadtree.
+1. A QuadtreeMap is a 2D grid map maintained by a quadtree.
 2. The quadtree splits the grid map into multiple sections.
 3. A section contains no obstacles or all obstacles.
-4. In a section without any obstacles, the shortest path inside it will be a straight line.
-5. There are multiple connections between adjacent quadtree nodes (aka sections).
-6. And a connection is composed of two adjacent gate cells, one on each side.
-7. All gates compose an abstract graph, and the path finder works on it.
-8. We first find the route cells (start, gates and target), and the fill the straight lines
-   between them.
+4. The shortest path inside a section without obstacles will be a straight line.
+5. Adjacent quadtree nodes are connected by multiple gates.
+6. A gate is composed of two adjacent cells, one on each side, directed.
+7. All nodes compose the 1st level abstract graph.
+8. All gates compose the 2nd level abstract graph.
+9. Path finding performs on the 2 or 3 levels graphs:
+   1. Find the node path on the 1st level graph (it's optional, faster but less optimal).
+   2. Find the gate path on the 2nd level graph.
+   3. Fill the straight lines between gate cells.
 
 Code Example
 ------------
