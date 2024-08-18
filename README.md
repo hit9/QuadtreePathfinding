@@ -19,7 +19,7 @@ Demo
 | ------------------------------------------------------------------|
 | gate step=1 ![](misc/quadtree-pathfinding-1.gif)                  |
 | gate step=3 ![](misc/quadtree-pathfinding-2.gif)                  |
-| gate step=1 use node path ![](misc/quadtree-pathfinding-2.gif)    |
+| gate step=1 use node path ![](misc/quadtree-pathfinding-3.gif)    |
 
 
 Concepts and Mechanisms
