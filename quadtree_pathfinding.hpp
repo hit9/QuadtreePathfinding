@@ -482,8 +482,11 @@ class AStarPathFinder : public IPathFinder, public PathFinderHelper {
   int ComputeNodeRoutes();
   void VisitComputedNodeRoutes(QdNodeVisitor &visitor) const;
   // ComputeGateRoutes computes the route cells from (x1,y1) to (x2,y2).
-  // The route cells are composed of three kinds of cells:
-  // start(x1,y1), gate cells in the middle and target(x2,y2).
+  // Sets useNodePath to true to use the previous ComputeNodeRoutes results, it will find path
+  // only over gate cells on the node path, this the path finding is much faster, but less optimal.
+  // Sets useNodePath to false to disable this optimization, it will find path over all gate cells.
+  // The route cells are composed of three kinds of cells: start(x1,y1), gate cells in the middle
+  // and target(x2,y2).
   // Returns -1 if the path finding is failed.
   // Returns the distance of the shortest path on success (>=0).
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
