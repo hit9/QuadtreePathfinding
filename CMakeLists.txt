@@ -8,6 +8,6 @@ set_target_properties(quadtree_pathfinding
 include_directories("3rd-party")
 
 install(
-    TARGETS quadtree_pathfinding_
+    TARGETS quadtree_pathfinding
     LIBRARY DESTINATION ${CMAK_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
