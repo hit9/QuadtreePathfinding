@@ -374,8 +374,14 @@ void Visualizer::calculateRoutes() {
   // TODO: fixme
   pf->ComputeGateRoutes(c, options.useNodePath);
   endAt = std::chrono::high_resolution_clock::now();
-  spdlog::info("routes calculated, cost {}us. please right click anywhere to show full path",
-               std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count());
+  std::string more = "";
+  if (options.useNodePath)
+    more = "(using node path)";
+  else
+    more = "(not using node path)";
+  spdlog::info("routes calculated, cost {}us {}. please right click anywhere to show full path",
+               std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count(),
+               more);
 }
 
 void Visualizer::calculatePath() {
@@ -442,8 +448,11 @@ void Visualizer::draw() {
     int x = node->y1 * GRID_SIZE + 1;
     int y = node->x1 * GRID_SIZE + 1;
     SDL_Rect rect = {x, y, w, h};
-    SDL_SetRenderDrawColor(renderer, 255, 200, 128, 255);  // light orange
-    SDL_RenderFillRect(renderer, &rect);
+    updateRectRelativeToCamera(rect);
+    if (isOverlapsCamera(rect)) {
+      SDL_SetRenderDrawColor(renderer, 255, 200, 128, 255);  // light orange
+      SDL_RenderFillRect(renderer, &rect);
+    }
   };
   if (pf->NodePathSize()) pf->VisitComputedNodeRoutes(visitor);
 
