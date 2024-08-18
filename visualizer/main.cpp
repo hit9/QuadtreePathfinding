@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
 }
 
 int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
-  argparse::ArgumentParser program("quadtree-astar-visualizer");
+  argparse::ArgumentParser program("quadtree-pathfinding-visualizer");
   program.add_argument("-w", "--width")
       .help("width of grid map")
       .default_value(8)
@@ -183,7 +183,7 @@ int Visualizer::Init() {
   windowH = std::min(mapH, displayBounds.h);
 
   // Creates window.
-  window = SDL_CreateWindow("quadtree-astar visualizer", SDL_WINDOWPOS_CENTERED,
+  window = SDL_CreateWindow("quadtree-pathfinding-visualizer", SDL_WINDOWPOS_CENTERED,
                             SDL_WINDOWPOS_CENTERED, windowW, windowH, SDL_WINDOW_SHOWN);
   if (window == nullptr) {
     spdlog::error("Create window error: {}", SDL_GetError());
@@ -203,7 +203,7 @@ int Visualizer::Init() {
   mp.RegisterGateGraph(pf->GetGateGraph());
   if (options.createWallsOnInit > 0) createsWallsOnInit();
   mp.Build();
-  spdlog::info("quadtree-astar path finder build done");
+  spdlog::info("Path finder build done");
 
   return 0;
 }
