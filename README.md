@@ -1,5 +1,5 @@
-quadtree-astar
-==============
+quadtree-pathfinding
+====================
 
 May unstable before version 1.0.0!
 
@@ -57,7 +57,7 @@ make -C visualizer build
 Run the visualizer:
 
 ```bash
-./visualizer/build/quadtree-astar-visualizer -w 40 -h 30 -s 1
+./visualizer/build/quadtree-pathfinding-visualizer -w 100 -h 60 -s 1
 ```
 
 Operations:
