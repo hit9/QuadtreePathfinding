@@ -552,7 +552,11 @@ void PathFinderHelper::ComputePathToNextRouteCell(int x1, int y1, int x2, int y2
 /// AStarPathFinder
 //////////////////////////////////////
 
-AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : PathFinderHelper(m, &g) { g.Init(m.N()); }
+AStarPathFinder::AStarPathFinder(const QuadtreeMap &m)
+    : PathFinderHelper(m, &g), astar1(A1(m.N())), astar2(A2(m.N())) {
+  g.Init(m.N());
+}
+
 IDirectedGraph<int> *AStarPathFinder::GetGateGraph() { return &g; }
 
 void AStarPathFinder::Reset(int x1_, int y1_, int x2_, int y2_) {
@@ -572,23 +576,20 @@ int AStarPathFinder::ComputeNodeRoutes() {
     nodePath.push_back({sNode, 0});
     return 0;
   }
-  using A = AStar<QdNode *, nullptr>;
-  A astar;
   // collector for path result.
-  A::PathCollector collector = [this](QdNode *node, int cost) {
+  A1::PathCollector collector = [this](QdNode *node, int cost) {
     nodePath.push_back({node, cost});
   };
   // collector for neighbour qd nodes.
-  A::NeighboursCollector neighborsCollector = [this](QdNode *u,
-                                                     NeighbourVertexVisitor<QdNode *> &visitor) {
+  A1::NeighboursCollector neighborsCollector = [this](QdNode *u,
+                                                      NeighbourVertexVisitor<QdNode *> &visitor) {
     m.ForEachNeighbourNodes(u, visitor);
   };
   // distance calculator.
-  A::Distance distance = [this](QdNode *a, QdNode *b) { return m.DistanceBetweenNodes(a, b); };
-  A::NeighbourFilterTester neighbourTester = nullptr;
+  A1::Distance distance = [this](QdNode *a, QdNode *b) { return m.DistanceBetweenNodes(a, b); };
+  A1::NeighbourFilterTester neighbourTester = nullptr;
   // compute
-  return astar.Compute(m.NumLeafNodes() + 1, neighborsCollector, distance, sNode, tNode, collector,
-                       neighbourTester);
+  return astar1.Compute(neighborsCollector, distance, sNode, tNode, collector, neighbourTester);
 }
 
 void AStarPathFinder::VisitComputedNodeRoutes(QdNodeVisitor &visitor) const {
@@ -625,26 +626,25 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
   // If useNodePath and nodePath is empty, return -1;
   // if useNodePath then collect all gate cells for these node.
   // Path finding on gate cells.
-  using A = AStar<int, inf, std::vector<int>, std::vector<bool>, std::vector<int>>;
-  A astar;
   // collector for path result.
-  A::PathCollector collector1 = [this, &collector](int u, int cost) {
+  A2::PathCollector collector1 = [this, &collector](int u, int cost) {
     auto [x, y] = m.UnpackXY(u);
     collector(x, y);
   };
 
-  A::NeighbourFilterTester neighbourTester = [this, useNodePath](int v) {
+  A2::NeighbourFilterTester neighbourTester = [this, useNodePath](int v) {
     if (useNodePath && gateCellsOnNodePath.find(v) == gateCellsOnNodePath.end()) return false;
     return true;
   };
   // collector for neighbour gate cells.
-  A::NeighboursCollector neighborsCollector = [this](int u, NeighbourVertexVisitor<int> &visitor) {
+  A2::NeighboursCollector neighborsCollector = [this](int u,
+                                                      NeighbourVertexVisitor<int> &visitor) {
     ForEachNeighbourGateWithST(u, visitor);
   };
   // distance calculator.
-  A::Distance distance1 = [this](int u, int v) { return m.Distance(u, v); };
+  A2::Distance distance1 = [this](int u, int v) { return m.Distance(u, v); };
   // compute
-  return astar.Compute(m.N(), neighborsCollector, distance1, s, t, collector1, neighbourTester);
+  return astar2.Compute(neighborsCollector, distance1, s, t, collector1, neighbourTester);
 }
 
 }  // namespace quadtree_pathfinding

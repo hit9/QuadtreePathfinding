@@ -332,22 +332,59 @@ class QuadtreeMap {
 /// Algorithm
 //////////////////////////////////////
 
+template <typename K, typename V, V DefaultValue>
+class KVContainer {
+ public:
+  virtual void Resize(std::size_t n);
+  virtual V &operator[](K k);              // set k by reference
+  virtual const V &operator[](K k) const;  // get value
+  virtual void Clear();
+};
+
 // a handy util kv container with default value support.
-template <typename K, typename V>
-class DefaultedUnorderedMap {
+template <typename K, typename V, V DefaultValue>
+class DefaultedUnorderedMap : KVContainer<K, V, DefaultValue> {
  public:
-  DefaultedUnorderedMap(std::size_t _ignoredn, V defaultValue) : defaultValue(defaultValue) {}
-  V &operator[](K k);              // set k by reference
-  const V &operator[](K k) const;  // get value
- public:
-  V defaultValue;
+  void Resize(std::size_t _ignoredn) override {}  // ignore
+  V &operator[](K k) override;
+  const V &operator[](K k) const override;
+  void Clear() override { m.clear(); }
+
+ private:
+  V defaultValue = DefaultValue;
   std::unordered_map<K, V> m;
 };
 
+template <typename K, int DefaultValue>
+using DefaultedUnorderedMapInt = DefaultedUnorderedMap<K, int, DefaultValue>;
+
+template <typename K, bool DefaultValue>
+using DefaultedUnorderedMapBool = DefaultedUnorderedMap<K, bool, DefaultValue>;
+
+template <typename V, V DefaultValue>
+class DefaultedVector : KVContainer<int, V, DefaultValue> {
+ public:
+  void Resize(std::size_t n) override { vec.resize(n, defaultValue); }
+  V &operator[](int k) override { return vec[k]; }
+  const V &operator[](int k) const override { return vec[k]; }
+  void Clear() override { vec.clear(); }
+
+ private:
+  V defaultValue = DefaultValue;
+  std::vector<V> vec;
+};
+
+template <int DefaultValue>
+using DefaultedVectorInt = DefaultedVector<int, DefaultValue>;
+
+// avoid using std::vector<bool>
+template <bool DefaultValue>
+using DefaultedVectorBool = DefaultedVector<unsigned char, DefaultValue>;
+
 // AStar algorithm on a directed graph.
-template <typename Vertex, Vertex NullVertex, typename F = DefaultedUnorderedMap<Vertex, int>,
-          typename Vis = DefaultedUnorderedMap<Vertex, bool>,
-          typename From = DefaultedUnorderedMap<Vertex, Vertex>>
+template <typename Vertex, Vertex NullVertex, typename F = DefaultedUnorderedMapInt<Vertex, inf>,
+          typename Vis = DefaultedUnorderedMapBool<Vertex, false>,
+          typename From = DefaultedUnorderedMap<Vertex, Vertex, NullVertex>>
 class AStar {
  public:
   // Collects the result path and total cost to it.
@@ -361,14 +398,22 @@ class AStar {
   using NeighbourFilterTester = std::function<bool(Vertex)>;
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
-  // Computes astar shortest path on given graph from start s to target t.
   // The n is the upper bound of number of vertices on the graph.
+  AStar(int n);
+  // Computes astar shortest path on given graph from start s to target t.
   // The collector will be called with each vertex on the result path,
   // along with the cost walking to it.
   // Returns -1 if the target is unreachable.
   // Returns the total cost to the target on success.
-  int Compute(int n, NeighboursCollector &neighborsCollector, Distance &distance, Vertex s,
-              Vertex t, PathCollector &collector, NeighbourFilterTester neighborTester);
+  int Compute(NeighboursCollector &neighborsCollector, Distance &distance, Vertex s, Vertex t,
+              PathCollector &collector, NeighbourFilterTester neighborTester);
+
+ protected:
+  int n;  // upper bound of vertices
+  // store containers to avoid memory reallocation.
+  F f;
+  Vis vis;
+  From from;
 };
 
 //////////////////////////////////////
@@ -445,6 +490,16 @@ class AStarPathFinder : public IPathFinder, public PathFinderHelper {
 
  private:
   SimpleDirectedGraph g;
+
+  // Astar for computing node path.
+  using A1 = AStar<QdNode *, nullptr>;
+  AStar<QdNode *, nullptr> astar1;
+
+  // Astar for computing gate cell path.
+  using A2 = AStar<int, inf, DefaultedVectorInt<inf>, DefaultedVectorBool<false>,
+                   DefaultedVectorInt<inf>>;
+  A2 astar2;
+
   // stateful values for current round compution.
   int x1, y1, x2, y2;
   int s, t;
@@ -553,28 +608,32 @@ void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::Clear() {
 
 // ~~~~~~~~~~~ Implements AStar ~~~~~~~~~~~~~~
 
-template <typename K, typename V>
-V &DefaultedUnorderedMap<K, V>::operator[](K k) {
+template <typename K, typename V, V DefaultValue>
+V &DefaultedUnorderedMap<K, V, DefaultValue>::operator[](K k) {
   return m.try_emplace(k, defaultValue).first->second;
 }
 
-template <typename K, typename V>
-const V &DefaultedUnorderedMap<K, V>::operator[](K k) const {
+template <typename K, typename V, V DefaultValue>
+const V &DefaultedUnorderedMap<K, V, DefaultValue>::operator[](K k) const {
   auto it = m.find(k);
   if (it == m.end()) return defaultValue;
   return it->second;
 }
 
+template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
+AStar<Vertex, NullVertex, F, Vis, From>::AStar(int n) : n(n) {
+  f.Resize(n), vis.Resize(n), from.Resize(n);
+}
+
 // A* search algorithm.
 template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
-int AStar<Vertex, NullVertex, F, Vis, From>::Compute(int n,
-                                                     NeighboursCollector &neighborsCollector,
+int AStar<Vertex, NullVertex, F, Vis, From>::Compute(NeighboursCollector &neighborsCollector,
                                                      Distance &distance, Vertex s, Vertex t,
                                                      PathCollector &collector,
                                                      NeighbourFilterTester neighborTester) {
-  F f(n, inf);
-  Vis vis(n, false);
-  From from(n, NullVertex);
+  f.Clear(), vis.Clear(), from.Clear();
+  f.Resize(n), vis.Resize(n);
+  from[t] = NullVertex;
 
   // A* smallest-first queue, where P is { cost, vertex }
   std::priority_queue<P, std::vector<P>, std::greater<P>> q;
@@ -584,8 +643,8 @@ int AStar<Vertex, NullVertex, F, Vis, From>::Compute(int n,
   Vertex u;
 
   // expand from u to v with cost c
-  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &f, &q, &from, &distance, &t](
-                                              Vertex v, int c) {
+  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &distance, &t, this](Vertex v,
+                                                                                         int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
     auto g = f[u] + c;
     auto h = distance(v, t);
