@@ -585,9 +585,10 @@ int AStarPathFinder::ComputeNodeRoutes() {
   };
   // distance calculator.
   A::Distance distance = [this](QdNode *a, QdNode *b) { return m.DistanceBetweenNodes(a, b); };
+  A::NeighbourFilterTester neighbourTester = nullptr;
   // compute
-  return astar.Compute(m.NumLeafNodes() + 1, neighborsCollector, distance, sNode, tNode,
-                       collector);
+  return astar.Compute(m.NumLeafNodes() + 1, neighborsCollector, distance, sNode, tNode, collector,
+                       neighbourTester);
 }
 
 void AStarPathFinder::VisitComputedNodeRoutes(QdNodeVisitor &visitor) const {
@@ -601,10 +602,15 @@ void AStarPathFinder::collectGateCellsOnNodePath() {
   gateCellsOnNodePath.insert(s);
   gateCellsOnNodePath.insert(t);
   // A visitor to collect all gate cells of a node.
-  // TODO: optimization, we may should collect only the gates between aNode and next node on the
-  // path.
-  GateVisitor visitor = [this](const Gate *gate) { gateCellsOnNodePath.insert(gate->a); };
-  for (auto [node, _] : nodePath) m.ForEachGateInNode(node, visitor);
+  int i = 0;
+  GateVisitor visitor = [this, &i](const Gate *gate) {
+    // collect only the gates between aNode and next node on the path.
+    if (i != nodePath.size() - 1 && gate->bNode == nodePath[i + 1].first) {
+      gateCellsOnNodePath.insert(gate->a);
+      gateCellsOnNodePath.insert(gate->b);
+    };
+  };
+  for (; i != nodePath.size(); ++i) m.ForEachGateInNode(nodePath[i].first, visitor);
 }
 
 int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
@@ -619,36 +625,26 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
   // If useNodePath and nodePath is empty, return -1;
   // if useNodePath then collect all gate cells for these node.
   // Path finding on gate cells.
-  using A = AStar<int, inf>;
+  using A = AStar<int, inf, std::vector<int>, std::vector<bool>, std::vector<int>>;
   A astar;
   // collector for path result.
   A::PathCollector collector1 = [this, &collector](int u, int cost) {
     auto [x, y] = m.UnpackXY(u);
     collector(x, y);
   };
-  // A temporary neighbour cells vector.
-  // We firstly copy neighbour cells with costs into this temp vector.
-  // Filters the gate cells we care on the node path, and then feed back to AStar.
-  std::vector<std::pair<int, int>> neighbourCells;
-  // Here is the key mechanism: avoid visiting cells not inside gateCellsOnNodePath if
-  // useNodePath is true. let's rewrite the visitor here.
-  NeighbourVertexVisitor<int> visitor1 = [this, &neighbourCells, &useNodePath](int v, int cost) {
-    if (useNodePath && gateCellsOnNodePath.find(v) == gateCellsOnNodePath.end()) return;
-    neighbourCells.push_back({v, cost});
+
+  A::NeighbourFilterTester neighbourTester = [this, useNodePath](int v) {
+    if (useNodePath && gateCellsOnNodePath.find(v) == gateCellsOnNodePath.end()) return false;
+    return true;
   };
   // collector for neighbour gate cells.
-  A::NeighboursCollector neighborsCollector = [this, &visitor1, &neighbourCells](
-                                                  int u, NeighbourVertexVisitor<int> &visitor) {
-    // Firstly, selects neighbour cells into neighbourCells via visitor1.
-    ForEachNeighbourGateWithST(u, visitor1);
-    // And then, feed back into the astar's visitor.
-    for (auto [v, cost] : neighbourCells) visitor(v, cost);
-    neighbourCells.clear();
+  A::NeighboursCollector neighborsCollector = [this](int u, NeighbourVertexVisitor<int> &visitor) {
+    ForEachNeighbourGateWithST(u, visitor);
   };
   // distance calculator.
   A::Distance distance1 = [this](int u, int v) { return m.Distance(u, v); };
   // compute
-  return astar.Compute(m.N(), neighborsCollector, distance1, s, t, collector1);
+  return astar.Compute(m.N(), neighborsCollector, distance1, s, t, collector1, neighbourTester);
 }
 
 }  // namespace quadtree_pathfinding

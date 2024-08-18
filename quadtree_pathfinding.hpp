@@ -112,6 +112,7 @@ using NeighbourVertexVisitor = std::function<void(Vertex v, int cost)>;
 // IDirectedGraph is the interface of a directed graph.
 // It's a pure virtual class so that the subclasses should implement all the virtual methods.
 // The parameter Vertex is the type of vertex (e.g. int).
+// The Iterator is the type of iterator of the underlying vertex container.
 template <typename Vertex>
 class IDirectedGraph {
  public:
@@ -333,9 +334,9 @@ class QuadtreeMap {
 
 // a handy util kv container with default value support.
 template <typename K, typename V>
-class DefaultKV {
+class DefaultedUnorderedMap {
  public:
-  DefaultKV(V defaultValue) : defaultValue(defaultValue) {}
+  DefaultedUnorderedMap(std::size_t _ignoredn, V defaultValue) : defaultValue(defaultValue) {}
   V &operator[](K k);              // set k by reference
   const V &operator[](K k) const;  // get value
  public:
@@ -344,7 +345,9 @@ class DefaultKV {
 };
 
 // AStar algorithm on a directed graph.
-template <typename Vertex, Vertex NullVertex>
+template <typename Vertex, Vertex NullVertex, typename F = DefaultedUnorderedMap<Vertex, int>,
+          typename Vis = DefaultedUnorderedMap<Vertex, bool>,
+          typename From = DefaultedUnorderedMap<Vertex, Vertex>>
 class AStar {
  public:
   // Collects the result path and total cost to it.
@@ -354,6 +357,8 @@ class AStar {
   // Collects the neighbor vertices from u.
   using NeighboursCollector =
       std::function<void(Vertex u, NeighbourVertexVisitor<Vertex> &visitor)>;
+  // Filter a neighbor vertex, returns true for cared neighbor.
+  using NeighbourFilterTester = std::function<bool(Vertex)>;
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
   // Computes astar shortest path on given graph from start s to target t.
@@ -363,7 +368,7 @@ class AStar {
   // Returns -1 if the target is unreachable.
   // Returns the total cost to the target on success.
   int Compute(int n, NeighboursCollector &neighborsCollector, Distance &distance, Vertex s,
-              Vertex t, PathCollector &collector);
+              Vertex t, PathCollector &collector, NeighbourFilterTester neighborTester);
 };
 
 //////////////////////////////////////
@@ -548,56 +553,56 @@ void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::Clear() {
 // ~~~~~~~~~~~ Implements AStar ~~~~~~~~~~~~~~
 
 template <typename K, typename V>
-V &DefaultKV<K, V>::operator[](K k) {
+V &DefaultedUnorderedMap<K, V>::operator[](K k) {
   return m.try_emplace(k, defaultValue).first->second;
 }
 
 template <typename K, typename V>
-const V &DefaultKV<K, V>::operator[](K k) const {
+const V &DefaultedUnorderedMap<K, V>::operator[](K k) const {
   auto it = m.find(k);
   if (it == m.end()) return defaultValue;
   return it->second;
 }
 
 // A* search algorithm.
-template <typename Vertex, Vertex NullVertex>
-int AStar<Vertex, NullVertex>::Compute(int n, NeighboursCollector &neighborsCollector,
-                                       Distance &distance, Vertex s, Vertex t,
-                                       PathCollector &collector) {
-  DefaultKV<Vertex, int> f(inf);
-  DefaultKV<Vertex, bool> vis(false);
-  DefaultKV<Vertex, Vertex> from(NullVertex);
+template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
+int AStar<Vertex, NullVertex, F, Vis, From>::Compute(int n,
+                                                     NeighboursCollector &neighborsCollector,
+                                                     Distance &distance, Vertex s, Vertex t,
+                                                     PathCollector &collector,
+                                                     NeighbourFilterTester neighborTester) {
+  F f(n, inf);
+  Vis vis(n, false);
+  From from(n, NullVertex);
 
   // A* smallest-first queue, where P is { cost, vertex }
   std::priority_queue<P, std::vector<P>, std::greater<P>> q;
   f[s] = 0;
   q.push({f[s], s});
 
-  // A function to visit neighbor vertices.
-  // each item: { vertex, cost from u to v }
-  std::vector<std::pair<Vertex, int>> neighbours;
-  NeighbourVertexVisitor<Vertex> visitor = [&neighbours](Vertex v, int cost) {
-    neighbours.push_back({v, cost});
+  Vertex u;
+
+  // expand from u to v with cost c
+  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &f, &q, &from, &distance, &t](
+                                              Vertex v, int c) {
+    if (neighborTester != nullptr && !neighborTester(v)) return;
+    auto g = f[u] + c;
+    auto h = distance(v, t);
+    auto cost = g + h;
+    if (f[v] > g) {
+      f[v] = g;
+      q.push({cost, v});
+      from[v] = u;
+    }
   };
 
   while (q.size()) {
-    auto [_, u] = q.top();
+    u = q.top().second;
     q.pop();
     if (u == t) break;  // found
     if (vis[u]) continue;
     vis[u] = true;
-    neighbours.clear();
-    neighborsCollector(u, visitor);
-    for (const auto [v, c] : neighbours) {
-      auto g = f[u] + c;
-      auto h = distance(v, t);
-      auto cost = g + h;
-      if (f[v] > g) {
-        f[v] = g;
-        q.push({cost, v});
-        from[v] = u;
-      }
-    }
+    neighborsCollector(u, expand);
   }
   if (from[t] == NullVertex) return -1;  // fail
 
