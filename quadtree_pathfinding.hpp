@@ -400,16 +400,18 @@ class AStar {
   using P = std::pair<int, Vertex>;
   // The n is the upper bound of number of vertices on the graph.
   AStar(int n);
+  void SetDistanceFunc(Distance f) { distance = f; }
   // Computes astar shortest path on given graph from start s to target t.
   // The collector will be called with each vertex on the result path,
   // along with the cost walking to it.
   // Returns -1 if the target is unreachable.
   // Returns the total cost to the target on success.
-  int Compute(NeighboursCollector &neighborsCollector, Distance &distance, Vertex s, Vertex t,
+  int Compute(NeighboursCollector &neighborsCollector, Vertex s, Vertex t,
               PathCollector &collector, NeighbourFilterTester neighborTester);
 
  protected:
   int n;  // upper bound of vertices
+  Distance distance;
   // store containers to avoid memory reallocation.
   F f;
   Vis vis;
@@ -631,8 +633,7 @@ AStar<Vertex, NullVertex, F, Vis, From>::AStar(int n) : n(n) {
 // A* search algorithm.
 template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
 int AStar<Vertex, NullVertex, F, Vis, From>::Compute(NeighboursCollector &neighborsCollector,
-                                                     Distance &distance, Vertex s, Vertex t,
-                                                     PathCollector &collector,
+                                                     Vertex s, Vertex t, PathCollector &collector,
                                                      NeighbourFilterTester neighborTester) {
   f.Clear(), vis.Clear(), from.Clear();
   f.Resize(n), vis.Resize(n);
@@ -646,8 +647,7 @@ int AStar<Vertex, NullVertex, F, Vis, From>::Compute(NeighboursCollector &neighb
   Vertex u;
 
   // expand from u to v with cost c
-  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &distance, &t, this](Vertex v,
-                                                                                         int c) {
+  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, this](Vertex v, int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
     auto g = f[u] + c;
     auto h = distance(v, t);

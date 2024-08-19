@@ -570,6 +570,10 @@ void PathFinderHelper::ComputePathToNextRouteCell(int x1, int y1, int x2, int y2
 AStarPathFinder::AStarPathFinder(const QuadtreeMap &m)
     : PathFinderHelper(m, &g), astar1(A1(m.N())), astar2(A2(m.N())) {
   g.Init(m.N());
+  A1::Distance distance1 = [&m](QdNode *a, QdNode *b) { return m.DistanceBetweenNodes(a, b); };
+  A2::Distance distance2 = [&m](int u, int v) { return m.Distance(u, v); };
+  astar1.SetDistanceFunc(distance1);
+  astar2.SetDistanceFunc(distance2);
 }
 
 IDirectedGraph<int> *AStarPathFinder::GetGateGraph() { return &g; }
@@ -600,11 +604,8 @@ int AStarPathFinder::ComputeNodeRoutes() {
                                                       NeighbourVertexVisitor<QdNode *> &visitor) {
     m.ForEachNeighbourNodes(u, visitor);
   };
-  // distance calculator.
-  A1::Distance distance = [this](QdNode *a, QdNode *b) { return m.DistanceBetweenNodes(a, b); };
-  A1::NeighbourFilterTester neighbourTester = nullptr;
   // compute
-  return astar1.Compute(neighborsCollector, distance, sNode, tNode, collector, neighbourTester);
+  return astar1.Compute(neighborsCollector, sNode, tNode, collector, nullptr);
 }
 
 void AStarPathFinder::VisitComputedNodeRoutes(QdNodeVisitor &visitor) const {
@@ -656,10 +657,8 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
                                                       NeighbourVertexVisitor<int> &visitor) {
     ForEachNeighbourGateWithST(u, visitor);
   };
-  // distance calculator.
-  A2::Distance distance1 = [this](int u, int v) { return m.Distance(u, v); };
   // compute
-  return astar2.Compute(neighborsCollector, distance1, s, t, collector1, neighbourTester);
+  return astar2.Compute(neighborsCollector, s, t, collector1, neighbourTester);
 }
 
 }  // namespace quadtree_pathfinding
