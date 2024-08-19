@@ -86,7 +86,7 @@ using ObstacleChecker = std::function<bool(int x, int y)>;
 // Euclidean distance calculator with a given cost unit.
 template <int CostUnit>
 int EuclideanDistance(int x1, int y1, int x2, int y2) {
-  return std::floor(std::hypot(abs(x1 - x2), abs(y1 - y2)) * CostUnit);
+  return std::floor(std::hypot(x1 - x2, y1 - y2) * CostUnit);
 }
 
 // DistanceCalculator is the type of the function that calculates the distance
