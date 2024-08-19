@@ -87,8 +87,23 @@ QuadtreeMap::~QuadtreeMap() {
 
 // ~~~~~~~~~~~~~~~ QuadtreeMap :: Cell ID Packing ~~~~~~~~~~~
 
+// Use std::ldiv for faster divide and module operations, than / and % operators.
+//
+// From https://en.cppreference.com/w/cpp/numeric/math/div:
+//
+//   > On many platforms, a single CPU instruction obtains both the quotient and the remainder,
+//   > and this function may leverage that, although compilers are generally able to merge
+//   > nearby / and % where suitable.
+static std::pair<int, int> __div(int n, int k) {
+  // from cppreference: the returned std::ldiv_t might be either form of
+  // { int quot; int rem; } or { int rem; int quot; }, the order of its members is undefined,
+  // we have to pack them into a pair for further structured bindings.
+  auto dv = std::ldiv(n, k);
+  return {dv.quot, dv.rem};
+}
+
 int QuadtreeMap::PackXY(int x, int y) const { return s * x + y; }
-std::pair<int, int> QuadtreeMap::UnpackXY(int v) const { return {v / s, v % s}; }
+std::pair<int, int> QuadtreeMap::UnpackXY(int v) const { return __div(v, s); }
 int QuadtreeMap::UnpackX(int v) const { return v / s; }
 int QuadtreeMap::UnpackY(int v) const { return v % s; }
 

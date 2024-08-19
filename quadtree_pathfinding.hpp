@@ -12,7 +12,7 @@
 // 5. Adjacent quadtree nodes are connected by multiple gates.
 // 6. A gate is composed of two adjacent cells, one on each side, directed.
 // 7. All nodes compose the 1st level abstract graph.
-// 8.  All gates compose the 2nd level abstract graph.
+// 8. All gates compose the 2nd level abstract graph.
 // 9. Path finding performs on the 2 or 3 levels graphs:
 //      1. Find the node path on the 1st level graph (it's optional, faster but less optimal).
 //      2. Find the gate path on the 2nd level graph.
