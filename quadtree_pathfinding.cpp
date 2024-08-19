@@ -638,10 +638,8 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
     collector(x1, y1);
     return 0;
   }
-  if (useNodePath) collectGateCellsOnNodePath();
-  // If useNodePath and nodePath is empty, return -1;
   // if useNodePath then collect all gate cells for these node.
-  // Path finding on gate cells.
+  if (useNodePath) collectGateCellsOnNodePath();
   // collector for path result.
   A2::PathCollector collector1 = [this, &collector](int u, int cost) {
     auto [x, y] = m.UnpackXY(u);

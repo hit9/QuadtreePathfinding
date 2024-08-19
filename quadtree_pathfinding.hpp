@@ -329,7 +329,7 @@ class QuadtreeMap {
 };
 
 //////////////////////////////////////
-/// Algorithm
+/// Algorithm AStar
 //////////////////////////////////////
 
 template <typename K, typename V, V DefaultValue>
@@ -449,8 +449,10 @@ class PathFinderHelper {
   // tmp gate graph is to store edges between start/target and other gate cells.
   SimpleUnorderedMapDirectedGraph<int> tmp;
 
-  // BuildTmpGateGraph builds the temporary agate graph to store edges between start/target and
-  // other gates in the same nodes. This is a helper function. Parameters:
+  // BuildTmpGateGraph builds a temporary gate graph to store edges between start/target and
+  // other gates in the same nodes.
+  // This is a helper function.
+  // Parameters:
   // 1. s and t are the ids of cell start and target.
   // 2. (x1,y1) and (x2,y2) are the positions of cell start and target.
   void BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, int y2, QdNode *sNode,
@@ -458,7 +460,7 @@ class PathFinderHelper {
   // ForEachNeighbourGateCellWithST iterates each neighbor gate cell connecting from given gate
   // cell u. What's the deference with the gate graph's ForEachNeighbours is: it will check both
   // the QuadtreeMap's gate cell graph and the temporary gate graph,
-  // where stores the start, target informations).
+  // where stores the start, target informations.
   void ForEachNeighbourGateWithST(int u, NeighbourVertexVisitor<int> &visitor) const;
   // helper function to add a cell u to the given node in the temporary graph.
   void addCellToTmpGateGraph(int u, QdNode *node);
@@ -482,6 +484,7 @@ class AStarPathFinder : public IPathFinder, public PathFinderHelper {
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable.
   int ComputeNodeRoutes();
+  // Visit computed node path.
   void VisitComputedNodeRoutes(QdNodeVisitor &visitor) const;
   // ComputeGateRoutes computes the route cells from (x1,y1) to (x2,y2).
   // Sets useNodePath to true to use the previous ComputeNodeRoutes results, it will find path
