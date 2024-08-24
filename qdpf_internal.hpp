@@ -87,7 +87,7 @@ class SimpleUnorderedMapDirectedGraph : public IDirectedGraph<Vertex> {
 //////////////////////////////////////
 /// QuadtreeMap
 //////////////////////////////////////
-///
+
 // Gate between two adjacent quadtree nodes from cell a in aNode to cell b in bNode.
 //  +-------+--------+
 //  |    [a => b]    |
@@ -538,7 +538,6 @@ int AStar<Vertex, NullVertex, F, Vis, From>::Compute(NeighboursCollector &neighb
   return f[t];
 }
 
-//////////////////////////////////////
 }  // namespace qdpf
 
 #endif
