@@ -191,7 +191,7 @@ int Visualizer::Init() {
     return -3;
   }
   // Creates renderer.
-  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   if (renderer == nullptr) {
     spdlog::error("Create renderer error: {}", SDL_GetError());
     SDL_DestroyWindow(window);
