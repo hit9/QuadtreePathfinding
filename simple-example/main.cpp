@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "quadtree_pathfinding.hpp"
+#include "qdpf.hpp"
 
 const int N = 8;
 
@@ -26,11 +26,11 @@ int main(void) {
   int w = 8, h = 8;
   // Setup the map
   auto isObstacle = [](int x, int y) { return grid[x][y]; };
-  auto distance = quadtree_pathfinding::EuclideanDistance<10>;
-  quadtree_pathfinding::QuadtreeMap m(w, h, isObstacle, distance);
+  auto distance = qdpf::EuclideanDistance<10>;
+  qdpf::QuadtreeMap m(w, h, isObstacle, distance);
 
   // Setup an A* path finder.
-  quadtree_pathfinding::AStarPathFinder pf(m);
+  qdpf::AStarPathFinder pf(m);
 
   // Bind them and build the tree.
   m.RegisterGateGraph(pf.GetGateGraph());
@@ -50,7 +50,7 @@ int main(void) {
     std::cout << "unreachable!" << std::endl;
     return -1;
   }
-  quadtree_pathfinding::QdNodeVisitor visitor1 = [](const quadtree_pathfinding::QdNode* node) {
+  qdpf::QdNodeVisitor visitor1 = [](const qdpf::QdNode* node) {
     std::cout << node->x1 << "," << node->y1 << " " << node->x2 << "," << node->y2 << std::endl;
   };
   pf.VisitComputedNodeRoutes(visitor1);
@@ -58,9 +58,7 @@ int main(void) {
   // Compute gate cell routes.
   std::cout << "collect route gate cell path..." << std::endl;
   std::vector<std::pair<int, int>> routes;
-  quadtree_pathfinding::CellCollector collector = [&routes](int x, int y) {
-    routes.push_back({x, y});
-  };
+  qdpf::CellCollector collector = [&routes](int x, int y) { routes.push_back({x, y}); };
   // The second boolean argument specifics whether to use only the gate cells on the computed node
   // path. This will make the ComputeGateRoutes runs much faster, but less optimal.
   // We can just use ComputeGateRoutes(collector, false) directly without calling ComputeGateRoutes
@@ -71,7 +69,7 @@ int main(void) {
   std::cout << "collect detailed path..." << std::endl;
   // Fill the detailed path (straight lines).
   std::vector<std::pair<int, int>> path;
-  quadtree_pathfinding::CellCollector collector1 = [&path](int x, int y) {
+  qdpf::CellCollector collector1 = [&path](int x, int y) {
     if (path.size()) {
       // skip duplicates end of previous route.
       auto [x2, y2] = path.back();

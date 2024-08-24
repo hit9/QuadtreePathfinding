@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "quadtree_pathfinding.hpp"
+#include "qdpf.hpp"
 
 // pixels per grid side.
 int GRID_SIZE = 16;
@@ -37,15 +37,14 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options);
 
 class Visualizer {
  public:
-  Visualizer(quadtree_pathfinding::QuadtreeMap& mp, quadtree_pathfinding::AStarPathFinder* pf,
-             Options& options);
+  Visualizer(qdpf::QuadtreeMap& mp, qdpf::AStarPathFinder* pf, Options& options);
   int Init();
   void Start();
   void Destroy();
 
  private:
-  quadtree_pathfinding::QuadtreeMap& mp;
-  quadtree_pathfinding::AStarPathFinder* pf;
+  qdpf::QuadtreeMap& mp;
+  qdpf::AStarPathFinder* pf;
   Options& options;
   SDL_Window* window;
   SDL_Renderer* renderer;
@@ -100,13 +99,13 @@ int main(int argc, char* argv[]) {
   Options options;
   if (ParseOptionsFromCommandline(argc, argv, options) != 0) return -1;
   // Quadtree map.
-  auto distance = quadtree_pathfinding::EuclideanDistance<10>;
+  auto distance = qdpf::EuclideanDistance<10>;
   auto isObstacle = [](int x, int y) -> bool { return GRIDS[x][y]; };
   auto stepf = options.step != -1 ? nullptr : [](int z) -> int { return z / 8 + 1; };
-  quadtree_pathfinding::QuadtreeMap mp(options.w, options.h, isObstacle, distance, options.step,
-                                       stepf, options.maxNodeWidth, options.maxNodeHeight);
+  qdpf::QuadtreeMap mp(options.w, options.h, isObstacle, distance, options.step, stepf,
+                       options.maxNodeWidth, options.maxNodeHeight);
   // Path finder.
-  quadtree_pathfinding::AStarPathFinder pf(mp);
+  qdpf::AStarPathFinder pf(mp);
   // Visualizer.
   Visualizer visualizer(mp, &pf, options);
   if (visualizer.Init() != 0) return -1;
@@ -162,8 +161,7 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
   return 0;
 }
 
-Visualizer::Visualizer(quadtree_pathfinding::QuadtreeMap& mp,
-                       quadtree_pathfinding::AStarPathFinder* pf, Options& options)
+Visualizer::Visualizer(qdpf::QuadtreeMap& mp, qdpf::AStarPathFinder* pf, Options& options)
     : mp(mp), pf(pf), options(options), mapW(options.w * GRID_SIZE), mapH(options.h * GRID_SIZE) {}
 
 int Visualizer::Init() {
@@ -360,7 +358,7 @@ void Visualizer::calculateRoutes() {
   pf->Reset(x1, y1, x2, y2);
   // calculate node route path.
   startAt = std::chrono::high_resolution_clock::now();
-  quadtree_pathfinding::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
+  qdpf::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
   int ret = pf->ComputeNodeRoutes();
   endAt = std::chrono::high_resolution_clock::now();
   if (-1 == ret) {
@@ -387,7 +385,7 @@ void Visualizer::calculateRoutes() {
 void Visualizer::calculatePath() {
   std::chrono::high_resolution_clock::time_point startAt, endAt;
   startAt = std::chrono::high_resolution_clock::now();
-  quadtree_pathfinding::CellCollector c = [this](int x, int y) {
+  qdpf::CellCollector c = [this](int x, int y) {
     if (path.size()) {
       auto [x2, y2] = path.back();
       if ((x2 == x && y2 == y)) return;
@@ -442,7 +440,7 @@ void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
 // 4. Show Path and start/target
 // 5. Show cells to invert on mouse down.
 void Visualizer::draw() {
-  quadtree_pathfinding::QdNodeVisitor visitor = [this](const quadtree_pathfinding::QdNode* node) {
+  qdpf::QdNodeVisitor visitor = [this](const qdpf::QdNode* node) {
     int h = (node->x2 - node->x1) * GRID_SIZE - 2;
     int w = (node->y2 - node->y1) * GRID_SIZE - 2;
     int x = node->y1 * GRID_SIZE + 1;
@@ -478,8 +476,7 @@ void Visualizer::draw() {
     }
   }
   // Gates.
-  quadtree_pathfinding::GateVisitor c2 = [this](const quadtree_pathfinding::Gate* gate) {
-    auto [x, y] = mp.UnpackXY(gate->a);
+  qdpf::CellCollector c2 = [this](int x, int y) {
     int x1 = y * GRID_SIZE + 1;
     int y1 = x * GRID_SIZE + 1;
     SDL_Rect rect = {x1, y1, GRID_SIZE - 2, GRID_SIZE - 2};
@@ -492,7 +489,7 @@ void Visualizer::draw() {
 
   mp.Gates(c2);
   // Quadtree nodes borders.
-  quadtree_pathfinding::QdNodeVisitor c1 = [this](const quadtree_pathfinding::QdNode* node) {
+  qdpf::QdNodeVisitor c1 = [this](const qdpf::QdNode* node) {
     int x = node->y1 * GRID_SIZE;
     int y = node->x1 * GRID_SIZE;
     int w = (node->y2 - node->y1 + 1) * GRID_SIZE;
