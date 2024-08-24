@@ -11,9 +11,12 @@
 #include <utility>        // for std::pair
 #include <vector>         // for std::vector
 
-#include "qdpf.hpp"
+#include "quadtree-hpp/quadtree.hpp"
 
 namespace qdpf {
+namespace internal {
+
+const int inf = 0x3f3f3f3f;
 
 //////////////////////////////////////
 /// Graph
@@ -88,6 +91,18 @@ class SimpleUnorderedMapDirectedGraph : public IDirectedGraph<Vertex> {
 /// QuadtreeMap
 //////////////////////////////////////
 
+using ObstacleChecker = std::function<bool(int x, int y)>;
+using DistanceCalculator = std::function<int(int x1, int y1, int x2, int y2)>;
+using CellCollector = std::function<void(int x, int y)>;
+using StepFunction = std::function<int(int length)>;
+
+// QdTree is the type alias of a quadtree.
+using QdTree = quadtree::Quadtree<bool>;
+// QdNode is the type alias of a quadtree node.
+using QdNode = quadtree::Node<bool>;
+// QdNodeVisitor is the type of the function that visits quadtree nodes of the path finder.
+using QdNodeVisitor = std::function<void(const QdNode *node)>;
+
 // Gate between two adjacent quadtree nodes from cell a in aNode to cell b in bNode.
 //  +-------+--------+
 //  |    [a => b]    |
@@ -103,11 +118,14 @@ struct Gate {
 // GateVisitor the type of the function to visit gates.
 using GateVisitor = std::function<void(const Gate *)>;
 
-class QuadtreeMap::Impl {
+using GateGraph = IDirectedGraph<int>;
+
+class QuadtreeMapImpl {
  public:
-  Impl(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance, int step = 1,
-       StepFunction stepf = nullptr, int maxNodeWidth = -1, int maxNodeHeight = -1);
-  ~Impl();
+  QuadtreeMapImpl(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance,
+                  int step = 1, StepFunction stepf = nullptr, int maxNodeWidth = -1,
+                  int maxNodeHeight = -1);
+  ~QuadtreeMapImpl();
 
   // ~~~~~~~~~~~~~~~ Cell ID Packing ~~~~~~~~~~~
 
@@ -121,6 +139,10 @@ class QuadtreeMap::Impl {
   int UnpackY(int v) const;
 
   // ~~~~~~~~~~~~~ Basic methods ~~~~~~~~~~~~~~~~~
+  int W() const { return w; }
+  int H() const { return h; }
+  int N() const { return n; }
+  const QdTree &Tree() const { return tree; }
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
   // Returns true if the given cell (x,y) is an obstacle.
@@ -192,8 +214,6 @@ class QuadtreeMap::Impl {
   //   a | d
   using GateSet = std::unordered_set<Gate *>;
   std::unordered_map<QdNode *, std::unordered_map<int, GateSet>> gates1;
-
-  friend QuadtreeMap;
 
   // ~~~~~~~~~~~~~~~~ Internals ~~~~~~~~~~~~~~~
   void forEachGateInNode(QdNode *node, std::function<void(Gate *)> &visitor) const;
@@ -307,19 +327,19 @@ class AStar {
 //////////////////////////////////////
 
 // PathFinderHelper is a mixin class to provide some util functions.
-class PathFinderHelper : virtual public IPathFinder {
+class PathFinderHelper {
  public:
   // parameter g2 is the gate graph of the path finder.
-  PathFinderHelper(const QuadtreeMap &m, IDirectedGraph<int> *g2);
+  PathFinderHelper(const QuadtreeMapImpl &m, IDirectedGraph<int> *g2);
   // Bresenham's line algorithm.
   // You can override it with a custom implementation.
   // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
   // Ref: https://members.chello.at/easyfilter/bresenham.html
   virtual void ComputePathToNextRouteCell(int x1, int y1, int x2, int y2,
                                           CellCollector &collector) const;
-  IDirectedGraph<int> *GetGateGraph() override { return g2; }
 
  protected:
+  const QuadtreeMapImpl &m;
   IDirectedGraph<int> *g2;
   // tmp gate graph is to store edges between start/target and other gate cells.
   SimpleUnorderedMapDirectedGraph<int> tmp;
@@ -340,9 +360,11 @@ class PathFinderHelper : virtual public IPathFinder {
   void addCellToTmpGateGraph(int u, QdNode *node);
 };
 
-class AStarPathFinder::Impl : public PathFinderHelper {
+class AStarPathFinderImpl : public PathFinderHelper {
  public:
-  Impl(const QuadtreeMap &m);
+  AStarPathFinderImpl(const QuadtreeMapImpl &m);
+  GateGraph *GetGateGraph() { return &g; }
+  std::size_t NodePathSize() const { return nodePath.size(); }
   void Reset(int x1, int y1, int x2, int y2);
   int ComputeNodeRoutes();
   void VisitComputedNodeRoutes(QdNodeVisitor &visitor) const;
@@ -369,8 +391,6 @@ class AStarPathFinder::Impl : public PathFinderHelper {
   std::vector<P> nodePath;
   // the gate cells on the node path if ComputeNodeRoutes is called successfully.
   std::unordered_set<int> gateCellsOnNodePath;
-
-  friend AStarPathFinder;
 
   void collectGateCellsOnNodePath();
 };
@@ -537,7 +557,7 @@ int AStar<Vertex, NullVertex, F, Vis, From>::Compute(NeighboursCollector &neighb
   for (int i = path.size() - 1; i >= 0; --i) collector(path[i], f[path[i]]);
   return f[t];
 }
-
+}  // namespace internal
 }  // namespace qdpf
 
 #endif

@@ -1,21 +1,14 @@
-#include "qdpf.hpp"
 #include "qdpf_internal.hpp"
 
 namespace qdpf {
-
-//////////////////////////////////////
-/// IPathFinder
-//////////////////////////////////////
-
-IPathFinder::IPathFinder(const QuadtreeMap &m) : m(m) {}
-const QuadtreeMap::Impl *IPathFinder::QuadtreeMapImpl() { return m.pImpl; }
+namespace internal {
 
 //////////////////////////////////////
 /// PathFinderHelper
 //////////////////////////////////////
 
-PathFinderHelper::PathFinderHelper(const QuadtreeMap &m, IDirectedGraph<int> *g2)
-    : g2(g2), IPathFinder(m) {}
+PathFinderHelper::PathFinderHelper(const QuadtreeMapImpl &m, IDirectedGraph<int> *g2)
+    : m(m), g2(g2) {}
 
 // Add given cell u to given node temporarily to the tmp gate graph.
 // It will establish edges between u and all gate cells in node.
@@ -23,19 +16,19 @@ void PathFinderHelper::addCellToTmpGateGraph(int u, QdNode *node) {
   GateVisitor visitor = [this, u](const Gate *gate) {
     auto v = gate->a;
     if (u != v) {
-      int dist = QuadtreeMapImpl()->Distance(u, v);
+      int dist = m.Distance(u, v);
       tmp.AddEdge(u, v, dist);  // (u => v)
       tmp.AddEdge(v, u, dist);  // (v => u)
     }
   };
-  QuadtreeMapImpl()->ForEachGateInNode(node, visitor);
+  m.ForEachGateInNode(node, visitor);
 }
 
 void PathFinderHelper::BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, int y2,
                                          QdNode *sNode, QdNode *tNode) {
   // Is the start and target a gate cell?
-  bool sIsGate = QuadtreeMapImpl()->IsGateCell(sNode, s);
-  bool tIsGate = QuadtreeMapImpl()->IsGateCell(tNode, t);
+  bool sIsGate = m.IsGateCell(sNode, s);
+  bool tIsGate = m.IsGateCell(tNode, t);
 
   // Add s and t to the tmp graph, if they are not gates.
   if (!sIsGate) addCellToTmpGateGraph(s, sNode);
@@ -46,7 +39,7 @@ void PathFinderHelper::BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, i
   // we should connect them with edges, the shortest path should be dist itself.
   if (tNode == sNode && s != t && !sIsGate && !tIsGate) {
     // TODO: should we just stop the path finding on tihs case?
-    int dist = QuadtreeMapImpl()->Distance(s, t);
+    int dist = m.Distance(s, t);
     tmp.AddEdge(s, t, dist);
     tmp.AddEdge(t, s, dist);
   }
@@ -83,23 +76,19 @@ void PathFinderHelper::ComputePathToNextRouteCell(int x1, int y1, int x2, int y2
 /// AStarPathFinder
 //////////////////////////////////////
 
-AStarPathFinder::Impl::Impl(const QuadtreeMap &m)
-    : PathFinderHelper(m, &g), astar1(A1(m.N())), astar2(A2(m.N())), IPathFinder(m) {
+AStarPathFinderImpl::AStarPathFinderImpl(const QuadtreeMapImpl &m)
+    : PathFinderHelper(m, &g), astar1(A1(m.N())), astar2(A2(m.N())) {
   g.Init(m.N());
-  A1::Distance distance1 = [&m, this](QdNode *a, QdNode *b) {
-    return this->QuadtreeMapImpl()->DistanceBetweenNodes(a, b);
-  };
-  A2::Distance distance2 = [&m, this](int u, int v) {
-    return this->QuadtreeMapImpl()->Distance(u, v);
-  };
+  A1::Distance distance1 = [&m](QdNode *a, QdNode *b) { return m.DistanceBetweenNodes(a, b); };
+  A2::Distance distance2 = [&m](int u, int v) { return m.Distance(u, v); };
   astar1.SetDistanceFunc(distance1);
   astar2.SetDistanceFunc(distance2);
 }
 
-void AStarPathFinder::Impl::Reset(int x1_, int y1_, int x2_, int y2_) {
+void AStarPathFinderImpl::Reset(int x1_, int y1_, int x2_, int y2_) {
   x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
-  s = QuadtreeMapImpl()->PackXY(x1, y1), t = QuadtreeMapImpl()->PackXY(x2, y2);
-  sNode = QuadtreeMapImpl()->FindNode(x1, y1), tNode = QuadtreeMapImpl()->FindNode(x2, y2);
+  s = m.PackXY(x1, y1), t = m.PackXY(x2, y2);
+  sNode = m.FindNode(x1, y1), tNode = m.FindNode(x2, y2);
   nodePath.clear();
   gateCellsOnNodePath.clear();
   // Rebuild the tmp graph.
@@ -107,7 +96,7 @@ void AStarPathFinder::Impl::Reset(int x1_, int y1_, int x2_, int y2_) {
   BuildTmpGateGraph(s, t, x1, y1, x2, y2, sNode, tNode);
 }
 
-int AStarPathFinder::Impl::ComputeNodeRoutes() {
+int AStarPathFinderImpl::ComputeNodeRoutes() {
   if (sNode == tNode) {
     // Same node.
     nodePath.push_back({sNode, 0});
@@ -120,20 +109,20 @@ int AStarPathFinder::Impl::ComputeNodeRoutes() {
   // collector for neighbour qd nodes.
   A1::NeighboursCollector neighborsCollector = [this](QdNode *u,
                                                       NeighbourVertexVisitor<QdNode *> &visitor) {
-    QuadtreeMapImpl()->ForEachNeighbourNodes(u, visitor);
+    m.ForEachNeighbourNodes(u, visitor);
   };
   // compute
   return astar1.Compute(neighborsCollector, sNode, tNode, collector, nullptr);
 }
 
-void AStarPathFinder::Impl::VisitComputedNodeRoutes(QdNodeVisitor &visitor) const {
+void AStarPathFinderImpl::VisitComputedNodeRoutes(QdNodeVisitor &visitor) const {
   for (const auto [node, cost] : nodePath) visitor(node);
 }
 
 // Collects the gate cells on node path if ComputeNodeRoutes is successfully called and any further
 // ComputeGateRoutes call specifics the useNodePath true.
 // Notes that the start and target should be also collected.
-void AStarPathFinder::Impl::collectGateCellsOnNodePath() {
+void AStarPathFinderImpl::collectGateCellsOnNodePath() {
   gateCellsOnNodePath.insert(s);
   gateCellsOnNodePath.insert(t);
   // A visitor to collect all gate cells of a node.
@@ -145,13 +134,12 @@ void AStarPathFinder::Impl::collectGateCellsOnNodePath() {
       gateCellsOnNodePath.insert(gate->b);
     };
   };
-  for (; i != nodePath.size(); ++i)
-    QuadtreeMapImpl()->ForEachGateInNode(nodePath[i].first, visitor);
+  for (; i != nodePath.size(); ++i) m.ForEachGateInNode(nodePath[i].first, visitor);
 }
 
-int AStarPathFinder::Impl::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
+int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
   // Can't route to or start from obstacles.
-  if (QuadtreeMapImpl()->IsObstacle(x1, y1) || QuadtreeMapImpl()->IsObstacle(x2, y2)) return -1;
+  if (m.IsObstacle(x1, y1) || m.IsObstacle(x2, y2)) return -1;
   // Same point.
   if (x1 == x2 && y1 == y2) {
     collector(x1, y1);
@@ -161,7 +149,7 @@ int AStarPathFinder::Impl::ComputeGateRoutes(CellCollector &collector, bool useN
   if (useNodePath) collectGateCellsOnNodePath();
   // collector for path result.
   A2::PathCollector collector1 = [this, &collector](int u, int cost) {
-    auto [x, y] = QuadtreeMapImpl()->UnpackXY(u);
+    auto [x, y] = m.UnpackXY(u);
     collector(x, y);
   };
 
@@ -177,4 +165,5 @@ int AStarPathFinder::Impl::ComputeGateRoutes(CellCollector &collector, bool useN
   // compute
   return astar2.Compute(neighborsCollector, s, t, collector1, neighbourTester);
 }
+}  // namespace internal
 }  // namespace qdpf

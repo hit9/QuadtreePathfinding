@@ -60,14 +60,13 @@
 #ifndef QDPF_HPP
 #define QDPF_HPP
 
-#include <cmath>       // for std::floor, std::hypot
 #include <functional>  // for std::function, std::hash
 
-#include "quadtree-hpp/quadtree.hpp"
+#include "qdpf_internal.hpp"
 
 namespace qdpf {
 
-const int inf = 0x3f3f3f3f;
+using internal ::inf;
 
 //////////////////////////////////////
 /// Graph
@@ -77,7 +76,7 @@ const int inf = 0x3f3f3f3f;
 // It's a pure virtual class so that the subclasses should implement all the virtual methods.
 // The parameter Vertex is the type of vertex (e.g. int).
 template <typename Vertex>
-class IDirectedGraph;
+using IDirectedGraph = internal::IDirectedGraph<Vertex>;
 
 //////////////////////////////////////
 /// QuadtreeMap
@@ -85,13 +84,8 @@ class IDirectedGraph;
 
 // ObstacleChecker is the type of the function that returns true if the given
 // cell (x,y) is an obstacle.
-using ObstacleChecker = std::function<bool(int x, int y)>;
-
-// Euclidean distance calculator with a given cost unit.
-template <int CostUnit>
-int EuclideanDistance(int x1, int y1, int x2, int y2) {
-  return std::floor(std::hypot(x1 - x2, y1 - y2) * CostUnit);
-}
+// std::function<bool(int x, int y)>
+using ObstacleChecker = internal::ObstacleChecker;
 
 // DistanceCalculator is the type of the function that calculates the distance
 // from cell (x1,y1) to (x2,y2).
@@ -99,31 +93,42 @@ int EuclideanDistance(int x1, int y1, int x2, int y2) {
 // and (x2,y2) always equals to the distance between (x2,y2) and (x1,y1).
 // We can just use quadtree_astar::EuclideanDistance<CostUnit> to build a euclidean distance
 // calculator.
-using DistanceCalculator = std::function<int(int x1, int y1, int x2, int y2)>;
+// std::function<int(int x1, int y1, int x2, int y2)>;
+using DistanceCalculator = internal::DistanceCalculator;
+
+// Euclidean distance calculator with a given cost unit.
+template <int CostUnit>
+int EuclideanDistance(int x1, int y1, int x2, int y2) {
+  return std::floor(std::hypot(x1 - x2, y1 - y2) * CostUnit);
+}
 
 // CellCollector is the type of the function that collects points on a path.
 // The argument (x,y) is a cell in the grid map.
-using CellCollector = std::function<void(int x, int y)>;
+// std::function<void(int x, int y)>;
+using CellCollector = internal::CellCollector;
 
 // StepFunction is the type of a function to specific a dynamic gate picking step.
 // The argument length is the length (number of cells) of the adjacent side of two neighbor nodes.
 // We should make sure the return value is always > 0.
 // An example: [](int length) { return length / 8 + 1; }
 // For this example, we use larger step on large rectangles, and smaller step on small rectangles.
-using StepFunction = std::function<int(int length)>;
+// std::function<int(int length)>;
+using StepFunction = internal::StepFunction;
 
-// QdTree is the type alias of a quadtree.
-using QdTree = quadtree::Quadtree<bool>;
-// QdNode is the type alias of a quadtree node.
-using QdNode = quadtree::Node<bool>;
-// QdNodeVisitor is the type of the function that visits quadtree nodes of the path finder.
-using QdNodeVisitor = std::function<void(const QdNode *node)>;
+// NodeVisitor is the type of a function to visit quadtree nodes.
+// Where (x,y1) and (x2,y2) are the left-top and right-bottom corner cells of the visited node.
+using NodeVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
+
+// GateVisitor is the type of a function to visit gates.
+// Where (x,y1) and (x2,y2) are the start and end cell of the gate.
+using GateVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
+
+// Graph of gate cells.
+using GateGraph = internal::GateGraph;
 
 // QuadtreeMap maintains a 2D grid map by a quadtree.
 class QuadtreeMap {
  public:
-  using GateGraph = IDirectedGraph<int>;
-
   // * w, h: width and height of the grid map.
   // * isObstacle(x,y) returns true if cell (x,y) is an obstacle, it should be fast.
   // * distance: the function calculates the distance between two cells.
@@ -156,10 +161,10 @@ class QuadtreeMap {
 
   // ~~~~~~~~~~~~~ Debuging Purpose ~~~~~~~~~~~~~~~~~
   // Visit all the quadtree's leaf nodes.
-  void Nodes(QdNodeVisitor &visitor) const;
+  void Nodes(NodeVisitor &visitor) const;
   // Visit all gate cells.
   // Note that dual gates (a => b) and (b => a) are visited twice (once for each).
-  void Gates(CellCollector &visitor) const;
+  void Gates(GateVisitor &visitor) const;
 
   // ~~~~~~~~~~~~~ Graphs Maintaining ~~~~~~~~~~~~~~~~~
 
@@ -169,8 +174,7 @@ class QuadtreeMap {
   void Update(int x, int y);
 
  private:
-  class Impl;
-  Impl *pImpl;
+  internal::QuadtreeMapImpl *pImpl;
   friend class IPathFinder;
 };
 
@@ -187,7 +191,7 @@ class IPathFinder {
   virtual IDirectedGraph<int> *GetGateGraph() = 0;
 
  protected:
-  const QuadtreeMap::Impl *QuadtreeMapImpl();
+  const internal::QuadtreeMapImpl *QuadtreeMapImpl();
 
  private:
   const QuadtreeMap &m;
@@ -217,7 +221,7 @@ class AStarPathFinder : public IPathFinder {
   // 2. fast checking if the target is reachable.
   int ComputeNodeRoutes();
   // Visit computed node path.
-  void VisitComputedNodeRoutes(QdNodeVisitor &visitor) const;
+  void VisitComputedNodeRoutes(NodeVisitor &visitor) const;
   // ComputeGateRoutes computes the route cells from (x1,y1) to (x2,y2).
   // Sets useNodePath to true to use the previous ComputeNodeRoutes results, it will find path
   // only over gate cells on the node path, this the path finding is much faster, but less optimal.
@@ -235,8 +239,7 @@ class AStarPathFinder : public IPathFinder {
   void ComputePathToNextRouteCell(int x1, int y1, int x2, int y2, CellCollector &collector) const;
 
  private:
-  class Impl;
-  Impl *pImpl;
+  internal::AStarPathFinderImpl *pImpl;
 };
 
 }  // namespace qdpf

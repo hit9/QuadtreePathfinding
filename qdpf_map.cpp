@@ -1,13 +1,15 @@
 #include "qdpf_internal.hpp"
 
 namespace qdpf {
+namespace internal {
 
 Gate::Gate(QdNode *aNode, QdNode *bNode, int a, int b) : aNode(aNode), bNode(bNode), a(a), b(b) {}
 
 // ~~~~~~~~~~~~~~~ QuadtreeMap::Impl  ~~~~~~~~~~~
 
-QuadtreeMap::Impl::Impl(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance,
-                        int step, StepFunction stepf, int maxNodeWidth, int maxNodeHeight)
+QuadtreeMapImpl::QuadtreeMapImpl(int w, int h, ObstacleChecker isObstacle,
+                                 DistanceCalculator distance, int step, StepFunction stepf,
+                                 int maxNodeWidth, int maxNodeHeight)
     : w(w),
       h(h),
       step(step),
@@ -36,7 +38,7 @@ QuadtreeMap::Impl::Impl(int w, int h, ObstacleChecker isObstacle, DistanceCalcul
   tree.SetAfterLeafCreatedCallback([this](QdNode *node) { handleNewNode(node); });
 }
 
-QuadtreeMap::Impl::~Impl() {
+QuadtreeMapImpl::~QuadtreeMapImpl() {
   // free all gate pointers.
   for (auto gate : gates) delete gate;
   gates.clear();
@@ -59,22 +61,22 @@ static std::pair<int, int> __div(int n, int k) {
   return {dv.quot, dv.rem};
 }
 
-int QuadtreeMap::Impl::PackXY(int x, int y) const { return s * x + y; }
-std::pair<int, int> QuadtreeMap::Impl::UnpackXY(int v) const { return __div(v, s); }
-int QuadtreeMap::Impl::UnpackX(int v) const { return v / s; }
-int QuadtreeMap::Impl::UnpackY(int v) const { return v % s; }
+int QuadtreeMapImpl::PackXY(int x, int y) const { return s * x + y; }
+std::pair<int, int> QuadtreeMapImpl::UnpackXY(int v) const { return __div(v, s); }
+int QuadtreeMapImpl::UnpackX(int v) const { return v / s; }
+int QuadtreeMapImpl::UnpackY(int v) const { return v % s; }
 
 // ~~~~~~~~~~~~~~~ QuadtreeMap::Impl :: Basic methods ~~~~~~~~~~~
 
-int QuadtreeMap::Impl::Distance(int u, int v) const {
+int QuadtreeMapImpl::Distance(int u, int v) const {
   auto [x1, y1] = UnpackXY(u);
   auto [x2, y2] = UnpackXY(v);
   return distance(x1, y1, x2, y2);
 }
 
-void QuadtreeMap::Impl::RegisterGateGraph(GateGraph *g) { g2s.push_back(g); }
+void QuadtreeMapImpl::RegisterGateGraph(GateGraph *g) { g2s.push_back(g); }
 
-int QuadtreeMap::Impl::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const {
+int QuadtreeMapImpl::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const {
   int aNodeCenterX = aNode->x1 + (aNode->x2 - aNode->x1) / 2;
   int aNodeCenterY = aNode->y1 + (aNode->y2 - aNode->y1) / 2;
   int bNodeCenterX = bNode->x1 + (bNode->x2 - bNode->x1) / 2;
@@ -84,9 +86,9 @@ int QuadtreeMap::Impl::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const 
 
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Visits and Reads ~~~~~~~~~~~~~~~~~
 
-QdNode *QuadtreeMap::Impl::FindNode(int x, int y) const { return tree.Find(x, y); }
+QdNode *QuadtreeMapImpl::FindNode(int x, int y) const { return tree.Find(x, y); }
 
-bool QuadtreeMap::Impl::IsGateCell(QdNode *node, int u) const {
+bool QuadtreeMapImpl::IsGateCell(QdNode *node, int u) const {
   auto it = gates1.find(node);
   // the node is not found.
   if (it == gates1.end()) return false;
@@ -95,14 +97,14 @@ bool QuadtreeMap::Impl::IsGateCell(QdNode *node, int u) const {
   return m.find(u) != m.end();
 }
 
-bool QuadtreeMap::Impl::IsGateCell(int u) const {
+bool QuadtreeMapImpl::IsGateCell(int u) const {
   auto [x, y] = UnpackXY(u);
   auto node = tree.Find(x, y);  // O(log Depth).
   return IsGateCell(node, u);
 }
 
 // Visit each gate cell inside a node and call given visitor with it.
-void QuadtreeMap::Impl::ForEachGateInNode(QdNode *node, GateVisitor &visitor) const {
+void QuadtreeMapImpl::ForEachGateInNode(QdNode *node, GateVisitor &visitor) const {
   std::function<void(Gate *)> visitor1 = [&visitor](Gate *gate) {
     // Won't allow user to modify gate's content.
     visitor(const_cast<const Gate *>(gate));
@@ -110,25 +112,25 @@ void QuadtreeMap::Impl::ForEachGateInNode(QdNode *node, GateVisitor &visitor) co
   forEachGateInNode(node, visitor1);
 }
 
-void QuadtreeMap::Impl::Nodes(QdNodeVisitor &visitor) const {
+void QuadtreeMapImpl::Nodes(QdNodeVisitor &visitor) const {
   QdTree::VisitorT visitor1 = [&visitor](QdNode *node) {
     if (node->isLeaf) visitor(node);
   };
   tree.ForEachNode(visitor1);
 }
 
-void QuadtreeMap::Impl::Gates(GateVisitor &visitor) const {
+void QuadtreeMapImpl::Gates(GateVisitor &visitor) const {
   for (const auto &gate : gates) visitor(gate);
 }
 
-void QuadtreeMap::Impl::ForEachNeighbourNodes(QdNode *node,
-                                              NeighbourVertexVisitor<QdNode *> &visitor) const {
+void QuadtreeMapImpl::ForEachNeighbourNodes(QdNode *node,
+                                            NeighbourVertexVisitor<QdNode *> &visitor) const {
   g1.ForEachNeighbours(node, visitor);
 }
 
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Graphs Maintaining ~~~~~~~~~~~~~~~~~
 
-void QuadtreeMap::Impl::Build() {
+void QuadtreeMapImpl::Build() {
   tree.Build();
   for (int x = 0; x < h; x++) {
     for (int y = 0; y < w; y++) {
@@ -140,7 +142,7 @@ void QuadtreeMap::Impl::Build() {
   }
 }
 
-void QuadtreeMap::Impl::Update(int x, int y) {
+void QuadtreeMapImpl::Update(int x, int y) {
   // Special case:
   //   When the (x,y) always locates at a single-cell 1x1 node before and after the tree
   //   adjustment. Changing this cell's value won't trigger spliting and merging, the ssf
@@ -171,8 +173,7 @@ void QuadtreeMap::Impl::Update(int x, int y) {
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Internals ~~~~~~~~~~~~~~~~~
 
 // visits each gate of a given node.
-void QuadtreeMap::Impl::forEachGateInNode(QdNode *node,
-                                          std::function<void(Gate *)> &visitor) const {
+void QuadtreeMapImpl::forEachGateInNode(QdNode *node, std::function<void(Gate *)> &visitor) const {
   auto it = gates1.find(node);
   if (it == gates1.end()) return;
   // m is gates1[node]
@@ -184,7 +185,7 @@ void QuadtreeMap::Impl::forEachGateInNode(QdNode *node,
 }
 
 // Connects given two cells in the gate graphs by establishing bidirectional edges between them.
-void QuadtreeMap::Impl::connectCellsInGateGraphs(int u, int v) {
+void QuadtreeMapImpl::connectCellsInGateGraphs(int u, int v) {
   int dist = Distance(u, v);
   for (auto g : g2s) {
     g->AddEdge(u, v, dist);
@@ -195,7 +196,7 @@ void QuadtreeMap::Impl::connectCellsInGateGraphs(int u, int v) {
 // Connects bidirectional edges between the new gate cell a and all other existing gate cells in
 // this node. The given node must not be an obstacle node. Hint: all cells inside a non-obstacle
 // node are reachable to each other.
-void QuadtreeMap::Impl::connectGateCellsInNodeToNewGateCell(QdNode *aNode, int a) {
+void QuadtreeMapImpl::connectGateCellsInNodeToNewGateCell(QdNode *aNode, int a) {
   auto it = gates1.find(aNode);
   // the aNode is not found.
   if (it == gates1.end()) return;
@@ -214,7 +215,7 @@ void QuadtreeMap::Impl::connectGateCellsInNodeToNewGateCell(QdNode *aNode, int a
 // Steps:
 // 1. Connect edges with existing gate cells inside each node.
 // 2. Connects a and b and add the created gate into management.
-void QuadtreeMap::Impl::createGate(QdNode *aNode, int a, QdNode *bNode, int b) {
+void QuadtreeMapImpl::createGate(QdNode *aNode, int a, QdNode *bNode, int b) {
   // bidirection edges between new gate cell and existing gate cells inside each node.
   connectGateCellsInNodeToNewGateCell(aNode, a);
   connectGateCellsInNodeToNewGateCell(bNode, b);
@@ -230,7 +231,7 @@ void QuadtreeMap::Impl::createGate(QdNode *aNode, int a, QdNode *bNode, int b) {
 }
 
 // Disconnects all edges connecting with given gate cell u.
-void QuadtreeMap::Impl::disconnectCellInGateGraphs(int u) {
+void QuadtreeMapImpl::disconnectCellInGateGraphs(int u) {
   for (auto g : g2s) {
     g->ClearEdgeTo(u);
     g->ClearEdgeFrom(u);
@@ -238,7 +239,7 @@ void QuadtreeMap::Impl::disconnectCellInGateGraphs(int u) {
 }
 
 // Disconnects all gate cells in aNode from the gate graphs.
-void QuadtreeMap::Impl::disconnectCellsInNodeFromGateGraphs(QdNode *aNode) {
+void QuadtreeMapImpl::disconnectCellsInNodeFromGateGraphs(QdNode *aNode) {
   auto it = gates1.find(aNode);
   // node is not found.
   if (it == gates1.end()) return;
@@ -250,7 +251,7 @@ void QuadtreeMap::Impl::disconnectCellsInNodeFromGateGraphs(QdNode *aNode) {
 }
 
 //  Connects given two nodes on the node graph.
-void QuadtreeMap::Impl::connectNodesOnNodeGraph(QdNode *aNode, QdNode *bNode) {
+void QuadtreeMapImpl::connectNodesOnNodeGraph(QdNode *aNode, QdNode *bNode) {
   // use the distance betwen the two nodes's center cells
   int dist = DistanceBetweenNodes(aNode, bNode);
   g1.AddEdge(aNode, bNode, dist);
@@ -258,13 +259,13 @@ void QuadtreeMap::Impl::connectNodesOnNodeGraph(QdNode *aNode, QdNode *bNode) {
 }
 
 // Disconnects the given node from the node graphs.
-void QuadtreeMap::Impl::disconnectNodeFromNodeGraph(QdNode *aNode) {
+void QuadtreeMapImpl::disconnectNodeFromNodeGraph(QdNode *aNode) {
   g1.ClearEdgeTo(aNode);
   g1.ClearEdgeFrom(aNode);
 }
 
 // Remove gate (a => b) from given node aNode.
-void QuadtreeMap::Impl::removeGateInNode(QdNode *aNode, int a, QdNode *bNode, int b) {
+void QuadtreeMapImpl::removeGateInNode(QdNode *aNode, int a, QdNode *bNode, int b) {
   auto it = gates1.find(aNode);
   if (it != gates1.end()) {
     // m is gates1[aNode]
@@ -302,7 +303,7 @@ void QuadtreeMap::Impl::removeGateInNode(QdNode *aNode, int a, QdNode *bNode, in
 // 1. (gate graphs) Remove all edges connected to any gate cells in aNode (from and to).
 // 2. (node graphs) Remove all edges connected aNode (from and to aNode).
 // 3. (gates) Remove all gates inside the node.
-void QuadtreeMap::Impl::handleRemovedNode(QdNode *aNode) {
+void QuadtreeMapImpl::handleRemovedNode(QdNode *aNode) {
   disconnectNodeFromNodeGraph(aNode);
   disconnectCellsInNodeFromGateGraphs(aNode);
   // ~~~~~~~~ disposes all gates for this node. ~~~~~~~~~
@@ -331,7 +332,7 @@ void QuadtreeMap::Impl::handleRemovedNode(QdNode *aNode) {
 // 1. find all neighbour leaf nodes around this node.
 // 2. pick some neighbour cells to create gates.
 // 3. and finally establish the edges in all graphs.
-void QuadtreeMap::Impl::handleNewNode(QdNode *aNode) {
+void QuadtreeMapImpl::handleNewNode(QdNode *aNode) {
   // ignores if it's a obstacle node.
   if (aNode->objects.size()) return;
 
@@ -394,8 +395,8 @@ void QuadtreeMap::Impl::handleNewNode(QdNode *aNode) {
 //         |     |
 //       --k-----i--    x2
 //     7  l|     |j   6
-void QuadtreeMap::Impl::getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a,
-                                                  int &b) const {
+void QuadtreeMapImpl::getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a,
+                                                int &b) const {
   int x1 = aNode->x1, y1 = aNode->y1, x2 = aNode->x2, y2 = aNode->y2;
   switch (direction) {
     case 4:  // e,f
@@ -428,8 +429,8 @@ void QuadtreeMap::Impl::getNeighbourCellsDiagonal(int direction, QdNode *aNode, 
 //         e     f
 //         |     |
 //           S:2
-void QuadtreeMap::Impl::getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNode,
-                                            std::vector<std::pair<int, int>> &ncs) const {
+void QuadtreeMapImpl::getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNode,
+                                          std::vector<std::pair<int, int>> &ncs) const {
   int x1, y1, x2, y2, d;
   switch (direction) {
     case 0:  // N
@@ -454,5 +455,6 @@ void QuadtreeMap::Impl::getNeighbourCellsHV(int direction, QdNode *aNode, QdNode
       break;
   }
 }
+}  // namespace internal
 
 }  // namespace qdpf

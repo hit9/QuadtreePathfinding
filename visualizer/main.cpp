@@ -440,11 +440,11 @@ void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
 // 4. Show Path and start/target
 // 5. Show cells to invert on mouse down.
 void Visualizer::draw() {
-  qdpf::QdNodeVisitor visitor = [this](const qdpf::QdNode* node) {
-    int h = (node->x2 - node->x1) * GRID_SIZE - 2;
-    int w = (node->y2 - node->y1) * GRID_SIZE - 2;
-    int x = node->y1 * GRID_SIZE + 1;
-    int y = node->x1 * GRID_SIZE + 1;
+  qdpf::NodeVisitor visitor = [this](int x1, int y1, int x2, int y2) {
+    int h = (x2 - x1) * GRID_SIZE - 2;
+    int w = (y2 - y1) * GRID_SIZE - 2;
+    int x = y1 * GRID_SIZE + 1;
+    int y = x1 * GRID_SIZE + 1;
     SDL_Rect rect = {x, y, w, h};
     updateRectRelativeToCamera(rect);
     if (isOverlapsCamera(rect)) {
@@ -476,10 +476,10 @@ void Visualizer::draw() {
     }
   }
   // Gates.
-  qdpf::CellCollector c2 = [this](int x, int y) {
-    int x1 = y * GRID_SIZE + 1;
-    int y1 = x * GRID_SIZE + 1;
-    SDL_Rect rect = {x1, y1, GRID_SIZE - 2, GRID_SIZE - 2};
+  qdpf::GateVisitor c2 = [this](int x1, int y1, int x2, int y2) {
+    int x3 = y1 * GRID_SIZE + 1;
+    int y3 = x1 * GRID_SIZE + 1;
+    SDL_Rect rect = {x3, y3, GRID_SIZE - 2, GRID_SIZE - 2};
     updateRectRelativeToCamera(rect);
     if (isOverlapsCamera(rect)) {
       SDL_SetRenderDrawColor(renderer, 173, 216, 230, 255);  // light blue
@@ -489,11 +489,11 @@ void Visualizer::draw() {
 
   mp.Gates(c2);
   // Quadtree nodes borders.
-  qdpf::QdNodeVisitor c1 = [this](const qdpf::QdNode* node) {
-    int x = node->y1 * GRID_SIZE;
-    int y = node->x1 * GRID_SIZE;
-    int w = (node->y2 - node->y1 + 1) * GRID_SIZE;
-    int h = (node->x2 - node->x1 + 1) * GRID_SIZE;
+  qdpf::NodeVisitor c1 = [this](int x1, int y1, int x2, int y2) {
+    int x = y1 * GRID_SIZE;
+    int y = x1 * GRID_SIZE;
+    int w = (y2 - y1 + 1) * GRID_SIZE;
+    int h = (x2 - x1 + 1) * GRID_SIZE;
     // Outer liner rectangle (border width 2)
     SDL_Rect rect1 = {x, y, w, h};
     SDL_Rect rect2 = {x + 1, y + 1, w - 2, h - 2};
