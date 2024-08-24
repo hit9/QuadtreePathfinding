@@ -116,11 +116,11 @@ using CellCollector = internal::CellCollector;
 using StepFunction = internal::StepFunction;
 
 // NodeVisitor is the type of a function to visit quadtree nodes.
-// Where (x,y1) and (x2,y2) are the left-top and right-bottom corner cells of the visited node.
+// Where (x1,y1) and (x2,y2) are the left-top and right-bottom corner cells of the visited node.
 using NodeVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
 
 // GateVisitor is the type of a function to visit gates.
-// Where (x,y1) and (x2,y2) are the start and end cell of the gate.
+// Where (x1,y1) and (x2,y2) are the start and end cell of the gate.
 using GateVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
 
 // Graph of gate cells.
