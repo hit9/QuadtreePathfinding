@@ -486,6 +486,8 @@ void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
 // 4. Show Path and start/target
 // 5. Show cells to invert on mouse down.
 void Visualizer::draw() {
+  // highlights the route nodes.
+
   qdpf::NodeVisitor visitor = [this](int x1, int y1, int x2, int y2) {
     int h = (x2 - x1) * GRID_SIZE - 2;
     int w = (y2 - y1) * GRID_SIZE - 2;
@@ -583,15 +585,28 @@ void Visualizer::draw() {
     }
   };
 
+  auto drawAgent = [this]() {
+    auto size = (options.agentSize / 10) * GRID_SIZE;
+    SDL_Rect agent{y1 * GRID_SIZE + 1, x1 * GRID_SIZE + 1, size - 2, size - 2};
+    updateRectRelativeToCamera(agent);
+    if (isOverlapsCamera(agent)) {
+      SDL_SetRenderDrawColor(renderer, 0, 180, 0, 255);  // green
+      SDL_RenderFillRect(renderer, &agent);
+    }
+  };
+
   switch (state) {
     case 1:  // start is set.
       drawRouteCell(x1, y1);
+      drawAgent();
       break;
     case 2:  // start,target are set, routes are calculated.
       for (auto [x, y] : routes) drawRouteCell(x, y);
+      drawAgent();
       break;
     case 3:  // path cells are calculated.
       for (auto [x, y] : path) drawPathCell(x, y);
+      drawAgent();
       break;
   }
 
