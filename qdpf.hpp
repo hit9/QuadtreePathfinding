@@ -63,7 +63,7 @@
 #include <functional>  // for std::function, std::hash
 
 #include "internal/base.hpp"
-#include "internal/pathfinder.hpp"
+#include "internal/pathfinder_astar.hpp"
 #include "internal/quadtree_map.hpp"
 
 namespace qdpf {
