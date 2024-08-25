@@ -112,20 +112,24 @@ class AStar {
   From from;
 };
 
+//////////////////////////////////////
+/// AStarPathFinder
+//////////////////////////////////////
+
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
   // the path of nodes if ComputeNodeRoutes is called successfully.
   using P = std::pair<QdNode *, int>;  // { node, cost }
 
-  AStarPathFinderImpl(const QuadtreeMapImpl &m);
-  GateGraph *GetGateGraph() { return &g; }
-  const std::vector<P> &NodePath() { return nodePath; }
-  void Reset(int x1, int y1, int x2, int y2);
+  AStarPathFinderImpl(int n) : astar1(A1(n)), astar2(A2(n)) {}
+  void Reset(const QuadtreeMapImpl *m, int x1, int y1, int x2, int y2);
+  const std::vector<P> &NodePath() const { return nodePath; }
   int ComputeNodeRoutes();
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
  private:
-  SimpleDirectedGraph g;
+  // the quadtree map current working on
+  const QuadtreeMapImpl *m = nullptr;
 
   // Astar for computing node path.
   using A1 = AStar<QdNode *, nullptr>;

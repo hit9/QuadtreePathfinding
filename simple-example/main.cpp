@@ -30,10 +30,9 @@ int main(void) {
   qdpf::QuadtreeMap m(w, h, isObstacle, distance);
 
   // Setup an A* path finder.
-  qdpf::AStarPathFinder pf(m);
+  qdpf::AStarPathFinder pf(w * h);
 
   // Bind them and build the tree.
-  m.RegisterGateGraph(pf.GetGateGraph());
   m.Build();
 
   // Add an obstacle
@@ -41,7 +40,7 @@ int main(void) {
   m.Update(1, 5);
 
   // Resets the path finder.
-  pf.Reset(0, 0, 7, 7);
+  pf.Reset(&m, 0, 0, 7, 7);
 
   std::cout << "node route path:" << std::endl;
   // ComputeNodeRoutes is much faster than ComputeGateRoutes to test whether the target is

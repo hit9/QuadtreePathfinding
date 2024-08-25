@@ -16,7 +16,6 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
 QuadtreeMap::~QuadtreeMap() { delete pImpl; }
 int QuadtreeMap::W() const { return pImpl->W(); }
 int QuadtreeMap::H() const { return pImpl->H(); }
-void QuadtreeMap::RegisterGateGraph(GateGraph *g) { return pImpl->RegisterGateGraph(g); }
 void QuadtreeMap::Build() { pImpl->Build(); }
 void QuadtreeMap::Update(int x, int y) { pImpl->Update(x, y); }
 
@@ -37,36 +36,27 @@ void QuadtreeMap::Gates(GateVisitor &visitor) const {
 }
 
 //////////////////////////////////////
-/// IPathFinder
-//////////////////////////////////////
-
-IPathFinder::IPathFinder(const QuadtreeMap &m) : m(m) {}
-const internal::QuadtreeMapImpl *IPathFinder::QuadtreeMapImpl() { return m.pImpl; }
-
-//////////////////////////////////////
 /// AStarPathFinder
 //////////////////////////////////////
 
-AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : pImpl(), IPathFinder(m) {
-  pImpl = new internal::AStarPathFinderImpl(*QuadtreeMapImpl());
+AStarPathFinder::AStarPathFinder(int n) : impl(internal::AStarPathFinderImpl(n)) {}
+std::size_t AStarPathFinder::NodePathSize() const { return impl.NodePath().size(); }
+void AStarPathFinder::Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2) {
+  impl.Reset(m->pImpl, x1, y1, x2, y2);
 }
-AStarPathFinder::~AStarPathFinder() { delete pImpl; }
-IDirectedGraph<int> *AStarPathFinder::GetGateGraph() { return pImpl->GetGateGraph(); }
-std::size_t AStarPathFinder::NodePathSize() const { return pImpl->NodePath().size(); }
-void AStarPathFinder::Reset(int x1, int y1, int x2, int y2) { pImpl->Reset(x1, y1, x2, y2); }
-int AStarPathFinder::ComputeNodeRoutes() { return pImpl->ComputeNodeRoutes(); }
+int AStarPathFinder::ComputeNodeRoutes() { return impl.ComputeNodeRoutes(); }
 
 void AStarPathFinder::VisitComputedNodeRoutes(NodeVisitor &visitor) const {
-  for (auto [node, cost] : pImpl->NodePath()) visitor(node->x1, node->y1, node->x2, node->y2);
+  for (auto [node, cost] : impl.NodePath()) visitor(node->x1, node->y1, node->x2, node->y2);
 }
 
 int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
-  return pImpl->ComputeGateRoutes(collector, useNodePath);
+  return impl.ComputeGateRoutes(collector, useNodePath);
 }
 
 void AStarPathFinder::ComputePathToNextRouteCell(int x1, int y1, int x2, int y2,
                                                  CellCollector &collector) const {
-  pImpl->ComputePathToNextRouteCell(x1, y1, x2, y2, collector);
+  impl.ComputePathToNextRouteCell(x1, y1, x2, y2, collector);
 }
 
 }  // namespace qdpf

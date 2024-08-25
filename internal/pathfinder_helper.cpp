@@ -6,8 +6,10 @@
 namespace qdpf {
 namespace internal {
 
-PathFinderHelper::PathFinderHelper(const QuadtreeMapImpl &m, IDirectedGraph<int> *g2)
-    : m(m), g2(g2) {}
+void PathFinderHelper::Reset(const QuadtreeMapImpl *mPtr) {
+  tmp.Clear();
+  m = mPtr;
+}
 
 // Add given cell u to given node temporarily to the tmp gate graph.
 // It will establish edges between u and all gate cells in node.
@@ -15,19 +17,19 @@ void PathFinderHelper::addCellToTmpGateGraph(int u, QdNode *node) {
   GateVisitor visitor = [this, u](const Gate *gate) {
     auto v = gate->a;
     if (u != v) {
-      int dist = m.Distance(u, v);
+      int dist = m->Distance(u, v);
       tmp.AddEdge(u, v, dist);  // (u => v)
       tmp.AddEdge(v, u, dist);  // (v => u)
     }
   };
-  m.ForEachGateInNode(node, visitor);
+  m->ForEachGateInNode(node, visitor);
 }
 
 void PathFinderHelper::BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, int y2,
                                          QdNode *sNode, QdNode *tNode) {
   // Is the start and target a gate cell?
-  bool sIsGate = m.IsGateCell(sNode, s);
-  bool tIsGate = m.IsGateCell(tNode, t);
+  bool sIsGate = m->IsGateCell(sNode, s);
+  bool tIsGate = m->IsGateCell(tNode, t);
 
   // Add s and t to the tmp graph, if they are not gates.
   if (!sIsGate) addCellToTmpGateGraph(s, sNode);
@@ -38,7 +40,7 @@ void PathFinderHelper::BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, i
   // we should connect them with edges, the shortest path should be dist itself.
   if (tNode == sNode && s != t && !sIsGate && !tIsGate) {
     // TODO: should we just stop the path finding on tihs case?
-    int dist = m.Distance(s, t);
+    int dist = m->Distance(s, t);
     tmp.AddEdge(s, t, dist);
     tmp.AddEdge(t, s, dist);
   }
@@ -46,7 +48,7 @@ void PathFinderHelper::BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, i
 
 void PathFinderHelper::ForEachNeighbourGateWithST(int u,
                                                   NeighbourVertexVisitor<int> &visitor) const {
-  g2->ForEachNeighbours(u, visitor);
+  m->GetGateGraph().ForEachNeighbours(u, visitor);
   tmp.ForEachNeighbours(u, visitor);
 }
 

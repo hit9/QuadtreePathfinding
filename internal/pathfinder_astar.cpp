@@ -6,23 +6,22 @@
 namespace qdpf {
 namespace internal {
 
-AStarPathFinderImpl::AStarPathFinderImpl(const QuadtreeMapImpl &m)
-    : PathFinderHelper(m, &g), astar1(A1(m.N())), astar2(A2(m.N())) {
-  g.Init(m.N());
-  A1::Distance distance1 = [&m](QdNode *a, QdNode *b) { return m.DistanceBetweenNodes(a, b); };
-  A2::Distance distance2 = [&m](int u, int v) { return m.Distance(u, v); };
+void AStarPathFinderImpl::Reset(const QuadtreeMapImpl *mPtr, int x1_, int y1_, int x2_, int y2_) {
+  // resets the attributes.
+  x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
+  m = mPtr;
+  s = m->PackXY(x1, y1), t = m->PackXY(x2, y2);
+  sNode = m->FindNode(x1, y1), tNode = m->FindNode(x2, y2);
+  // reset the distance function.
+  A1::Distance distance1 = [this](QdNode *a, QdNode *b) { return m->DistanceBetweenNodes(a, b); };
+  A2::Distance distance2 = [this](int u, int v) { return m->Distance(u, v); };
   astar1.SetDistanceFunc(distance1);
   astar2.SetDistanceFunc(distance2);
-}
-
-void AStarPathFinderImpl::Reset(int x1_, int y1_, int x2_, int y2_) {
-  x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
-  s = m.PackXY(x1, y1), t = m.PackXY(x2, y2);
-  sNode = m.FindNode(x1, y1), tNode = m.FindNode(x2, y2);
+  // clear old results.
   nodePath.clear();
   gateCellsOnNodePath.clear();
   // Rebuild the tmp graph.
-  tmp.Clear();
+  PathFinderHelper::Reset(mPtr);
   BuildTmpGateGraph(s, t, x1, y1, x2, y2, sNode, tNode);
 }
 
@@ -39,7 +38,7 @@ int AStarPathFinderImpl::ComputeNodeRoutes() {
   // collector for neighbour qd nodes.
   A1::NeighboursCollector neighborsCollector = [this](QdNode *u,
                                                       NeighbourVertexVisitor<QdNode *> &visitor) {
-    m.ForEachNeighbourNodes(u, visitor);
+    m->ForEachNeighbourNodes(u, visitor);
   };
   // compute
   return astar1.Compute(neighborsCollector, sNode, tNode, collector, nullptr);
@@ -60,12 +59,12 @@ void AStarPathFinderImpl::collectGateCellsOnNodePath() {
       gateCellsOnNodePath.insert(gate->b);
     };
   };
-  for (; i != nodePath.size(); ++i) m.ForEachGateInNode(nodePath[i].first, visitor);
+  for (; i != nodePath.size(); ++i) m->ForEachGateInNode(nodePath[i].first, visitor);
 }
 
 int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
   // Can't route to or start from obstacles.
-  if (m.IsObstacle(x1, y1) || m.IsObstacle(x2, y2)) return -1;
+  if (m->IsObstacle(x1, y1) || m->IsObstacle(x2, y2)) return -1;
   // Same point.
   if (x1 == x2 && y1 == y2) {
     collector(x1, y1);
@@ -75,7 +74,7 @@ int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNod
   if (useNodePath) collectGateCellsOnNodePath();
   // collector for path result.
   A2::PathCollector collector1 = [this, &collector](int u, int cost) {
-    auto [x, y] = m.UnpackXY(u);
+    auto [x, y] = m->UnpackXY(u);
     collector(x, y);
   };
 

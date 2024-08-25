@@ -168,43 +168,19 @@ class QuadtreeMap {
 
  private:
   internal::QuadtreeMapImpl *pImpl;
-  friend class IPathFinder;
-};
-
-//////////////////////////////////////
-/// PathFinder
-//////////////////////////////////////
-
-// IPathFinder is the base class for all path finder implementations.
-class IPathFinder {
- public:
-  IPathFinder(const QuadtreeMap &m);
-  // Returns the pointer to the path finder's gate graph.
-  // We allow different path finders maintain their own gate graphs.
-  virtual IDirectedGraph<int> *GetGateGraph() = 0;
-
- protected:
-  const internal::QuadtreeMapImpl *QuadtreeMapImpl();
-
- private:
-  const QuadtreeMap &m;
+  friend class AStarPathFinder;
 };
 
 //////////////////////////////////////
 /// AStarPathFinder
 //////////////////////////////////////
 
-class AStarPathFinder : public IPathFinder {
+class AStarPathFinder {
  public:
-  AStarPathFinder(const QuadtreeMap &m);
-  ~AStarPathFinder();
-  // ~~~~~~~~~~~~~~ Implements IPathFinder ~~~~~~~~~~~~~~
-  IDirectedGraph<int> *GetGateGraph() override;
+  AStarPathFinder(int n);
   // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
-  // Returns the count of quadtree nodes on the path.
-  std::size_t NodePathSize() const;
-  // Sets the start(x1,y1) and target(x2,y2).
-  void Reset(int x1, int y1, int x2, int y2);
+  // Resets the quadtree map, start(x1,y1) and target(x2,y2).
+  void Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2);
   // ComputeNodeRoutes computes the path of quadtree nodes from the start cell's node to the target
   // cell's node on the node graph.
   // Returns -1 if unreachable.
@@ -213,6 +189,8 @@ class AStarPathFinder : public IPathFinder {
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable.
   int ComputeNodeRoutes();
+  // Returns the count of quadtree nodes on the path.
+  std::size_t NodePathSize() const;
   // Visit computed node path.
   void VisitComputedNodeRoutes(NodeVisitor &visitor) const;
   // ComputeGateRoutes computes the route cells from (x1,y1) to (x2,y2).
@@ -232,7 +210,7 @@ class AStarPathFinder : public IPathFinder {
   void ComputePathToNextRouteCell(int x1, int y1, int x2, int y2, CellCollector &collector) const;
 
  private:
-  internal::AStarPathFinderImpl *pImpl;
+  internal::AStarPathFinderImpl impl;
 };
 
 }  // namespace qdpf

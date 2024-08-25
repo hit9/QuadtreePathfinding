@@ -45,7 +45,8 @@ struct Gate {
 // GateVisitor the type of the function to visit gates.
 using GateVisitor = std::function<void(const Gate *)>;
 
-using GateGraph = IDirectedGraph<int>;
+// Graph of gate cells.
+using GateGraph = SimpleDirectedGraph;
 
 class QuadtreeMapImpl {
  public:
@@ -74,12 +75,10 @@ class QuadtreeMapImpl {
   int Distance(int u, int v) const;
   // Returns true if the given cell (x,y) is an obstacle.
   bool IsObstacle(int x, int y) const { return isObstacle(x, y); }
-  // Register a directed gate graph and keep it updated synchronously with the quadtree map
-  // A quadtree map can register multiple gate graphs.
-  void RegisterGateGraph(GateGraph *g);
   // Approximate distance between two quadtree nodes.
   // Using the provided distance calculator on their center cells.
   int DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const;
+  const GateGraph &GetGateGraph() const { return g2; }
 
   // ~~~~~~~~~~~~~ Visits and Reads ~~~~~~~~~~~~~~~~~
 
@@ -125,8 +124,8 @@ class QuadtreeMapImpl {
   // ~~~~~~~~~~~~~~~ Graphs ~~~~~~~~~~~
   // the 1st level abstract graph: graph  of nodes.
   NodeGraph g1;
-  // the 2st level abstract graphs: graph of gate cells.
-  std::vector<GateGraph *> g2s;
+  // the 2st level abstract graph: graph of gate cells.
+  GateGraph g2;
 
   // ~~~~~~~~~~~~~~ Gates ~~~~~~~~~~~~~
   // manages memory of gates.

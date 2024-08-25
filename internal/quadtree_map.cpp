@@ -24,7 +24,8 @@ QuadtreeMapImpl::QuadtreeMapImpl(int w, int h, ObstacleChecker isObstacle,
       distance(distance),
       stepf(stepf),
       tree(QdTree(w, h)) {
-  g1.Init(n);  // actually optional
+  g1.Init(n);
+  g2.Init(n);
   // ssf returns true to stop a quadtree node to continue to split.
   // Where w and h are the width and height of the node's region.
   // n is the number of obstacles in this node.
@@ -76,8 +77,6 @@ int QuadtreeMapImpl::Distance(int u, int v) const {
   auto [x2, y2] = UnpackXY(v);
   return distance(x1, y1, x2, y2);
 }
-
-void QuadtreeMapImpl::RegisterGateGraph(GateGraph *g) { g2s.push_back(g); }
 
 int QuadtreeMapImpl::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const {
   int aNodeCenterX = aNode->x1 + (aNode->x2 - aNode->x1) / 2;
@@ -190,10 +189,8 @@ void QuadtreeMapImpl::forEachGateInNode(QdNode *node, std::function<void(Gate *)
 // Connects given two cells in the gate graphs by establishing bidirectional edges between them.
 void QuadtreeMapImpl::connectCellsInGateGraphs(int u, int v) {
   int dist = Distance(u, v);
-  for (auto g : g2s) {
-    g->AddEdge(u, v, dist);
-    g->AddEdge(v, u, dist);
-  }
+  g2.AddEdge(u, v, dist);
+  g2.AddEdge(v, u, dist);
 }
 
 // Connects bidirectional edges between the new gate cell a and all other existing gate cells in
@@ -235,10 +232,8 @@ void QuadtreeMapImpl::createGate(QdNode *aNode, int a, QdNode *bNode, int b) {
 
 // Disconnects all edges connecting with given gate cell u.
 void QuadtreeMapImpl::disconnectCellInGateGraphs(int u) {
-  for (auto g : g2s) {
-    g->ClearEdgeTo(u);
-    g->ClearEdgeFrom(u);
-  }
+  g2.ClearEdgeTo(u);
+  g2.ClearEdgeFrom(u);
 }
 
 // Disconnects all gate cells in aNode from the gate graphs.
