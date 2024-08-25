@@ -13,10 +13,6 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
 QuadtreeMap::~QuadtreeMap() { delete pImpl; }
 int QuadtreeMap::W() const { return pImpl->W(); }
 int QuadtreeMap::H() const { return pImpl->H(); }
-int QuadtreeMap::N() const { return pImpl->N(); }
-int QuadtreeMap::NumNodes() const { return pImpl->Tree().NumNodes(); }
-int QuadtreeMap::NumLeafNodes() const { return pImpl->Tree().NumLeafNodes(); }
-int QuadtreeMap::TreeDepth() const { return pImpl->Tree().Depth(); }
 void QuadtreeMap::RegisterGateGraph(GateGraph *g) { return pImpl->RegisterGateGraph(g); }
 void QuadtreeMap::Build() { pImpl->Build(); }
 void QuadtreeMap::Update(int x, int y) { pImpl->Update(x, y); }

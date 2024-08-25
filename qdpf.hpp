@@ -146,14 +146,6 @@ class QuadtreeMap {
   int W() const;
   // Returns the height of the map.
   int H() const;
-  // Returns the number of cells of the map.
-  int N() const;
-  // Returns the number of nodes.
-  int NumNodes() const;
-  // Returns the number of leaf nodes.
-  int NumLeafNodes() const;
-  // Returns the depth of the tree.
-  int TreeDepth() const;
 
   // Register a directed gate graph and keep it updated synchronously with the quadtree map
   // A quadtree map can register multiple gate graphs.
