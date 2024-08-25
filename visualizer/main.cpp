@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
   qdpf::QuadtreeMap mp(options.w, options.h, isObstacle, distance, options.step, stepf,
                        options.maxNodeWidth, options.maxNodeHeight);
   // Path finder.
-  qdpf::AStarPathFinder pf(mp);
+  qdpf::AStarPathFinder pf(options.w * options.h);
   // Visualizer.
   Visualizer visualizer(mp, &pf, options);
   if (visualizer.Init() != 0) return -1;
@@ -198,7 +198,6 @@ int Visualizer::Init() {
   }
   // Build the quadtree map.
   spdlog::info("Visualizer init done");
-  mp.RegisterGateGraph(pf->GetGateGraph());
   if (options.createWallsOnInit > 0) createsWallsOnInit();
   mp.Build();
   spdlog::info("Path finder build done");
@@ -311,7 +310,7 @@ void Visualizer::reset() {
   state = 0;
   path.clear();
   routes.clear();
-  pf->Reset(0, 0, 0, 0);
+  pf->Reset(&mp, 0, 0, 0, 0);
   spdlog::info("reset");
 }
 
@@ -355,7 +354,7 @@ void Visualizer::handleInvertObstacles() {
 
 void Visualizer::calculateRoutes() {
   std::chrono::high_resolution_clock::time_point startAt, endAt;
-  pf->Reset(x1, y1, x2, y2);
+  pf->Reset(&mp, x1, y1, x2, y2);
   // calculate node route path.
   startAt = std::chrono::high_resolution_clock::now();
   qdpf::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
