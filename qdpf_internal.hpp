@@ -27,6 +27,7 @@ const int inf = 0x3f3f3f3f;
 template <typename Vertex>
 using NeighbourVertexVisitor = std::function<void(Vertex v, int cost)>;
 
+// It's a pure virtual class so that the subclasses should implement all the virtual methods.
 template <typename Vertex>
 class IDirectedGraph {
  public:
@@ -362,12 +363,14 @@ class PathFinderHelper {
 
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
+  // the path of nodes if ComputeNodeRoutes is called successfully.
+  using P = std::pair<QdNode *, int>;  // { node, cost }
+
   AStarPathFinderImpl(const QuadtreeMapImpl &m);
   GateGraph *GetGateGraph() { return &g; }
-  std::size_t NodePathSize() const { return nodePath.size(); }
+  const std::vector<P> &NodePath() { return nodePath; }
   void Reset(int x1, int y1, int x2, int y2);
   int ComputeNodeRoutes();
-  void VisitComputedNodeRoutes(QdNodeVisitor &visitor) const;
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
  private:
@@ -386,8 +389,6 @@ class AStarPathFinderImpl : public PathFinderHelper {
   int x1, y1, x2, y2;
   int s, t;
   QdNode *sNode, *tNode;
-  // the path of nodes if ComputeNodeRoutes is called successfully.
-  using P = std::pair<QdNode *, int>;  // { node, cost }
   std::vector<P> nodePath;
   // the gate cells on the node path if ComputeNodeRoutes is called successfully.
   std::unordered_set<int> gateCellsOnNodePath;

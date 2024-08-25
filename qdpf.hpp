@@ -33,11 +33,11 @@
 //
 //   // Setup the map
 //   auto isObstacle = [](int x, int y) { return grid[x][y]; };
-//   auto distance = quadtree_astar::EuclideanDistance<10>;
-//   quadtree_astar::QuadtreeMap m(w, h, isObstacle, distance);
+//   auto distance = qdpf::EuclideanDistance<10>;
+//   qdpf::QuadtreeMap m(w, h, isObstacle, distance);
 //
 //   // Setup an A* path finder.
-//   quadtree_astar::AStarPathFinder pf(m);
+//   qdpf::AStarPathFinder pf(m);
 //
 //   // Register the path finder and build the map.
 //   m.RegisterGateGraph(&pf);
@@ -73,7 +73,6 @@ using internal ::inf;
 //////////////////////////////////////
 
 // IDirectedGraph is the interface of a directed graph.
-// It's a pure virtual class so that the subclasses should implement all the virtual methods.
 // The parameter Vertex is the type of vertex (e.g. int).
 template <typename Vertex>
 using IDirectedGraph = internal::IDirectedGraph<Vertex>;

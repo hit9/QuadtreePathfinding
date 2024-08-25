@@ -1,3 +1,6 @@
+// Source Code: https://github.com/hit9/quadtree-pathfinding
+// License: BSD. Chao Wang, hit9[At]icloud.com.
+
 #include "qdpf.hpp"
 
 namespace qdpf {
@@ -49,14 +52,11 @@ AStarPathFinder::AStarPathFinder(const QuadtreeMap &m) : pImpl(), IPathFinder(m)
 }
 AStarPathFinder::~AStarPathFinder() { delete pImpl; }
 IDirectedGraph<int> *AStarPathFinder::GetGateGraph() { return pImpl->GetGateGraph(); }
-std::size_t AStarPathFinder::NodePathSize() const { return pImpl->NodePathSize(); }
+std::size_t AStarPathFinder::NodePathSize() const { return pImpl->NodePath().size(); }
 void AStarPathFinder::Reset(int x1, int y1, int x2, int y2) { pImpl->Reset(x1, y1, x2, y2); }
 int AStarPathFinder::ComputeNodeRoutes() { return pImpl->ComputeNodeRoutes(); }
 void AStarPathFinder::VisitComputedNodeRoutes(NodeVisitor &visitor) const {
-  internal::QdNodeVisitor visitor1 = [this, &visitor](const internal::QdNode *node) {
-    visitor(node->x1, node->y1, node->x2, node->y2);
-  };
-  pImpl->VisitComputedNodeRoutes(visitor1);
+  for (auto [node, cost] : pImpl->NodePath()) visitor(node->x1, node->y1, node->x2, node->y2);
 }
 int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
   return pImpl->ComputeGateRoutes(collector, useNodePath);

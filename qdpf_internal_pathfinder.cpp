@@ -1,3 +1,6 @@
+// Source Code: https://github.com/hit9/quadtree-pathfinding
+// License: BSD. Chao Wang, hit9[At]icloud.com.
+
 #include "qdpf_internal.hpp"
 
 namespace qdpf {
@@ -113,10 +116,6 @@ int AStarPathFinderImpl::ComputeNodeRoutes() {
   };
   // compute
   return astar1.Compute(neighborsCollector, sNode, tNode, collector, nullptr);
-}
-
-void AStarPathFinderImpl::VisitComputedNodeRoutes(QdNodeVisitor &visitor) const {
-  for (const auto [node, cost] : nodePath) visitor(node);
 }
 
 // Collects the gate cells on node path if ComputeNodeRoutes is successfully called and any further
