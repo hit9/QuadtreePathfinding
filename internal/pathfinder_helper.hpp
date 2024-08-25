@@ -4,6 +4,7 @@
 #ifndef QDPF_INTERNAL_PATHFINDER_HELPER_HPP
 #define QDPF_INTERNAL_PATHFINDER_HELPER_HPP
 
+#include "base.hpp"
 #include "graph.hpp"
 #include "quadtree_map.hpp"
 
@@ -25,12 +26,13 @@ class PathFinderHelper {
                                           CellCollector &collector) const;
 
  protected:
-  const QuadtreeMapImpl *m = nullptr;
+  // Current working on map.
+  const QuadtreeMap *m = nullptr;
   // tmp gate graph is to store edges between start/target and other gate cells.
   SimpleUnorderedMapDirectedGraph<int> tmp;
 
   // Resets current working quadtree map.
-  void Reset(const QuadtreeMapImpl *m);
+  void Reset(const QuadtreeMap *m);
 
   // BuildTmpGateGraph builds a temporary gate graph to store edges between start/target and
   // other gates in the same nodes.

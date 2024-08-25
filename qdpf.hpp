@@ -7,7 +7,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~
 // 1. A QuadtreeMap is a 2D grid map maintained by a quadtree.
 // 2. The quadtree splits the grid map into multiple sections.
-// 3. A section contains no obstacles or all obstacles.
+// 3. A section on a quadtree map contains no obstacles or all obstacles.
 // 4. The shortest path inside a section without obstacles will be a straight line.
 // 5. Adjacent quadtree nodes are connected by multiple gates.
 // 6. A gate is composed of two adjacent cells, one on each side, directed.
@@ -17,6 +17,10 @@
 //      1. Find the node path on the 1st level graph (it's optional, faster but less optimal).
 //      2. Find the gate path on the 2nd level graph.
 //      3. Fill the straight lines between gate cells.
+// 10. A QuadtreeMapX is a manager of multiple quadtree maps for different agent sizes and terrain
+//     types supports.
+// 11. A PathFinder always works on a single QuadtreeMap the same time. A pathfinding request is
+//     reduced into a progress without the agent-size and terrain factors.
 
 // Coordinates
 // ~~~~~~~~~~~
@@ -28,73 +32,33 @@
 //    v
 //    x
 
-// Code Example
-// ~~~~~~~~~~~~
-//
-//   // Setup the map
-//   auto isObstacle = [](int x, int y) { return grid[x][y]; };
-//   auto distance = qdpf::EuclideanDistance<10>;
-//   qdpf::QuadtreeMap m(w, h, isObstacle, distance);
-//
-//   // Setup an A* path finder.
-//   qdpf::AStarPathFinder pf(m);
-//
-//   // Register the path finder and build the map.
-//   m.RegisterGateGraph(&pf);
-//   m.Build();
-//
-//   // Resets the start(x1,y1) and target(x2,y2).
-//   pf.Reset(x1,y1,x2,y2);
-//
-//   // Compute the node path (optional).
-//   // Returns -1 if unreachable.
-//   pf.ComputeNodeRoutes();
-//
-//   // Compute the gate routes.
-//   // the 2nd parameter specifics whether to use the computed node path.
-//   pf.ComputeGateRoutes(collector, true);
-//
-//   // Fill the detailed path from current position to next route cell.
-//   pf.ComputePathToNextRoute(x1,y1, x2,y2);
-
 #ifndef QDPF_HPP
 #define QDPF_HPP
 
-#include <functional>  // for std::function, std::hash
+#include <functional>  // for std::function
 
 #include "internal/base.hpp"
 #include "internal/pathfinder_astar.hpp"
 #include "internal/quadtree_map.hpp"
+#include "internal/quadtree_mapx.hpp"
 
 namespace qdpf {
 
 using internal ::inf;
 
 //////////////////////////////////////
-/// Graph
+/// QuadtreeMapX
 //////////////////////////////////////
-
-// IDirectedGraph is the interface of a directed graph.
-// The parameter Vertex is the type of vertex (e.g. int).
-template <typename Vertex>
-using IDirectedGraph = internal::IDirectedGraph<Vertex>;
-
-//////////////////////////////////////
-/// QuadtreeMap
-//////////////////////////////////////
-
-// ObstacleChecker is the type of the function that returns true if the given
-// cell (x,y) is an obstacle.
-// std::function<bool(int x, int y)>
-using ObstacleChecker = internal::ObstacleChecker;
 
 // DistanceCalculator is the type of the function that calculates the distance
 // from cell (x1,y1) to (x2,y2).
+//
 // The distance calculator should guarantee that the distance between (x1,y1)
 // and (x2,y2) always equals to the distance between (x2,y2) and (x1,y1).
 // We can just use quadtree_astar::EuclideanDistance<CostUnit> to build a euclidean distance
 // calculator.
-// std::function<int(int x1, int y1, int x2, int y2)>;
+//
+// Signature: std::function<int(int x1, int y1, int x2, int y2)>;
 using DistanceCalculator = internal::DistanceCalculator;
 
 // Euclidean distance calculator with a given cost unit.
@@ -103,105 +67,170 @@ int EuclideanDistance(int x1, int y1, int x2, int y2) {
   return std::floor(std::hypot(x1 - x2, y1 - y2) * CostUnit);
 }
 
-// CellCollector is the type of the function that collects points on a path.
-// The argument (x,y) is a cell in the grid map.
-// std::function<void(int x, int y)>;
-using CellCollector = internal::CellCollector;
-
 // StepFunction is the type of a function to specific a dynamic gate picking step.
 // The argument length is the length (number of cells) of the adjacent side of two neighbor nodes.
 // We should make sure the return value is always > 0.
+//
+// Signature: std::function<int(int length)>;
+//
 // An example: [](int length) { return length / 8 + 1; }
 // For this example, we use larger step on large rectangles, and smaller step on small rectangles.
-// std::function<int(int length)>;
 using StepFunction = internal::StepFunction;
+
+// QuadtreeMapXSetting is a struct to specific an agent size along with its terrain types
+// capabilities.
+//
+// struct {
+//   // the size of pathfinding agent, usually set to the maximum side length of the agent.
+//   // Note that it is relative to the unit of the distance function structure, not the number of
+//   // cells.
+//   int AgentSize;
+//
+//   // the terrain types to support, represented as the OR sum result of terrain type integers.
+//   // It must be an integer > 0.
+//   // e.g. Land | Water, where the Land and Water are positive integers, pow of 2.
+//   int TerrainTypes;
+// };
+//
+using QuadtreeMapXSetting = internal::QuadtreeMapXSetting;
+
+// QuadtreeMapXSettings is a list of QuadtreeMapXSetting.
+// std::initializer_list<QuadtreeMapXSetting>;
+//
+// Example:
+//
+//   enum Terrain {
+//     Land = 0b001,      // 1
+//     Water = 0b010,     // 2
+//     Building = 0b100,  // 4
+//   };
+//
+//  qdpf::QuadtreeMapXSettings settings{
+//      {1, Terrain::Land},                   // e.g. soldiers
+//      {1, Terrain::Land | Terrain::Water},  // e.g. seals
+//      {2, Terrain::Water},                  // e.g. boats
+//  };
+//
+using QuadtreeMapXSettings = internal::QuadtreeMapXSettings;
+
+// TerrainTypesChecker is to check the terrain type value for given cell (x,y).
+// A terrain type value should be a positive integer, and must be power of 2 integer,
+// e.g. 0b1, 0b10, 0b100 etc.
+// Signature: std::function<int(int x, int y)>;
+using TerrainTypesChecker = internal::TerrainTypesChecker;
+
+// QuadtreeMapX is a manager of multiple 2D grid maps maintained by quadtrees.
+class QuadtreeMapX {
+ public:
+  // Parameters:
+  // * w and h are the width and height of the map, the number of cells in y and x axis.
+  // * distance is a function that calculates the distance between two given cells.
+  //    there's a builtin helper function template EuclideanDistance<CostUnit> to use
+  //    for euclidean distance.
+  // * settings is the list of agent sizes along with terrain types to support.
+  //    If you pass n settings, we will create n quadtree maps.
+  // * step is the number of interval cells when picking gate cells in a quadtree map.
+  // * stepf is a function to specific dynamic gate picking steps. We will use this function
+  //   instead of the constant step if it's provided.
+  // * maxNodeWidth and maxNodeHeight the max width and height of a quadtree node's rectangle.
+  QuadtreeMapX(int w, int h, DistanceCalculator distance, TerrainTypesChecker terrainChecker,
+               QuadtreeMapXSettings settings, int step = 1, StepFunction stepf = nullptr,
+               int maxNodeWidth = -1, int maxNodeHeight = -1);
+
+  // Build all managed quadtree maps, this should be called for only once right after the
+  // construction. And it will traverse each cell in the w * h map and call Update on it.
+  void Build();
+
+  // Update should be called if cell (x,y)'s terrain value is changed.
+  // Then Compute should be called to apply these changes.
+  void Update(int x, int y);
+
+  // Compute should be called after one or multiple Update calls.
+  // It will apply all chanegs to all related quadtree maps.
+  void Compute();
+
+  // ~~~~~~~~~~ Debuging purpose ~~~~~~~~~~~
+  // Find a quadtree map supporting given agent size and terrain types.
+  // Returns nullptr if not found.
+  // If there are multiple maps support the given walkableTerrainTypes, the one with largest subset
+  // of terrain types support will be returned.
+  // This is a debuging purpose api.
+  const internal::QuadtreeMap *Get(int agentSize, int walkableTerrainTypes) const;
+
+ private:
+  internal::QuadtreeMapXImpl impl;
+
+  // friend with all path finders.
+  friend class AStarPathFinder;
+};
+
+//////////////////////////////////////
+/// PathFinding
+//////////////////////////////////////
 
 // NodeVisitor is the type of a function to visit quadtree nodes.
 // Where (x1,y1) and (x2,y2) are the left-top and right-bottom corner cells of the visited node.
 using NodeVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
 
-// GateVisitor is the type of a function to visit gates.
-// Where (x1,y1) and (x2,y2) are the start and end cell of the gate.
-using GateVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
-
-// Graph of gate cells.
-using GateGraph = internal::GateGraph;
-
-// QuadtreeMap maintains a 2D grid map by a quadtree.
-class QuadtreeMap {
- public:
-  // * w, h: width and height of the grid map.
-  // * isObstacle(x,y) returns true if cell (x,y) is an obstacle, it should be fast.
-  // * distance: the function calculates the distance between two cells.
-  // * step: number of interval cells when picking gate cells at N(0)/E(1)/S(2)/W(3) sides.
-  // * stepf: dynamic step function, checkout StepFunction's document. Use it if it's set,
-  //   otherwise use the constant step instead.
-  // * maxNodeWidth, maxNodeHeight: the max width and height of a quadtree node's rectangle.
-  QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance, int step = 1,
-              StepFunction stepf = nullptr, int maxNodeWidth = -1, int maxNodeHeight = -1);
-  ~QuadtreeMap();
-
-  // ~~~~~~~~~~~~~ Basic methods ~~~~~~~~~~~~~~~~~
-
-  // Returns the width of the map.
-  int W() const;
-  // Returns the height of the map.
-  int H() const;
-
-  // Register a directed gate graph and keep it updated synchronously with the quadtree map
-  // A quadtree map can register multiple gate graphs.
-  void RegisterGateGraph(GateGraph *g);
-
-  // ~~~~~~~~~~~~~ Debuging Purpose ~~~~~~~~~~~~~~~~~
-  // Visit all the quadtree's leaf nodes.
-  void Nodes(NodeVisitor &visitor) const;
-  // Visit all gate cells.
-  // Note that dual gates (a => b) and (b => a) are visited twice (once for each).
-  void Gates(GateVisitor &visitor) const;
-
-  // ~~~~~~~~~~~~~ Graphs Maintaining ~~~~~~~~~~~~~~~~~
-
-  // Build the underlying quadtree right after construction.
-  void Build();
-  // Update should be called after any cell (x,y)'s value is changed.
-  void Update(int x, int y);
-
- private:
-  internal::QuadtreeMapImpl *pImpl;
-  friend class AStarPathFinder;
-};
+// CellCollector is the type of the function that collects points on a path.
+// The argument (x,y) is a cell in the grid map.
+//
+// Signature: std::function<void(int x, int y)>;
+using CellCollector = internal::CellCollector;
 
 //////////////////////////////////////
 /// AStarPathFinder
 //////////////////////////////////////
 
+// A* path finder.
 class AStarPathFinder {
  public:
-  AStarPathFinder(int n);
+  // AStarPathFinder is bound to a quadtree map manager.
+  AStarPathFinder(const QuadtreeMapX &mx);
+
   // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
-  // Resets the quadtree map, start(x1,y1) and target(x2,y2).
-  void Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2);
+
+  // Resets the current working context of this path finder.
+  // A path finder always works on a single QuadtreeMap at the same time.
+  // We must call Reset() before changing to another {agent, start and target}.
+  // The cell (x1,y1) and (x2,y2) are start and target cells.
+  // The agentSize is the size of the pathfinding agent.
+  // The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the pathfinding
+  // agent can walk.
+  // Returns -1 if there's no quadtree map was found. Returns 0 for success.
+  int Reset(int x1, int y1, int x2, int y2, int agentSize, int walkableterrainTypes = 1);
+
   // ComputeNodeRoutes computes the path of quadtree nodes from the start cell's node to the target
   // cell's node on the node graph.
   // Returns -1 if unreachable.
   // Returns the approximate cost to target node on the node graph level.
+  // Reset() should be called in advance to call this api.
   // This step is optional, the benefits to use it ahead of ComputeGateRoutes:
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable.
   int ComputeNodeRoutes();
-  // Returns the count of quadtree nodes on the path.
+
+  // Returns the count of quadtree nodes on the computed node path.
+  // ComputeNodeRoutes() should be called in advance to call this api.
   std::size_t NodePathSize() const;
-  // Visit computed node path.
+
+  // Visit the computed node path.
+  // ComputeNodeRoutes() should be called in advance to call this api.
   void VisitComputedNodeRoutes(NodeVisitor &visitor) const;
+
   // ComputeGateRoutes computes the route cells from (x1,y1) to (x2,y2).
   // Sets useNodePath to true to use the previous ComputeNodeRoutes results, it will find path
   // only over gate cells on the node path, this the path finding is much faster, but less optimal.
   // Sets useNodePath to false to disable this optimization, it will find path over all gate cells.
+  //
   // The route cells are composed of three kinds of cells: start(x1,y1), gate cells in the middle
   // and target(x2,y2).
   // Returns -1 if the path finding is failed.
   // Returns the distance of the shortest path on success (>=0).
+  //
+  // Reset() should be called in advance to call this api.
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
+
   // ComputePathToNextRoute computes the detail cells from current route cell (x1,y1) to next route
   // cell (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected. The default
   // implementation is based on Bresenham's line algorithm.
@@ -210,6 +239,7 @@ class AStarPathFinder {
   void ComputePathToNextRouteCell(int x1, int y1, int x2, int y2, CellCollector &collector) const;
 
  private:
+  const QuadtreeMapX &mx;
   internal::AStarPathFinderImpl impl;
 };
 

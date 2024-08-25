@@ -102,7 +102,7 @@ int TrueClearanceField::Compute() {
     }
 
     // A cell's g value can only be updated in the q's consuming progress.
-    if (updatedCellVisitor != nullptr) updatedCellVisitor(x, y);
+    if (updatedCellVisitor != nullptr && x < h && y < w) updatedCellVisitor(x, y);
 
     // if the (x,y) is in consistent and g value >= bound u.
     // there's no need to propagate it to its successors.

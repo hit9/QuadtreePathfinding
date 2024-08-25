@@ -6,7 +6,7 @@
 namespace qdpf {
 namespace internal {
 
-void PathFinderHelper::Reset(const QuadtreeMapImpl *mPtr) {
+void PathFinderHelper::Reset(const QuadtreeMap *mPtr) {
   tmp.Clear();
   m = mPtr;
 }

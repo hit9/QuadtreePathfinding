@@ -17,7 +17,7 @@
 
 // AStarPathFinder
 // ~~~~~~~~~~~~~~~
-// Implements A* pathfinding algorithm on 1x1 sized and binary terrain types quadtree map.
+// Implements A* pathfinder on a agent-size and terrain-types relateless quadtree map.
 
 namespace qdpf {
 namespace internal {
@@ -26,16 +26,21 @@ namespace internal {
 /// Algorithm AStar
 //////////////////////////////////////
 
+// KVContainer is an internal abstraction for KV containers with default value support.
 template <typename K, typename V, V DefaultValue>
 class KVContainer {
  public:
+  // resize the container's size to n.
   virtual void Resize(std::size_t n);
-  virtual V &operator[](K k);              // set k by reference
-  virtual const V &operator[](K k) const;  // get value
+  // set k by reference
+  virtual V &operator[](K k);
+  // get value, returns default value by default.
+  virtual const V &operator[](K k) const;
+  // clears the container.
   virtual void Clear();
 };
 
-// a handy util kv container with default value support.
+// KVContainer on unordered_map.
 template <typename K, typename V, V DefaultValue>
 class DefaultedUnorderedMap : KVContainer<K, V, DefaultValue> {
  public:
@@ -55,6 +60,7 @@ using DefaultedUnorderedMapInt = DefaultedUnorderedMap<K, int, DefaultValue>;
 template <typename K, bool DefaultValue>
 using DefaultedUnorderedMapBool = DefaultedUnorderedMap<K, bool, DefaultValue>;
 
+// KVContainer on vector (faster but more memory occuption).
 template <typename V, V DefaultValue>
 class DefaultedVector : KVContainer<int, V, DefaultValue> {
  public:
@@ -121,15 +127,21 @@ class AStarPathFinderImpl : public PathFinderHelper {
   // the path of nodes if ComputeNodeRoutes is called successfully.
   using P = std::pair<QdNode *, int>;  // { node, cost }
 
+  // n is the upper bound of the number of vertices of  gate graph and node graph.
   AStarPathFinderImpl(int n) : astar1(A1(n)), astar2(A2(n)) {}
-  void Reset(const QuadtreeMapImpl *m, int x1, int y1, int x2, int y2);
+
+  // Resets current working context: the map instance, start(x1,y1) and target (x2,y2);
+  void Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2);
+  // Returns the computed node path.
   const std::vector<P> &NodePath() const { return nodePath; }
+  // Compute the node path.
   int ComputeNodeRoutes();
+  // Compute the gate cell path.
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
  private:
   // the quadtree map current working on
-  const QuadtreeMapImpl *m = nullptr;
+  const QuadtreeMap *m = nullptr;
 
   // Astar for computing node path.
   using A1 = AStar<QdNode *, nullptr>;

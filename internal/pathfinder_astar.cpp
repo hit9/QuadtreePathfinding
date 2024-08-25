@@ -6,22 +6,25 @@
 namespace qdpf {
 namespace internal {
 
-void AStarPathFinderImpl::Reset(const QuadtreeMapImpl *mPtr, int x1_, int y1_, int x2_, int y2_) {
+void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_, int y2_) {
   // resets the attributes.
   x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
-  m = mPtr;
+  m = m_;
   s = m->PackXY(x1, y1), t = m->PackXY(x2, y2);
   sNode = m->FindNode(x1, y1), tNode = m->FindNode(x2, y2);
+
   // reset the distance function.
   A1::Distance distance1 = [this](QdNode *a, QdNode *b) { return m->DistanceBetweenNodes(a, b); };
   A2::Distance distance2 = [this](int u, int v) { return m->Distance(u, v); };
   astar1.SetDistanceFunc(distance1);
   astar2.SetDistanceFunc(distance2);
+
   // clear old results.
   nodePath.clear();
   gateCellsOnNodePath.clear();
+
   // Rebuild the tmp graph.
-  PathFinderHelper::Reset(mPtr);
+  PathFinderHelper::Reset(m_);
   BuildTmpGateGraph(s, t, x1, y1, x2, y2, sNode, tNode);
 }
 
