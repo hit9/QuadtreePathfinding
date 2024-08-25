@@ -45,7 +45,7 @@ class QuadtreeMapXImpl {
 
   // Find a quadtree map by agent size and walkable terrain types.
   // Returns nullptr on not found.
-  const QuadtreeMap* Get(int agentSize, int walkableTerrainTypes) const;
+  [[nodiscard]] const QuadtreeMap* Get(int agentSize, int walkableTerrainTypes) const;
 
   // Update should be called if cell (x,y)'s terrain is changed.
   void Update(int x, int y);

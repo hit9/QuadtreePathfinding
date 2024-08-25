@@ -86,7 +86,7 @@ void QuadtreeMapXImpl::Build() {
 // build a clearance field for each terrainTypes integer.
 void QuadtreeMapXImpl::buildClearanceFields() {
   // find the max value of agentSize.
-  int maxAgentSize = 1;
+  int maxAgentSize = 0;
   for (auto [agentSize, _] : settings) maxAgentSize = std::max(agentSize, maxAgentSize);
 
   // cost units.

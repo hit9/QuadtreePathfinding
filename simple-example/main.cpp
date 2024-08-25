@@ -53,7 +53,10 @@ int main(void) {
 
   // Resets the path finder.
   // Find path from (0,0) to (7,7), agent size is 10, we can only walk on { Land }.
-  pf.Reset(0, 0, 7, 7, 10, Terrain::Land);
+  if (-1 == pf.Reset(0, 0, 7, 7, 10, Terrain::Land)) {
+    std::cout << "reset failed!" << std::endl;
+    return -1;
+  }
 
   std::cout << "node route path:" << std::endl;
   // ComputeNodeRoutes is much faster than ComputeGateRoutes to test whether the target is
@@ -75,7 +78,9 @@ int main(void) {
   // path. This will make the ComputeGateRoutes runs much faster, but less optimal.
   // We can just use ComputeGateRoutes(collector, false) directly without calling ComputeGateRoutes
   // in advance if we don't use the node path.
-  pf.ComputeGateRoutes(collector, true);
+  int cost = pf.ComputeGateRoutes(collector, true);
+  std::cout << "cost: " << cost << std::endl;
+
   for (auto [x, y] : routes) std::cout << x << "," << y << std::endl;
 
   std::cout << "collect detailed path..." << std::endl;

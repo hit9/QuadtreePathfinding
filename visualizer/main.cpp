@@ -32,12 +32,15 @@ int TO_BECOME_TERRAIN[N][N];
 
 using Cell = std::pair<int, int>;  // {x,y}
 
+int Capability = Terrain::Land;
+
 struct Options {
   int w = 10, h = 10, step = -1;
   int maxNodeWidth = -1, maxNodeHeight = -1;
   int createWallsOnInit = 0;
   bool useNodePath = false;
   int agentSize = 10;
+  bool canWalkOnWater = false;
 };
 
 // Parse options from command line.
@@ -86,6 +89,8 @@ class Visualizer {
   std::vector<Cell> toChangeTerrains;
   // Is mouse left button down?
   bool isMouseDown = false;
+  // terrain types to add when mouse down.
+  int terrainTypeToChange = 0;
 
   void draw();
   void handleCameraMovements();
@@ -107,7 +112,7 @@ int main(int argc, char* argv[]) {
   Options options;
   if (ParseOptionsFromCommandline(argc, argv, options) != 0) return -1;
 
-  // Inits the map.
+  // Inits the map, by default, all cells are land.
   memset(TO_BECOME_TERRAIN, 0, sizeof TO_BECOME_TERRAIN);
   for (int x = 0; x < options.h; ++x)
     for (int y = 0; y < options.w; ++y) GRIDS[x][y] = Terrain::Land;
@@ -117,9 +122,10 @@ int main(int argc, char* argv[]) {
   qdpf::TerrainTypesChecker terrainChecker = [](int x, int y) { return GRIDS[x][y]; };
   auto stepf = options.step != -1 ? nullptr : [](int z) -> int { return z / 8 + 1; };
 
+  if (options.canWalkOnWater) Capability |= Terrain::Water;
+
   qdpf::QuadtreeMapXSettings settings{
-      {options.agentSize, Terrain::Land},
-      // TODO: more settings?
+      {options.agentSize, Capability},
   };
 
   qdpf::QuadtreeMapX mx(options.w, options.h, distance, terrainChecker, settings, options.step,
@@ -172,6 +178,10 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
       .help("the size of path finding agent")
       .default_value(10)
       .store_into(options.agentSize);
+  program.add_argument("-wa", "--can-walk-on-water")
+      .help("enable the agent to walk on water.")
+      .default_value(false)
+      .store_into(options.canWalkOnWater);
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& e) {
@@ -274,6 +284,10 @@ int Visualizer::handleInputs() {
           reset();
           return 0;
         }
+        if (e.key.keysym.sym == SDLK_w) {
+          terrainTypeToChange = Terrain::Water;
+          spdlog::info("sets terrain type to draw to water");
+        }
         if (e.key.keysym.sym == SDLK_UP || e.key.keysym.sym == SDLK_k) scrollDy -= 50;
         if (e.key.keysym.sym == SDLK_DOWN || e.key.keysym.sym == SDLK_j) scrollDy += 50;
         if (e.key.keysym.sym == SDLK_LEFT || e.key.keysym.sym == SDLK_h) scrollDx -= 50;
@@ -292,6 +306,7 @@ int Visualizer::handleInputs() {
             recordCellsToChangeTerrains(x, y);
             handleChangeTerrains();
             isMouseDown = false;
+            terrainTypeToChange = 0;
           }
         }
         break;
@@ -301,7 +316,7 @@ int Visualizer::handleInputs() {
         }
         break;
       case SDL_MOUSEBUTTONDOWN:
-        if (e.button.button == SDL_BUTTON_LEFT) {  // Invert obstacles.
+        if (e.button.button == SDL_BUTTON_LEFT) {  // Change terrains
           isMouseDown = true;
           auto [x, y] = getCellAtMousePosition(e);
           recordCellsToChangeTerrains(x, y);
@@ -333,10 +348,13 @@ int Visualizer::handleInputs() {
 
 void Visualizer::reset() {
   state = 0;
+  terrainTypeToChange = 0;
   path.clear();
   routes.clear();
-  pf->Reset(0, 0, 0, 0, options.agentSize, Terrain::Land);
-  spdlog::info("reset");
+  if (-1 == pf->Reset(0, 0, 0, 0, options.agentSize, Capability)) {
+    spdlog::info("reset failed !");
+  } else
+    spdlog::info("reset");
 }
 
 void Visualizer::createsWallsOnInit() {
@@ -360,7 +378,8 @@ void Visualizer::createsWallsOnInit() {
 
 void Visualizer::recordCellsToChangeTerrains(int x, int y, int to) {
   // TODO: invert land and building.
-  if (to == 0) to = (GRIDS[x][y] == Terrain::Land) ? Terrain::Building : Terrain::Land;
+  if (terrainTypeToChange == 0) terrainTypeToChange = Terrain::Building;
+  if (to == 0) to = (GRIDS[x][y] == Terrain::Land) ? terrainTypeToChange : Terrain::Land;
   if (x >= 0 && x < options.h && y >= 0 && y < options.w && !TO_BECOME_TERRAIN[x][y]) {
     TO_BECOME_TERRAIN[x][y] = to;
     toChangeTerrains.push_back({x, y});
@@ -380,7 +399,10 @@ void Visualizer::handleChangeTerrains() {
 
 void Visualizer::calculateRoutes() {
   std::chrono::high_resolution_clock::time_point startAt, endAt;
-  pf->Reset(x1, y1, x2, y2, options.agentSize, Terrain::Land);
+  if (-1 == pf->Reset(x1, y1, x2, y2, options.agentSize, Capability)) {
+    spdlog::error("reset path finder failed!");
+    return;
+  }
   // calculate node route path.
   startAt = std::chrono::high_resolution_clock::now();
   qdpf::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
@@ -394,17 +416,16 @@ void Visualizer::calculateRoutes() {
                std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count());
   // calculate gate route path.
   startAt = std::chrono::high_resolution_clock::now();
-  // TODO: fixme
-  pf->ComputeGateRoutes(c, options.useNodePath);
+  int cost = pf->ComputeGateRoutes(c, options.useNodePath);
   endAt = std::chrono::high_resolution_clock::now();
   std::string more = "";
   if (options.useNodePath)
     more = "(using node path)";
   else
     more = "(not using node path)";
-  spdlog::info("routes calculated, cost {}us {}. please right click anywhere to show full path",
-               std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count(),
-               more);
+  spdlog::info(
+      "routes calculated, cost={} cost {}us {}. please right click anywhere to show full path",
+      cost, std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count(), more);
 }
 
 void Visualizer::calculatePath() {
@@ -459,7 +480,7 @@ void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
   rect.y -= cameraY;
 }
 
-// 1. Draw grid border and obstacles.
+// 1. Draw grid border and terrains.
 // 2. Draw gates.
 // 3. Draw quadtree leaf node borders.
 // 4. Show Path and start/target
@@ -479,7 +500,26 @@ void Visualizer::draw() {
   };
   if (pf->NodePathSize()) pf->VisitComputedNodeRoutes(visitor);
 
-  // Grids and obstacles.
+  //  current working map.
+  auto mp = mx.Get(options.agentSize, Capability);
+  if (mp != nullptr) {
+    // Gates.
+    qdpf::internal::GateVisitor c2 = [this, &mp](const qdpf::internal::Gate* gate) {
+      auto [x1, y1] = mp->UnpackXY(gate->a);
+      int x3 = y1 * GRID_SIZE + 1;
+      int y3 = x1 * GRID_SIZE + 1;
+      SDL_Rect rect = {x3, y3, GRID_SIZE - 2, GRID_SIZE - 2};
+      updateRectRelativeToCamera(rect);
+      if (isOverlapsCamera(rect)) {
+        SDL_SetRenderDrawColor(renderer, 230, 190, 230, 255);  // light purple
+        SDL_RenderFillRect(renderer, &rect);
+      }
+    };
+
+    mp->Gates(c2);
+  }
+
+  // Grids and terrains.
   // (i,j) is the cell's position.
   // (x,y) is the grid in pixel (in SDL coordinates).
   for (int i = 0, y = 0; i < options.h; i++, y += GRID_SIZE) {
@@ -490,50 +530,38 @@ void Visualizer::draw() {
         SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);  // light gray
         SDL_RenderDrawRect(renderer, &rect);
       }
-      if (GRIDS[i][j] == Terrain::Building) {  // Buildings
-        SDL_Rect inner = {x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2};
-        updateRectRelativeToCamera(inner);
-        if (isOverlapsCamera(inner)) {
-          SDL_SetRenderDrawColor(renderer, 64, 64, 64, 255);  // gray
+      SDL_Rect inner = {x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2};
+      updateRectRelativeToCamera(inner);
+      if (isOverlapsCamera(inner)) {
+        if (GRIDS[i][j] == Terrain::Building) {              // Buildings
+          SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // red
+          SDL_RenderFillRect(renderer, &inner);
+        } else if (GRIDS[i][j] == Terrain::Water) {          // Water
+          SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
           SDL_RenderFillRect(renderer, &inner);
         }
       }
     }
   }
-  // TODO: current working map.
-  auto mp = mx.Get(options.agentSize, Terrain::Land);
 
-  // Gates.
-  qdpf::internal::GateVisitor c2 = [this, &mp](const qdpf::internal::Gate* gate) {
-    auto [x1, y1] = mp->UnpackXY(gate->a);
-    int x3 = y1 * GRID_SIZE + 1;
-    int y3 = x1 * GRID_SIZE + 1;
-    SDL_Rect rect = {x3, y3, GRID_SIZE - 2, GRID_SIZE - 2};
-    updateRectRelativeToCamera(rect);
-    if (isOverlapsCamera(rect)) {
-      SDL_SetRenderDrawColor(renderer, 173, 216, 230, 255);  // light blue
-      SDL_RenderFillRect(renderer, &rect);
-    }
-  };
-
-  mp->Gates(c2);
-
-  // Quadtree nodes borders.
-  qdpf::internal::QdNodeVisitor c1 = [this](const qdpf::internal::QdNode* node) {
-    int x = node->y1 * GRID_SIZE;
-    int y = node->x1 * GRID_SIZE;
-    int w = (node->y2 - node->y1 + 1) * GRID_SIZE;
-    int h = (node->x2 - node->x1 + 1) * GRID_SIZE;
-    // Outer liner rectangle (border width 2)
-    SDL_Rect rect1 = {x, y, w, h};
-    SDL_Rect rect2 = {x + 1, y + 1, w - 2, h - 2};
-    updateRectRelativeToCamera(rect1);
-    updateRectRelativeToCamera(rect2);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // black
-    if (isOverlapsCamera(rect1)) SDL_RenderDrawRect(renderer, &rect1);
-    if (isOverlapsCamera(rect2)) SDL_RenderDrawRect(renderer, &rect2);
-  };
-  mp->Nodes(c1);
+  if (mp != nullptr) {
+    // Quadtree nodes borders.
+    qdpf::internal::QdNodeVisitor c1 = [this](const qdpf::internal::QdNode* node) {
+      int x = node->y1 * GRID_SIZE;
+      int y = node->x1 * GRID_SIZE;
+      int w = (node->y2 - node->y1 + 1) * GRID_SIZE;
+      int h = (node->x2 - node->x1 + 1) * GRID_SIZE;
+      // Outer liner rectangle (border width 2)
+      SDL_Rect rect1 = {x, y, w, h};
+      SDL_Rect rect2 = {x + 1, y + 1, w - 2, h - 2};
+      updateRectRelativeToCamera(rect1);
+      updateRectRelativeToCamera(rect2);
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // black
+      if (isOverlapsCamera(rect1)) SDL_RenderDrawRect(renderer, &rect1);
+      if (isOverlapsCamera(rect2)) SDL_RenderDrawRect(renderer, &rect2);
+    };
+    mp->Nodes(c1);
+  }
 
   // Routes and path.
   auto drawRouteCell = [this](int x, int y) {
@@ -541,7 +569,7 @@ void Visualizer::draw() {
     SDL_Rect inner = {tmp.x + 1, tmp.y + 1, tmp.w - 2, tmp.h - 2};
     updateRectRelativeToCamera(inner);
     if (isOverlapsCamera(inner)) {
-      SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
+      SDL_SetRenderDrawColor(renderer, 0, 180, 0, 255);  // green
       SDL_RenderFillRect(renderer, &inner);
     }
   };
@@ -550,7 +578,7 @@ void Visualizer::draw() {
     SDL_Rect inner = {tmp.x + 1, tmp.y + 1, tmp.w - 2, tmp.h - 2};
     updateRectRelativeToCamera(inner);
     if (isOverlapsCamera(inner)) {
-      SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // blue
+      SDL_SetRenderDrawColor(renderer, 0, 180, 0, 255);  // green
       SDL_RenderFillRect(renderer, &inner);
     }
   };
@@ -572,7 +600,11 @@ void Visualizer::draw() {
     SDL_Rect inner = {y * GRID_SIZE + 1, x * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2};
     updateRectRelativeToCamera(inner);
     if (isOverlapsCamera(inner)) {
-      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // red
+      if (terrainTypeToChange == Terrain::Water) {         // Drawing water.
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // red
+      } else {                                             // Wall (Building)
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // red
+      }
       SDL_RenderFillRect(renderer, &inner);
     }
   }

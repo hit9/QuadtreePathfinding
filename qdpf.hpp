@@ -155,7 +155,7 @@ class QuadtreeMapX {
   // If there are multiple maps support the given walkableTerrainTypes, the one with largest subset
   // of terrain types support will be returned.
   // This is a debuging purpose api.
-  const internal::QuadtreeMap *Get(int agentSize, int walkableTerrainTypes) const;
+  [[nodiscard]] const internal::QuadtreeMap *Get(int agentSize, int walkableTerrainTypes) const;
 
  private:
   internal::QuadtreeMapXImpl impl;
@@ -198,7 +198,8 @@ class AStarPathFinder {
   // The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the pathfinding
   // agent can walk.
   // Returns -1 if there's no quadtree map was found. Returns 0 for success.
-  int Reset(int x1, int y1, int x2, int y2, int agentSize, int walkableterrainTypes = 1);
+  [[nodiscard]] int Reset(int x1, int y1, int x2, int y2, int agentSize,
+                          int walkableterrainTypes = 1);
 
   // ComputeNodeRoutes computes the path of quadtree nodes from the start cell's node to the target
   // cell's node on the node graph.
@@ -208,7 +209,7 @@ class AStarPathFinder {
   // This step is optional, the benefits to use it ahead of ComputeGateRoutes:
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable.
-  int ComputeNodeRoutes();
+  [[nodiscard]] int ComputeNodeRoutes();
 
   // Returns the count of quadtree nodes on the computed node path.
   // ComputeNodeRoutes() should be called in advance to call this api.
@@ -229,7 +230,7 @@ class AStarPathFinder {
   // Returns the distance of the shortest path on success (>=0).
   //
   // Reset() should be called in advance to call this api.
-  int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
+  [[nodiscard]] int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
   // ComputePathToNextRoute computes the detail cells from current route cell (x1,y1) to next route
   // cell (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected. The default
