@@ -14,13 +14,21 @@
 // pixels per grid side.
 int GRID_SIZE = 16;
 
+enum Terrain {
+  Land = 0b001,
+  Water = 0b010,
+  Building = 0b100,
+};
+
 // Max value of w and h.
 const int N = 5000;
 
+// the value of GRIDS[x][y] is a Terrain integer.
 int GRIDS[N][N];
 
-// The cells will being invert their values.
-int TO_INVERT_OBSTACLES[N][N];
+// TO_BECOME_TERRAIN[x][y] records the terrain value that cell (x,y) is going to change to.
+// 0 for no changes.
+int TO_BECOME_TERRAIN[N][N];
 
 using Cell = std::pair<int, int>;  // {x,y}
 
@@ -29,6 +37,7 @@ struct Options {
   int maxNodeWidth = -1, maxNodeHeight = -1;
   int createWallsOnInit = 0;
   bool useNodePath = false;
+  int agentSize = 10;
 };
 
 // Parse options from command line.
@@ -37,13 +46,13 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options);
 
 class Visualizer {
  public:
-  Visualizer(qdpf::QuadtreeMap& mp, qdpf::AStarPathFinder* pf, Options& options);
+  Visualizer(qdpf::QuadtreeMapX& mx, qdpf::AStarPathFinder* pf, Options& options);
   int Init();
   void Start();
   void Destroy();
 
  private:
-  qdpf::QuadtreeMap& mp;
+  qdpf::QuadtreeMapX& mx;
   qdpf::AStarPathFinder* pf;
   Options& options;
   SDL_Window* window;
@@ -73,8 +82,8 @@ class Visualizer {
   // current routes and path
   std::vector<Cell> routes, path;
 
-  // to invert obstacles
-  std::vector<Cell> toInverts;
+  // cells to change terrains
+  std::vector<Cell> toChangeTerrains;
   // Is mouse left button down?
   bool isMouseDown = false;
 
@@ -85,8 +94,8 @@ class Visualizer {
   void updateRectRelativeToCamera(SDL_Rect& rect);
   std::pair<int, int> getCellAtMousePosition(SDL_Event& e) const;
   int handleInputs();
-  void handleInvertObstacles();
-  void recordToInvertObstacelCell(int x, int y);
+  void handleChangeTerrains();
+  void recordCellsToChangeTerrains(int x, int y, int to = 0);
   void calculateRoutes();
   void calculatePath();
   void reset();
@@ -94,20 +103,31 @@ class Visualizer {
 };
 
 int main(int argc, char* argv[]) {
-  memset(GRIDS, 0, sizeof GRIDS);
   // Parse arguments.
   Options options;
   if (ParseOptionsFromCommandline(argc, argv, options) != 0) return -1;
+
+  // Inits the map.
+  memset(TO_BECOME_TERRAIN, 0, sizeof TO_BECOME_TERRAIN);
+  for (int x = 0; x < options.h; ++x)
+    for (int y = 0; y < options.w; ++y) GRIDS[x][y] = Terrain::Land;
+
   // Quadtree map.
   auto distance = qdpf::EuclideanDistance<10>;
-  auto isObstacle = [](int x, int y) -> bool { return GRIDS[x][y]; };
+  qdpf::TerrainTypesChecker terrainChecker = [](int x, int y) { return GRIDS[x][y]; };
   auto stepf = options.step != -1 ? nullptr : [](int z) -> int { return z / 8 + 1; };
-  qdpf::QuadtreeMap mp(options.w, options.h, isObstacle, distance, options.step, stepf,
-                       options.maxNodeWidth, options.maxNodeHeight);
+
+  qdpf::QuadtreeMapXSettings settings{
+      {options.agentSize, Terrain::Land},
+      // TODO: more settings?
+  };
+
+  qdpf::QuadtreeMapX mx(options.w, options.h, distance, terrainChecker, settings, options.step,
+                        stepf, options.maxNodeWidth, options.maxNodeHeight);
   // Path finder.
-  qdpf::AStarPathFinder pf(options.w * options.h);
+  qdpf::AStarPathFinder pf(mx);
   // Visualizer.
-  Visualizer visualizer(mp, &pf, options);
+  Visualizer visualizer(mx, &pf, options);
   if (visualizer.Init() != 0) return -1;
   visualizer.Start();
   visualizer.Destroy();
@@ -148,6 +168,10 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
       .help("use node path to filter less gate cells for computing route cells.")
       .default_value(false)
       .store_into(options.useNodePath);
+  program.add_argument("-a", "--agent-size")
+      .help("the size of path finding agent")
+      .default_value(10)
+      .store_into(options.agentSize);
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& e) {
@@ -161,8 +185,8 @@ int ParseOptionsFromCommandline(int argc, char* argv[], Options& options) {
   return 0;
 }
 
-Visualizer::Visualizer(qdpf::QuadtreeMap& mp, qdpf::AStarPathFinder* pf, Options& options)
-    : mp(mp), pf(pf), options(options), mapW(options.w * GRID_SIZE), mapH(options.h * GRID_SIZE) {}
+Visualizer::Visualizer(qdpf::QuadtreeMapX& mx, qdpf::AStarPathFinder* pf, Options& options)
+    : mx(mx), pf(pf), options(options), mapW(options.w * GRID_SIZE), mapH(options.h * GRID_SIZE) {}
 
 int Visualizer::Init() {
   // Init SDL
@@ -199,8 +223,9 @@ int Visualizer::Init() {
   // Build the quadtree map.
   spdlog::info("Visualizer init done");
   if (options.createWallsOnInit > 0) createsWallsOnInit();
-  mp.Build();
-  spdlog::info("Path finder build done");
+
+  mx.Build();
+  spdlog::info("QuadtreeMapX build done");
 
   return 0;
 }
@@ -264,22 +289,22 @@ int Visualizer::handleInputs() {
         if (e.button.button == SDL_BUTTON_LEFT) {
           if (isMouseDown) {
             auto [x, y] = getCellAtMousePosition(e);
-            recordToInvertObstacelCell(x, y);
-            handleInvertObstacles();
+            recordCellsToChangeTerrains(x, y);
+            handleChangeTerrains();
             isMouseDown = false;
           }
         }
         break;
       case SDL_MOUSEMOTION:
         if (isMouseDown) {
-          recordToInvertObstacelCell(e.button.y / GRID_SIZE, e.button.x / GRID_SIZE);
+          recordCellsToChangeTerrains(e.button.y / GRID_SIZE, e.button.x / GRID_SIZE);
         }
         break;
       case SDL_MOUSEBUTTONDOWN:
         if (e.button.button == SDL_BUTTON_LEFT) {  // Invert obstacles.
           isMouseDown = true;
           auto [x, y] = getCellAtMousePosition(e);
-          recordToInvertObstacelCell(x, y);
+          recordCellsToChangeTerrains(x, y);
         } else if (e.button.button == SDL_BUTTON_RIGHT) {  // Set start/target
           auto [x, y] = getCellAtMousePosition(e);
           if (state == 0) {  // waiting start point
@@ -310,7 +335,7 @@ void Visualizer::reset() {
   state = 0;
   path.clear();
   routes.clear();
-  pf->Reset(&mp, 0, 0, 0, 0);
+  pf->Reset(0, 0, 0, 0, options.agentSize, Terrain::Land);
   spdlog::info("reset");
 }
 
@@ -323,7 +348,7 @@ void Visualizer::createsWallsOnInit() {
   for (int k = 1; k <= options.createWallsOnInit; k++) {
     int y = std::min(static_cast<int>(z * k), options.w - 1);
     for (int x = x1; x < x2; x++) {
-      GRIDS[x][y] ^= 1;
+      GRIDS[x][y] = Terrain::Building;
     }
     if (x1 == 0)
       x1 += w, x2 += w;
@@ -333,28 +358,29 @@ void Visualizer::createsWallsOnInit() {
   }
 }
 
-// record cell (x,y) to be inverted the obstacle value.
-void Visualizer::recordToInvertObstacelCell(int x, int y) {
-  if (x >= 0 && x < options.h && y >= 0 && y < options.w && !TO_INVERT_OBSTACLES[x][y]) {
-    TO_INVERT_OBSTACLES[x][y] = 1;
-    toInverts.push_back({x, y});
+void Visualizer::recordCellsToChangeTerrains(int x, int y, int to) {
+  // TODO: invert land and building.
+  if (to == 0) to = (GRIDS[x][y] == Terrain::Land) ? Terrain::Building : Terrain::Land;
+  if (x >= 0 && x < options.h && y >= 0 && y < options.w && !TO_BECOME_TERRAIN[x][y]) {
+    TO_BECOME_TERRAIN[x][y] = to;
+    toChangeTerrains.push_back({x, y});
   }
 }
 
-void Visualizer::handleInvertObstacles() {
-  for (auto [x, y] : toInverts) {
-    GRIDS[x][y] ^= 1;
-    std::string op = GRIDS[x][y] ? "added" : "removed";
-    mp.Update(x, y);
-    spdlog::info("{} obstacle {},{}", op, x, y);
+void Visualizer::handleChangeTerrains() {
+  for (auto [x, y] : toChangeTerrains) {
+    GRIDS[x][y] = TO_BECOME_TERRAIN[x][y];
+    mx.Update(x, y);
+    spdlog::info("{},{} changed terrain to {}", x, y, GRIDS[x][y]);
   }
-  memset(TO_INVERT_OBSTACLES, 0, sizeof TO_INVERT_OBSTACLES);
-  toInverts.clear();
+  mx.Compute();
+  memset(TO_BECOME_TERRAIN, 0, sizeof TO_BECOME_TERRAIN);
+  toChangeTerrains.clear();
 }
 
 void Visualizer::calculateRoutes() {
   std::chrono::high_resolution_clock::time_point startAt, endAt;
-  pf->Reset(&mp, x1, y1, x2, y2);
+  pf->Reset(x1, y1, x2, y2, options.agentSize, Terrain::Land);
   // calculate node route path.
   startAt = std::chrono::high_resolution_clock::now();
   qdpf::CellCollector c = [this](int x, int y) { routes.push_back({x, y}); };
@@ -464,7 +490,7 @@ void Visualizer::draw() {
         SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);  // light gray
         SDL_RenderDrawRect(renderer, &rect);
       }
-      if (GRIDS[i][j]) {
+      if (GRIDS[i][j] == Terrain::Building) {  // Buildings
         SDL_Rect inner = {x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2};
         updateRectRelativeToCamera(inner);
         if (isOverlapsCamera(inner)) {
@@ -474,8 +500,12 @@ void Visualizer::draw() {
       }
     }
   }
+  // TODO: current working map.
+  auto mp = mx.Get(options.agentSize, Terrain::Land);
+
   // Gates.
-  qdpf::GateVisitor c2 = [this](int x1, int y1, int x2, int y2) {
+  qdpf::internal::GateVisitor c2 = [this, &mp](const qdpf::internal::Gate* gate) {
+    auto [x1, y1] = mp->UnpackXY(gate->a);
     int x3 = y1 * GRID_SIZE + 1;
     int y3 = x1 * GRID_SIZE + 1;
     SDL_Rect rect = {x3, y3, GRID_SIZE - 2, GRID_SIZE - 2};
@@ -486,13 +516,14 @@ void Visualizer::draw() {
     }
   };
 
-  mp.Gates(c2);
+  mp->Gates(c2);
+
   // Quadtree nodes borders.
-  qdpf::NodeVisitor c1 = [this](int x1, int y1, int x2, int y2) {
-    int x = y1 * GRID_SIZE;
-    int y = x1 * GRID_SIZE;
-    int w = (y2 - y1 + 1) * GRID_SIZE;
-    int h = (x2 - x1 + 1) * GRID_SIZE;
+  qdpf::internal::QdNodeVisitor c1 = [this](const qdpf::internal::QdNode* node) {
+    int x = node->y1 * GRID_SIZE;
+    int y = node->x1 * GRID_SIZE;
+    int w = (node->y2 - node->y1 + 1) * GRID_SIZE;
+    int h = (node->x2 - node->x1 + 1) * GRID_SIZE;
     // Outer liner rectangle (border width 2)
     SDL_Rect rect1 = {x, y, w, h};
     SDL_Rect rect2 = {x + 1, y + 1, w - 2, h - 2};
@@ -502,7 +533,7 @@ void Visualizer::draw() {
     if (isOverlapsCamera(rect1)) SDL_RenderDrawRect(renderer, &rect1);
     if (isOverlapsCamera(rect2)) SDL_RenderDrawRect(renderer, &rect2);
   };
-  mp.Nodes(c1);
+  mp->Nodes(c1);
 
   // Routes and path.
   auto drawRouteCell = [this](int x, int y) {
@@ -537,7 +568,7 @@ void Visualizer::draw() {
   }
 
   // Draw cells to invert.
-  for (auto [x, y] : toInverts) {
+  for (auto [x, y] : toChangeTerrains) {
     SDL_Rect inner = {y * GRID_SIZE + 1, x * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2};
     updateRectRelativeToCamera(inner);
     if (isOverlapsCamera(inner)) {
