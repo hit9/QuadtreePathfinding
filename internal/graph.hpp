@@ -8,12 +8,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
+// Graph
+// ~~~~~~
+// Directed graph abstraction.
+
 namespace qdpf {
 namespace internal {
-
-//////////////////////////////////////
-/// Graph
-//////////////////////////////////////
 
 // NeighbourVertexVisitor is the type of the function that visit neighbor vertices of a given
 // vertex in a directed graph.

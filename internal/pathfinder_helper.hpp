@@ -7,12 +7,12 @@
 #include "graph.hpp"
 #include "quadtree_map.hpp"
 
+// PathFinderHelper
+// ~~~~~~~~~~~~~~~
+// Help util functions to implement path finders.
+
 namespace qdpf {
 namespace internal {
-
-//////////////////////////////////////
-/// PathFinding
-//////////////////////////////////////
 
 // PathFinderHelper is a mixin class to provide some util functions.
 class PathFinderHelper {

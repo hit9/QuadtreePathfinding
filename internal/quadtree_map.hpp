@@ -9,12 +9,14 @@
 #include "graph.hpp"
 #include "quadtree-hpp/quadtree.hpp"
 
+// QuadtreeMap
+// ~~~~~~~~~~~
+// 2d grid map maintained by a quadtree, for:
+// 1. 1x1 sized pathfinding agents.
+// 2. 01 binary terrain types.
+
 namespace qdpf {
 namespace internal {
-
-//////////////////////////////////////
-/// QuadtreeMap
-//////////////////////////////////////
 
 using ObstacleChecker = std::function<bool(int x, int y)>;
 using DistanceCalculator = std::function<int(int x1, int y1, int x2, int y2)>;

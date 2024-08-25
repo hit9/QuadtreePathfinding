@@ -15,6 +15,10 @@
 #include "pathfinder_helper.hpp"
 #include "quadtree_map.hpp"
 
+// AStarPathFinder
+// ~~~~~~~~~~~~~~~
+// Implements A* pathfinding algorithm on 1x1 sized and binary terrain types quadtree map.
+
 namespace qdpf {
 namespace internal {
 
