@@ -62,7 +62,7 @@
 
 #include <functional>  // for std::function, std::hash
 
-#include "qdpf_internal.hpp"
+#include "internal/internal.hpp"
 
 namespace qdpf {
 

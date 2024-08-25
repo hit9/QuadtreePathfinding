@@ -7,7 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 include_directories("..")
 include_directories("../3rd-party")
-file(GLOB QDPF_SOURCES ../qdpf*.cpp)
+file(GLOB QDPF_SOURCES ../qdpf.cpp ../internal/*.cpp)
 add_library(qdpf ${QDPF_SOURCES})
 add_executable(quadtree-pathfinding-visualizer main.cpp)
 
@@ -16,4 +16,4 @@ find_package(spdlog)
 find_package(argparse)
 
 target_link_libraries(quadtree-pathfinding-visualizer qdpf SDL2::SDL2main
-    spdlog::spdlog argparse::argparse)
+                      spdlog::spdlog argparse::argparse)
