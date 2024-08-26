@@ -17,9 +17,9 @@ Demo
 
 | <!-- -->                                                          |
 | ------------------------------------------------------------------|
-| gate step=1 ![](misc/quadtree-pathfinding-1.gif)                  |
-| gate step=3 ![](misc/quadtree-pathfinding-2.gif)                  |
-| gate step=auto use node path ![](misc/quadtree-pathfinding-3.gif)    |
+| agent-size=20, capability= Land  ![](misc/quadtree-pathfinding1.gif)                  |
+| agent-size=20, capability= Land \| Water ![](misc/quadtree-pathfinding2.gif)                  |
+| agent-size=20, lager map ![](misc/quadtree-pathfinding3.gif)    |
 
 
 Concepts and Mechanisms
@@ -27,7 +27,7 @@ Concepts and Mechanisms
 
 1. A QuadtreeMap is a 2D grid map maintained by a quadtree.
 2. The quadtree splits the grid map into multiple sections.
-3. A section contains no obstacles or all obstacles.
+3. A section on a quadtree map contains no obstacles or all obstacles.
 4. The shortest path inside a section without obstacles will be a straight line.
 5. Adjacent quadtree nodes are connected by multiple gates.
 6. A gate is composed of two adjacent cells, one on each side, directed.
@@ -37,6 +37,10 @@ Concepts and Mechanisms
    1. Find the node path on the 1st level graph (it's optional, faster but less optimal).
    2. Find the gate path on the 2nd level graph.
    3. Fill the straight lines between gate cells.
+10. A QuadtreeMapX is a manager of multiple quadtree maps for different agent sizes and terrain
+    types supports.
+11. A PathFinder always works on a single QuadtreeMap the same time. A pathfinding request is
+    reduced into a progress without the agent-size and terrain factors.
 
 Code Example
 ------------
@@ -62,8 +66,9 @@ Run the visualizer:
 
 Operations:
 
-1. Click the left mouse button to add or remove obstacles, drag the left-mouse for batch.
-2. Click the right mouse button to set start and target cells.
+1. Click the left mouse button to add or remove wall buildings, drag the left-mouse for batch.
+2. Press `w` and then repeat 1 step for adding or removing water areas.
+3. Click the right mouse button to set start and target cells.
    Right click again to show the routes, and again to show the path.
 
 Problems Unsolved (Plan)
