@@ -1,8 +1,8 @@
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // License: BSD. Chao Wang, hit9[At]icloud.com.
 
-#ifndef QDPF_INTERNAL_PATHFINDER_HPP
-#define QDPF_INTERNAL_PATHFINDER_HPP
+#ifndef QDPF_INTERNAL_PATHFINDER_ASTAR_HPP
+#define QDPF_INTERNAL_PATHFINDER_ASTAR_HPP
 
 #include <functional>     // for std::function, std::hash
 #include <queue>          // for std::priority_queue
@@ -12,7 +12,12 @@
 
 #include "base.hpp"
 #include "graph.hpp"
+#include "pathfinder_helper.hpp"
 #include "quadtree_map.hpp"
+
+// AStarPathFinder
+// ~~~~~~~~~~~~~~~
+// Implements A* pathfinder on a agent-size and terrain-types relateless quadtree map.
 
 namespace qdpf {
 namespace internal {
@@ -21,16 +26,21 @@ namespace internal {
 /// Algorithm AStar
 //////////////////////////////////////
 
+// KVContainer is an internal abstraction for KV containers with default value support.
 template <typename K, typename V, V DefaultValue>
 class KVContainer {
  public:
+  // resize the container's size to n.
   virtual void Resize(std::size_t n);
-  virtual V &operator[](K k);              // set k by reference
-  virtual const V &operator[](K k) const;  // get value
+  // set k by reference
+  virtual V &operator[](K k);
+  // get value, returns default value by default.
+  virtual const V &operator[](K k) const;
+  // clears the container.
   virtual void Clear();
 };
 
-// a handy util kv container with default value support.
+// KVContainer on unordered_map.
 template <typename K, typename V, V DefaultValue>
 class DefaultedUnorderedMap : KVContainer<K, V, DefaultValue> {
  public:
@@ -50,6 +60,7 @@ using DefaultedUnorderedMapInt = DefaultedUnorderedMap<K, int, DefaultValue>;
 template <typename K, bool DefaultValue>
 using DefaultedUnorderedMapBool = DefaultedUnorderedMap<K, bool, DefaultValue>;
 
+// KVContainer on vector (faster but more memory occuption).
 template <typename V, V DefaultValue>
 class DefaultedVector : KVContainer<int, V, DefaultValue> {
  public:
@@ -108,57 +119,29 @@ class AStar {
 };
 
 //////////////////////////////////////
-/// PathFinding
+/// AStarPathFinder
 //////////////////////////////////////
-
-// PathFinderHelper is a mixin class to provide some util functions.
-class PathFinderHelper {
- public:
-  // parameter g2 is the gate graph of the path finder.
-  PathFinderHelper(const QuadtreeMapImpl &m, IDirectedGraph<int> *g2);
-  // Bresenham's line algorithm.
-  // You can override it with a custom implementation.
-  // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-  // Ref: https://members.chello.at/easyfilter/bresenham.html
-  virtual void ComputePathToNextRouteCell(int x1, int y1, int x2, int y2,
-                                          CellCollector &collector) const;
-
- protected:
-  const QuadtreeMapImpl &m;
-  IDirectedGraph<int> *g2;
-  // tmp gate graph is to store edges between start/target and other gate cells.
-  SimpleUnorderedMapDirectedGraph<int> tmp;
-  // BuildTmpGateGraph builds a temporary gate graph to store edges between start/target and
-  // other gates in the same nodes.
-  // This is a helper function.
-  // Parameters:
-  // 1. s and t are the ids of cell start and target.
-  // 2. (x1,y1) and (x2,y2) are the positions of cell start and target.
-  void BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, int y2, QdNode *sNode,
-                         QdNode *tNode);
-  // ForEachNeighbourGateCellWithST iterates each neighbor gate cell connecting from given gate
-  // cell u. What's the deference with the gate graph's ForEachNeighbours is: it will check both
-  // the QuadtreeMap's gate cell graph and the temporary gate graph,
-  // where stores the start, target informations.
-  void ForEachNeighbourGateWithST(int u, NeighbourVertexVisitor<int> &visitor) const;
-  // helper function to add a cell u to the given node in the temporary graph.
-  void addCellToTmpGateGraph(int u, QdNode *node);
-};
 
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
   // the path of nodes if ComputeNodeRoutes is called successfully.
   using P = std::pair<QdNode *, int>;  // { node, cost }
 
-  AStarPathFinderImpl(const QuadtreeMapImpl &m);
-  GateGraph *GetGateGraph() { return &g; }
-  const std::vector<P> &NodePath() { return nodePath; }
-  void Reset(int x1, int y1, int x2, int y2);
+  // n is the upper bound of the number of vertices of  gate graph and node graph.
+  AStarPathFinderImpl(int n) : astar1(A1(n)), astar2(A2(n)) {}
+
+  // Resets current working context: the map instance, start(x1,y1) and target (x2,y2);
+  void Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2);
+  // Returns the computed node path.
+  const std::vector<P> &NodePath() const { return nodePath; }
+  // Compute the node path.
   int ComputeNodeRoutes();
+  // Compute the gate cell path.
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
  private:
-  SimpleDirectedGraph g;
+  // the quadtree map current working on
+  const QuadtreeMap *m = nullptr;
 
   // Astar for computing node path.
   using A1 = AStar<QdNode *, nullptr>;
@@ -253,6 +236,7 @@ int AStar<Vertex, NullVertex, F, Vis, From>::Compute(NeighboursCollector &neighb
   for (int i = path.size() - 1; i >= 0; --i) collector(path[i], f[path[i]]);
   return f[t];
 }
+
 }  // namespace internal
 }  // namespace qdpf
 

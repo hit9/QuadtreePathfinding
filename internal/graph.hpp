@@ -8,24 +8,25 @@
 #include <unordered_map>
 #include <unordered_set>
 
+// Graph
+// ~~~~~~
+// Directed graph abstraction.
+
 namespace qdpf {
 namespace internal {
-
-//////////////////////////////////////
-/// Graph
-//////////////////////////////////////
 
 // NeighbourVertexVisitor is the type of the function that visit neighbor vertices of a given
 // vertex in a directed graph.
 template <typename Vertex>
 using NeighbourVertexVisitor = std::function<void(Vertex v, int cost)>;
 
+// IDirectedGraph is the interface of a directed graph.
+// The parameter Vertex is the type of vertex (e.g. int).
 // It's a pure virtual class so that the subclasses should implement all the virtual methods.
 template <typename Vertex>
 class IDirectedGraph {
  public:
   // Initialize the graph, where the n is the total number of vertices.
-  // This method should be called by a path finder.
   virtual void Init(int n) = 0;
   // Add an edge from vertex u to v with given cost.
   virtual void AddEdge(Vertex u, Vertex v, int cost) = 0;

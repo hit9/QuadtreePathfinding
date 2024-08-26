@@ -9,16 +9,23 @@
 #include "graph.hpp"
 #include "quadtree-hpp/quadtree.hpp"
 
+// QuadtreeMap
+// ~~~~~~~~~~~
+// 1. 2d grid map maintained by a quadtree.
+// 2. It's **relateless** to agent sizes and terrains.
+
 namespace qdpf {
 namespace internal {
 
-//////////////////////////////////////
-/// QuadtreeMap
-//////////////////////////////////////
-
+// ObstacleChecker is the type of the function that returns true if the given
+// cell (x,y) is an obstacle.
 using ObstacleChecker = std::function<bool(int x, int y)>;
+
+// DistanceCalculator calculates the distance between cell (x1,y1) and (x2,y2);
 using DistanceCalculator = std::function<int(int x1, int y1, int x2, int y2)>;
-using CellCollector = std::function<void(int x, int y)>;
+
+// StepFunction specifics a dynamic step to pick gate cells.
+// Where the length is the number of cells of the adjacent side of two neighbor nodes.
 using StepFunction = std::function<int(int length)>;
 
 // QdTree is the type alias of a quadtree.
@@ -43,14 +50,16 @@ struct Gate {
 // GateVisitor the type of the function to visit gates.
 using GateVisitor = std::function<void(const Gate *)>;
 
-using GateGraph = IDirectedGraph<int>;
+// Graph of gate cells.
+using GateGraph = SimpleDirectedGraph;
 
-class QuadtreeMapImpl {
+// QuadtreeMap is a 2D map maintained by a quadtree.
+// QuadtreeMap is nothing to do with agent size and terrain types.
+class QuadtreeMap {
  public:
-  QuadtreeMapImpl(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance,
-                  int step = 1, StepFunction stepf = nullptr, int maxNodeWidth = -1,
-                  int maxNodeHeight = -1);
-  ~QuadtreeMapImpl();
+  QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance, int step = 1,
+              StepFunction stepf = nullptr, int maxNodeWidth = -1, int maxNodeHeight = -1);
+  ~QuadtreeMap();
 
   // ~~~~~~~~~~~~~~~ Cell ID Packing ~~~~~~~~~~~
 
@@ -64,20 +73,15 @@ class QuadtreeMapImpl {
   int UnpackY(int v) const;
 
   // ~~~~~~~~~~~~~ Basic methods ~~~~~~~~~~~~~~~~~
-  int W() const { return w; }
-  int H() const { return h; }
   int N() const { return n; }
-  const QdTree &Tree() const { return tree; }
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
   // Returns true if the given cell (x,y) is an obstacle.
   bool IsObstacle(int x, int y) const { return isObstacle(x, y); }
-  // Register a directed gate graph and keep it updated synchronously with the quadtree map
-  // A quadtree map can register multiple gate graphs.
-  void RegisterGateGraph(GateGraph *g);
   // Approximate distance between two quadtree nodes.
   // Using the provided distance calculator on their center cells.
   int DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const;
+  const GateGraph &GetGateGraph() const { return g2; }
 
   // ~~~~~~~~~~~~~ Visits and Reads ~~~~~~~~~~~~~~~~~
 
@@ -100,7 +104,15 @@ class QuadtreeMapImpl {
 
   // ~~~~~~~~~~~~~ Graphs Maintaining ~~~~~~~~~~~~~~~~~
 
+  // BuildTree builds only the quadtree, this works on an **empty** grid map.
+  // If there're exisiting obstacles on the map, we should call Update on each of them after this
+  // BuildTree(). Or just call Build() instead of BuildTree().
+  // DO NOT call both Build and BuildTree.
+  void BuildTree();
   // Build the underlying quadtree right after construction.
+  // This will call BuildTree() for the underlying quadtree and then call Update for each exisiting
+  // obstacles on the map.
+  // DO NOT call both Build and BuildTree.
   void Build();
   // Update should be called after any cell (x,y)'s value is changed.
   void Update(int x, int y);
@@ -123,8 +135,8 @@ class QuadtreeMapImpl {
   // ~~~~~~~~~~~~~~~ Graphs ~~~~~~~~~~~
   // the 1st level abstract graph: graph  of nodes.
   NodeGraph g1;
-  // the 2st level abstract graphs: graph of gate cells.
-  std::vector<GateGraph *> g2s;
+  // the 2st level abstract graph: graph of gate cells.
+  GateGraph g2;
 
   // ~~~~~~~~~~~~~~ Gates ~~~~~~~~~~~~~
   // manages memory of gates.
