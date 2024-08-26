@@ -53,10 +53,13 @@ Source Files
 To use it, copy away these files:
 
 ```bash
+3rd-party/
 internal/         # the internal sources
 qdpf.cpp
 qdpf.hpp          # Public API
 ```
+
+API list can be found at [qdpf.hpp](qdpf.hpp).
 
 Visualizer
 ----------
