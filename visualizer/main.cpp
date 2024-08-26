@@ -23,7 +23,7 @@ enum Terrain {
 // Max value of w and h.
 const int N = 5000;
 
-// the value of GRIDS[x][y] is a Terrain integer.
+// the value of GRIDS[x][y] is a terrain type integer.
 int GRIDS[N][N];
 
 // TO_BECOME_TERRAIN[x][y] records the terrain value that cell (x,y) is going to change to.
@@ -32,6 +32,7 @@ int TO_BECOME_TERRAIN[N][N];
 
 using Cell = std::pair<int, int>;  // {x,y}
 
+// the terrain capability for current agent.
 int Capability = Terrain::Land;
 
 struct Options {
@@ -575,38 +576,35 @@ void Visualizer::draw() {
       SDL_RenderFillRect(renderer, &inner);
     }
   };
-  auto drawPathCell = [this](int x, int y) {
-    SDL_Rect tmp = {y * GRID_SIZE, x * GRID_SIZE, GRID_SIZE, GRID_SIZE};
-    SDL_Rect inner = {tmp.x + 1, tmp.y + 1, tmp.w - 2, tmp.h - 2};
-    updateRectRelativeToCamera(inner);
-    if (isOverlapsCamera(inner)) {
-      SDL_SetRenderDrawColor(renderer, 0, 180, 0, 255);  // green
-      SDL_RenderFillRect(renderer, &inner);
-    }
-  };
 
-  auto drawAgent = [this]() {
-    auto size = (options.agentSize / 10) * GRID_SIZE;
-    SDL_Rect agent{y1 * GRID_SIZE + 1, x1 * GRID_SIZE + 1, size - 2, size - 2};
+  auto drawPathCell = [this](int x, int y) {
+    // draw the pathfinding agent.
+    auto agentSize = (options.agentSize / 10) * GRID_SIZE;
+    SDL_Rect agent{y * GRID_SIZE, x * GRID_SIZE, agentSize, agentSize};
+    SDL_Rect agentInner{agent.x + 1, agent.y + 1, agentSize - 2, agentSize - 2};
+
     updateRectRelativeToCamera(agent);
     if (isOverlapsCamera(agent)) {
-      SDL_SetRenderDrawColor(renderer, 0, 180, 0, 255);  // green
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // black
       SDL_RenderFillRect(renderer, &agent);
+    }
+
+    updateRectRelativeToCamera(agentInner);
+    if (isOverlapsCamera(agentInner)) {
+      SDL_SetRenderDrawColor(renderer, 0, 180, 0, 255);  // green
+      SDL_RenderFillRect(renderer, &agentInner);
     }
   };
 
   switch (state) {
     case 1:  // start is set.
       drawRouteCell(x1, y1);
-      drawAgent();
       break;
     case 2:  // start,target are set, routes are calculated.
       for (auto [x, y] : routes) drawRouteCell(x, y);
-      drawAgent();
       break;
     case 3:  // path cells are calculated.
       for (auto [x, y] : path) drawPathCell(x, y);
-      drawAgent();
       break;
   }
 
@@ -615,7 +613,7 @@ void Visualizer::draw() {
     SDL_Rect inner = {y * GRID_SIZE + 1, x * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2};
     updateRectRelativeToCamera(inner);
     if (isOverlapsCamera(inner)) {
-      if (terrainTypeToChange == Terrain::Water) {         // Drawing water.
+      if (terrainTypeToChange == Terrain::Water) {         // Water.
         SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // red
       } else {                                             // Wall (Building)
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // red
