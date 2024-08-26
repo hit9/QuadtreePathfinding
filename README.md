@@ -47,6 +47,17 @@ Code Example
 
 Checks [simple-example](simple-example/main.cpp).
 
+Source Files
+------------
+
+To use it, copy away these files:
+
+```bash
+internal/         # the internal sources
+qdpf.cpp
+qdpf.hpp          # Public API
+```
+
 Visualizer
 ----------
 
@@ -67,7 +78,7 @@ Run the visualizer:
 Operations:
 
 1. Click the left mouse button to add or remove wall buildings, drag the left-mouse for batch.
-2. Press `w` and then repeat 1 step for adding or removing water areas.
+2. Press `w` and then repeat the 1st step for adding or removing water areas.
 3. Click the right mouse button to set start and target cells.
    Right click again to show the routes, and again to show the path.
 
