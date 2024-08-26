@@ -15,6 +15,15 @@ and then build a graph on top to perform A* search.
 Demo
 ----
 
+Colors:
+
+* White: Land.
+* Red: Walls (buildings).
+* Blue: Water
+* Green: Agent and Path.
+* Purple: Gate cells
+* Yellow: Quadtree nodes on path.
+
 | <!-- -->                                                          |
 | ------------------------------------------------------------------|
 | agent-size=20, capability= Land  ![](misc/quadtree-pathfinding1.gif)                  |
