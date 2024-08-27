@@ -489,7 +489,8 @@ void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
 void Visualizer::draw() {
   // highlights the route nodes.
 
-  qdpf::NodeVisitor visitor = [this](int x1, int y1, int x2, int y2) {
+  qdpf::NodeVisitor visitor = [this](const qdpf::QdNode* node) {
+    int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
     int h = (x2 - x1) * GRID_SIZE - 2;
     int w = (y2 - y1) * GRID_SIZE - 2;
     int x = y1 * GRID_SIZE + 1;
