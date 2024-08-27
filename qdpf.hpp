@@ -48,6 +48,8 @@ namespace qdpf {
 using internal::inf;
 using internal::Rectangle;
 
+using internal::QdNode;  // the quadtree node.
+
 //////////////////////////////////////
 /// QuadtreeMapX
 //////////////////////////////////////
@@ -164,6 +166,7 @@ class QuadtreeMapX {
 
   // friend with all path finders.
   friend class AStarPathFinder;
+  friend class FlowFieldPathFinder;
 };
 
 //////////////////////////////////////
@@ -171,8 +174,9 @@ class QuadtreeMapX {
 //////////////////////////////////////
 
 // NodeVisitor is the type of a function to visit quadtree nodes.
-// A quadtree node is a rectangle on the grid map.
-using NodeVisitor = std::function<void(const Rectangle &node)>;
+// Signature:
+// std::function<void(const QdNode *node)>;
+using NodeVisitor = internal::QdNodeVisitor;
 
 // CellCollector is the type of the function that collects points on a path.
 // The argument (x,y) is a cell in the grid map.
@@ -184,7 +188,7 @@ using CellCollector = internal::CellCollector;
 /// AStarPathFinder
 //////////////////////////////////////
 
-// A* path finder.
+// A* path finder (stateful).
 class AStarPathFinder {
  public:
   // AStarPathFinder is bound to a quadtree map manager.
@@ -256,10 +260,28 @@ class AStarPathFinder {
 /// FlowFieldPathFinder
 //////////////////////////////////////
 
-using NodeFlowFieldVisitor = std::function<void(Rectangle &node, Rectangle &nextNode, int cost)>;
+// NodeFlowFieldVisitor is the function to visit each node in the computed node flow field.
+//
+// Parameters:
+// * node is current quadtree node.
+// * nextNode is the next node that the current node points to.
+// * cost is the total cost from current node to the target node.
+using NodeFlowFieldVisitor =
+    std::function<void(const QdNode *node, const QdNode *nextNode, int cost)>;
+
+// CellFlowFieldVisitor is the function to visit each cell in the computed cell level flow field.
+// A gate flow field is a cell-based flow field, and the final grid-map-level flow field is also a
+// cell-based flow field.
+//
+// Parameters:
+// * (x,y) is the current cell.
+// * (x1,y1) is the next cell that the current cell points to.
+//   for a gate flow field, it would be the next gate cell to go.
+//   for a final cell flow field, it would be a neighbour cell to go.
+// * cost is the total cost from current cell to the target cell.
 using CellFlowFieldVisitor = std::function<void(int x, int y, int x1, int y1, int cost)>;
 
-// FlowField
+// FlowField (stateful)
 class FlowFieldPathFinder {
   // FlowFieldPathFinder should be bound to a quadtree map manager.
   FlowFieldPathFinder(const QuadtreeMapX &mx);
@@ -282,6 +304,7 @@ class FlowFieldPathFinder {
   // * cell (x2,y2) is the target.
   // * dest is the destination rectangle, we will fill the flow field results into this region.
   //   It's better to use a rectangle that covers all the path finding agents.
+  //   This struct will be copied into the path finder (and reset existing one).
   // * The agentSize is the size of the pathfinding agents.
   // * The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the
   //    pathfinding agents can walk.
@@ -299,9 +322,11 @@ class FlowFieldPathFinder {
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable for an agent.
   // 3. optimize the following ComputeGateFlowField(useNodeFlowField=true) call.
+  // Reset() should be called in advance to call this api.
   void ComputeNodeFlowField();
 
   // Visits the computed node flow field.
+  // Make sure the ComputeNodeFlowField has been called before calling this function.
   void VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor);
 
   // ~~~~~~~~~~~~~~~~~~~~~~~ Gate Graph Level (Required) ~~~~~~~~~~~~~~
@@ -312,19 +337,28 @@ class FlowFieldPathFinder {
   // cell.
   //
   // This step is required.
+  // Reset() should be called in advance to call this api.
   void ComputeGateFlowField();
 
   // Visits the computed gate flow field
+  // Make sure the ComputeGateFlowField has been called before calling this function.
   void VisitComputedGateFlowField(CellFlowFieldVisitor &visitor);
 
   // ~~~~~~~~~~~~~~~~~~~~~~~  Grid Map Level  (Required) ~~~~~~~~~~~~~~
 
   // Computes the final flow field for all cells in the destination rectangle.
   // In this flow field, a cell points to a neighbour cell to go, finally points to the target.
+  // Reset() should be called in advance to call this api.
   void ComputeCellFlowFieldInDestRectangle();
 
   // Visits the computed cell flow field in the destination rectangle.
+  // Make sure the ComputeCellFlowFieldInDestRectangle has been called before calling this
+  // function.
   void VisitComputedCellFlowFieldInDestRectangle(CellFlowFieldVisitor &visitor);
+
+ private:
+  const QuadtreeMapX &mx;
+  internal::FlowFieldPathFinderImpl impl;
 };
 
 }  // namespace qdpf

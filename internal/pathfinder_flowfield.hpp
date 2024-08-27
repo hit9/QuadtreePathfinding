@@ -4,6 +4,7 @@
 #ifndef QDPF_INTERNAL_PATHFINDER_FLOW_FIELD_HPP
 #define QDPF_INTERNAL_PATHFINDER_FLOW_FIELD_HPP
 
+#include <queue>
 #include <unordered_map>
 
 #include "base.hpp"
@@ -17,17 +18,29 @@
 namespace qdpf {
 namespace internal {
 
+//////////////////////////////////////
+/// FlowField (Container)
+//////////////////////////////////////
+
 // FlowField is a data container that stores the direction from a vertex to next vertex,
 // along with the cost to the target.
 template <typename Vertex, Vertex NullVertex>
 class FlowField {
  public:
+  using Visitor = std::function<void(Vertex v, Vertex next, int cost)>;
+  // Set cost to the target for given vertex v.
+  void SetCost(Vertex v, int cost);
   // Returns the cost from v to target.
   // Returns inf if the v is unreachable to target.
-  int Cost(Vertex v);
+  int GetCost(Vertex v) const;
   // Returns the next vertex for vertex v.
   // Returns NullVertex if not found.
-  Vertex Next(Vertex v);
+  Vertex GetNext(Vertex v) const;
+  // Sets the next vertex for v to u.
+  void SetNext(Vertex v, Vertex u);
+  // Iterates each vertex along with its next vertex and cost informations.
+  void ForEach(Visitor& visitor) const;
+  void ForEach(Visitor&& visitor) const { ForEach(visitor); }  // trasfering rvalue
 
  private:
   // costs[v] stores the cost of vertex v to target.
@@ -40,6 +53,50 @@ using NodeFlowField = FlowField<QdNode*, nullptr>;
 using CellFlowField = FlowField<int, inf>;
 
 //////////////////////////////////////
+/// FlowField (Algorithm)
+//////////////////////////////////////
+
+// flow field algorithm:
+// 1. Compute the cost field by reverse-traversing  from the target, using the dijkstra algorithm.
+// 2. Compute the flow field by comparing each vertex with its neighours vertices.
+
+template <typename Vertex, Vertex NullVertex,
+          typename Vis = DefaultedUnorderedMapBool<Vertex, false>>
+class FlowFieldAlgorithm {
+ public:
+  using FlowFieldT = FlowField<Vertex, NullVertex>;
+  // Collects the neighbor vertices from u.
+  using NeighboursCollector =
+      std::function<void(Vertex u, NeighbourVertexVisitor<Vertex>& visitor)>;
+  // Filter a neighbor vertex, returns true for cared neighbor.
+  using NeighbourFilterTester = std::function<bool(Vertex)>;
+
+  // The n is the upper bound of number of vertices on the graph.
+  FlowFieldAlgorithm(int n);
+
+  // Compute flowfield on given graph to target t.
+  // Parameters:
+  // 1. neighborsCollector is a function that gives the neighbor vertices of a vertex.
+  // 2. t is the target vertex.
+  // 3. field is the destination field to fill results.
+  // 4. neighborTester is to filter neighbor.
+  //
+  // Note: the neighborsCollector should use the negative direction of the edges in the original
+  // directed graph. But specially speaking, for our case, on the grid map, either the gate graph
+  // or the node graph are both double-directed graph. That's passing in a function visiting the
+  // original direction is just ok.
+  void Compute(Vertex t, FlowFieldT& field, NeighbourFilterTester neighborTester,
+               NeighboursCollector& neighborsCollector);
+
+ private:
+  // Pair of { cost, vertex}.
+  using P = std::pair<int, Vertex>;
+  int n;
+  // avoid reallocations..
+  Vis vis;  // visit array.
+};
+
+//////////////////////////////////////
 /// FlowFieldPathFinder
 //////////////////////////////////////
 
@@ -49,8 +106,11 @@ using CellFlowField = FlowField<int, inf>;
 // 2. Compute the flow field on the node graph level (optional).
 // 3. Compute the flow field on the gate graph level.
 // 4. Compute the detailed flow field for each cell in the destination flow field.
-class FlowFieldPAthFinderImpl : public PathFinderHelper {
+class FlowFieldPathFinderImpl : public PathFinderHelper {
  public:
+  // n is the max number of vertex in the graphs.
+  FlowFieldPathFinderImpl(int n);
+
   // Resets current working context: the the map instance, target (x2,y2) and flow field dest
   // rectangle to fill results.
   void Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& dest);
@@ -66,7 +126,116 @@ class FlowFieldPAthFinderImpl : public PathFinderHelper {
   const CellFlowField& GetGateFlowField() const;
   // Visits the computed detailed flow field for the destination rectangle.
   const CellFlowField& GetFlowFieldInDestRectangle() const;
+
+ private:
+  // the quadtree map current working on
+  const QuadtreeMap* m = nullptr;
+
+  // for computing node flow field.
+  using FFA1 = FlowFieldAlgorithm<QdNode*, nullptr>;
+  FFA1 ffa1;
+
+  // for computing gate flow field.
+  using FFA2 = FlowFieldAlgorithm<int, inf>;
+  FFA2 ffa2;
+
+  // stateful values for current round compution.
+
+  // compution results ared limited within this rectangle.
+  Rectangle dest;
+  // target.
+  int x2, y2;
+  int t;
+  // results for node flow field.
+  NodeFlowField nodeFlowField;
+  // results for gate flow field.
+  CellFlowField gateFlowField;
 };
+
+//////////////////////////////////////
+/// Implements templated functions
+//////////////////////////////////////
+
+// ~~~~~~~~~~~~~~~ Implements FlowField Container ~~~~~~~~~~~
+
+template <typename Vertex, Vertex NullVertex>
+void FlowField<Vertex, NullVertex>::SetCost(Vertex v, int cost) {
+  costs[v] = cost;
+}
+
+template <typename Vertex, Vertex NullVertex>
+int FlowField<Vertex, NullVertex>::GetCost(Vertex v) const {
+  auto it = costs.find(v);
+  if (it == costs.end()) return inf;
+  return it->second;
+}
+
+template <typename Vertex, Vertex NullVertex>
+Vertex FlowField<Vertex, NullVertex>::GetNext(Vertex v) const {
+  auto it = nexts.find(v);
+  if (it == nexts.end()) return NullVertex;
+  return it->second;
+}
+
+template <typename Vertex, Vertex NullVertex>
+void FlowField<Vertex, NullVertex>::SetNext(Vertex v, Vertex u) {
+  nexts[v] = u;
+}
+
+template <typename Vertex, Vertex NullVertex>
+void FlowField<Vertex, NullVertex>::ForEach(Visitor& visitor) const {
+  for (auto [v, u] : nexts) {
+    visitor(v, u, GetCost(v));
+  }
+}
+
+// ~~~~~~~~~~~~~~~ Implements FlowField Algorithm ~~~~~~~~~~~
+
+template <typename Vertex, Vertex NullVertex, typename Vis>
+FlowFieldAlgorithm<Vertex, NullVertex, Vis>::FlowFieldAlgorithm(int n) : n(n) {
+  vis.Resize(n);
+}
+
+template <typename Vertex, Vertex NullVertex, typename Vis>
+void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(
+    Vertex t, FlowFieldT& field, NeighbourFilterTester neighborTester,
+    NeighboursCollector& neighborsCollector) {
+  // dijkstra
+  vis.Clear();
+  vis.Resize(n);
+
+  // smallest-first queue, where P is { cost, vertex }
+  std::priority_queue<P, std::vector<P>, std::greater<P>> q;
+
+  field.SetCost(t, 0);
+  q.push({0, t});
+
+  Vertex u;
+
+  // expand from u to v with cost c
+  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &field, this](Vertex v,
+                                                                                      int c) {
+    if (neighborTester != nullptr && !neighborTester(v)) return;
+    int fu = field.GetCost(u);
+    int fv = field.GetCost(v);
+    if (fv > fu + c) {
+      fv = fu + c;
+      q.push({fv, v});
+      field.SetCost(v, fv);
+      // v comes from u, that is.
+      // In inversing view, u is the next way to go.
+      field.SetNext(v, u);
+    }
+  };
+
+  while (q.size()) {
+    u = q.top().second;
+    q.pop();
+    if (vis[u]) continue;
+    vis[u] = true;
+    neighborsCollector(u, expand);
+  }
+}
 
 }  // namespace internal
 }  // namespace qdpf

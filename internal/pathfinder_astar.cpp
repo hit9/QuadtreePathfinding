@@ -44,7 +44,7 @@ int AStarPathFinderImpl::ComputeNodeRoutes() {
     m->ForEachNeighbourNodes(u, visitor);
   };
   // compute
-  return astar1.Compute(neighborsCollector, sNode, tNode, collector, nullptr);
+  return astar1.Compute(sNode, tNode, collector, neighborsCollector, nullptr);
 }
 
 // Collects the gate cells on node path if ComputeNodeRoutes is successfully called and any further
@@ -91,7 +91,7 @@ int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNod
     ForEachNeighbourGateWithST(u, visitor);
   };
   // compute
-  return astar2.Compute(neighborsCollector, s, t, collector1, neighbourTester);
+  return astar2.Compute(s, t, collector1, neighborsCollector, neighbourTester);
 }
 
 }  // namespace internal
