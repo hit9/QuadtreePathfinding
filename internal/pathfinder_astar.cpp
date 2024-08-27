@@ -3,15 +3,28 @@
 
 #include "pathfinder_astar.hpp"
 
+#include <cassert>
+
 namespace qdpf {
 namespace internal {
 
 void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_, int y2_) {
+  // debug mode, checks m, it's nullptr if mapx didn't find one.
+  assert(m_ != nullptr);
+
   // resets the attributes.
   x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
   m = m_;
   s = m->PackXY(x1, y1), t = m->PackXY(x2, y2);
+  // finding a node is very fast.
+  // We find the start and target node without caring the wether the ComputeNodeRoutes
+  // is used in the future.
   sNode = m->FindNode(x1, y1), tNode = m->FindNode(x2, y2);
+
+  // in debug mode: we should ensure sNode and tNode are both find.
+  // happen when: any of them out of map bound.
+  assert(sNode != nullptr);
+  assert(tNode != nullptr);
 
   // reset the distance function.
   A1::Distance distance1 = [this](QdNode *a, QdNode *b) { return m->DistanceBetweenNodes(a, b); };

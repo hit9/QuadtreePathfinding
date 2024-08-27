@@ -3,6 +3,8 @@
 
 #include "pathfinder_helper.hpp"
 
+#include <cassert>
+
 namespace qdpf {
 namespace internal {
 
@@ -27,6 +29,13 @@ void PathFinderHelper::addCellToTmpGateGraph(int u, QdNode *node) {
 
 void PathFinderHelper::BuildTmpGateGraph(int s, int t, int x1, int y1, int x2, int y2,
                                          QdNode *sNode, QdNode *tNode) {
+  // debug: is the m reset?
+  assert(m != nullptr);
+  // debug: if s is provided a valid value, then the sNode shouldn't be nullptr
+  assert(s == -1 || sNode != nullptr);
+  // debug: tNode should never be nullptr
+  assert(tNode != nullptr);
+
   // Is the start and target a gate cell?
   bool sIsGate = m->IsGateCell(sNode, s);
   bool tIsGate = m->IsGateCell(tNode, t);

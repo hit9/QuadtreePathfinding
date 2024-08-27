@@ -57,8 +57,11 @@ using internal::QdNode;  // the quadtree node.
 // DistanceCalculator is the type of the function that calculates the distance
 // from cell (x1,y1) to (x2,y2).
 //
-// The distance calculator should guarantee that the distance between (x1,y1)
-// and (x2,y2) always equals to the distance between (x2,y2) and (x1,y1).
+// The distance calculator should guarantee that:
+// 1. the distance between (x1,y1) and (x2,y2) always equals to the distance between (x2,y2) and
+//    (x1,y1).
+// 2. the distance between two same cells is always 0.
+//
 // We can just use quadtree_astar::EuclideanDistance<CostUnit> to build a euclidean distance
 // calculator.
 //

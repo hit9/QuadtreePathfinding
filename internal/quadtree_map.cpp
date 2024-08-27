@@ -3,6 +3,8 @@
 
 #include "quadtree_map.hpp"
 
+#include <cassert>
+
 namespace qdpf {
 namespace internal {
 
@@ -23,6 +25,7 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
       distance(distance),
       stepf(stepf),
       tree(QdTree(w, h)) {
+  assert(s > 0);  // debug mode: avoid s == 0, in case of division error
   g1.Init(n);
   g2.Init(n);
   // ssf returns true to stop a quadtree node to continue to split.
@@ -72,12 +75,14 @@ int QuadtreeMap::UnpackY(int v) const { return v % s; }
 // ~~~~~~~~~~~~~~~ QuadtreeMap::Impl :: Basic methods ~~~~~~~~~~~
 
 int QuadtreeMap::Distance(int u, int v) const {
+  if (u == v) return 0;  // avoid further calculation.
   auto [x1, y1] = UnpackXY(u);
   auto [x2, y2] = UnpackXY(v);
   return distance(x1, y1, x2, y2);
 }
 
 int QuadtreeMap::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const {
+  if (aNode == bNode) return 0;
   int aNodeCenterX = aNode->x1 + (aNode->x2 - aNode->x1) / 2;
   int aNodeCenterY = aNode->y1 + (aNode->y2 - aNode->y1) / 2;
   int bNodeCenterX = bNode->x1 + (bNode->x2 - bNode->x1) / 2;
@@ -106,6 +111,7 @@ bool QuadtreeMap::IsGateCell(int u) const {
 
 // Visit each gate cell inside a node and call given visitor with it.
 void QuadtreeMap::ForEachGateInNode(QdNode *node, GateVisitor &visitor) const {
+  if (visitor == nullptr) return;
   std::function<void(Gate *)> visitor1 = [&visitor](Gate *gate) {
     // Won't allow user to modify gate's content.
     visitor(const_cast<const Gate *>(gate));
@@ -131,7 +137,12 @@ void QuadtreeMap::ForEachNeighbourNodes(QdNode *node,
 
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Graphs Maintaining ~~~~~~~~~~~~~~~~~
 
-void QuadtreeMap::BuildTree() { tree.Build(); }
+void QuadtreeMap::BuildTree() {
+  // debug: the tree's size should be 0 before build.
+  // If it isn't (failed here), checks if BuildTree() is called for at least twice.
+  assert(tree.NumNodes() == 0);
+  tree.Build();
+}
 
 void QuadtreeMap::Build() {
   BuildTree();
@@ -146,6 +157,11 @@ void QuadtreeMap::Build() {
 }
 
 void QuadtreeMap::Update(int x, int y) {
+  // ndebug, let's do nothing, do crash the program.
+  // since the (x,y) is passed in by a user-level programmer.
+  if (!(x >= 0 && x < h)) return;
+  if (!(y >= 0 && y < w)) return;
+
   // Special case:
   //   When the (x,y) always locates at a single-cell 1x1 node before and after the tree
   //   adjustment. Changing this cell's value won't trigger spliting and merging, the ssf

@@ -86,6 +86,7 @@ class QuadtreeMap {
   // ~~~~~~~~~~~~~ Visits and Reads ~~~~~~~~~~~~~~~~~
 
   // Get the quadtree node where the given cell (x,y) locates.
+  // Returns nullptr if (x,y) is invalid (out of bound).
   QdNode *FindNode(int x, int y) const;
   // Is given cell u locating at given node a gate cell?
   bool IsGateCell(QdNode *node, int u) const;
