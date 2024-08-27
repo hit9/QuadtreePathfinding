@@ -4,6 +4,7 @@
 #include "quadtree_mapx.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <unordered_set>
 
 #include "base.hpp"
@@ -25,7 +26,10 @@ QuadtreeMapXImpl::QuadtreeMapXImpl(int w, int h, DistanceCalculator distance,
       step(step),
       stepf(stepf),
       maxNodeWidth(maxNodeWidth),
-      maxNodeHeight(maxNodeHeight) {}
+      maxNodeHeight(maxNodeHeight) {
+  assert(w > 0);
+  assert(h > 0);
+}
 
 QuadtreeMapXImpl::~QuadtreeMapXImpl() {
   // free all maps.
@@ -108,6 +112,10 @@ void QuadtreeMapXImpl::buildClearanceFields() {
 // terrainTypes integer, and build it finally.
 void QuadtreeMapXImpl::buildClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit,
                                                           int costUnitDiagonal, int terrainTypes) {
+  // rarely happens, but ensure that we won't reset an allocated clearance field, which makes
+  // memory leakings.
+  if (tfs.find(terrainTypes) != tfs.end()) return;
+
   true_clearance_field::ObstacleChecker isObstacle = [this, terrainTypes](int x, int y) {
     // if the terrain type value of cell (x,y) dismatches any of required terrain types, it's
     // considered an obstacle.
@@ -135,7 +143,8 @@ void QuadtreeMapXImpl::buildQuadtreeMaps() {
 
 // build a quadtree map for given agentSize and terrainTypes.
 void QuadtreeMapXImpl::buildQuadtreeMapsForSetting(int agentSize, int terrainTypes) {
-  // rarely happens.
+  // rarely happens, but ensure that we won't reset an allocated map, which makes
+  // memory leakings.
   if (maps[agentSize].find(terrainTypes) != maps[agentSize].end()) return;
 
   ObstacleChecker isObstacle = [this, agentSize, terrainTypes](int x, int y) {
