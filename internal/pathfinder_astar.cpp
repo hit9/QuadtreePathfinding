@@ -21,10 +21,9 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_
   // is used in the future.
   sNode = m->FindNode(x1, y1), tNode = m->FindNode(x2, y2);
 
-  // in debug mode: we should ensure sNode and tNode are both find.
   // happen when: any of them out of map bound.
-  assert(sNode != nullptr);
-  assert(tNode != nullptr);
+  // stop further handlings.
+  if (sNode == nullptr || tNode == nullptr) return;
 
   // reset the distance function.
   A1::Distance distance1 = [this](QdNode *a, QdNode *b) { return m->DistanceBetweenNodes(a, b); };
@@ -42,8 +41,10 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_
 }
 
 int AStarPathFinderImpl::ComputeNodeRoutes() {
+  // any one of start and target are out of map bounds.
+  if (sNode == nullptr || tNode == nullptr) return -1;
+  // Same node.
   if (sNode == tNode) {
-    // Same node.
     nodePath.push_back({sNode, 0});
     return 0;
   }
@@ -79,6 +80,8 @@ void AStarPathFinderImpl::collectGateCellsOnNodePath() {
 }
 
 int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
+  // any one of start and target are out of map bounds.
+  if (sNode == nullptr || tNode == nullptr) return -1;
   // Can't route to or start from obstacles.
   if (m->IsObstacle(x1, y1) || m->IsObstacle(x2, y2)) return -1;
   // Same point.

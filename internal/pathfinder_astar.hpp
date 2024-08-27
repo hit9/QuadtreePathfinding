@@ -110,7 +110,7 @@ class AStarPathFinderImpl : public PathFinderHelper {
   // stateful values for current round compution.
   int x1, y1, x2, y2;
   int s, t;
-  QdNode *sNode, *tNode;
+  QdNode *sNode = nullptr, *tNode = nullptr;
   std::vector<P> nodePath;
   // the gate cells on the node path if ComputeNodeRoutes is called successfully.
   std::unordered_set<int> gateCellsOnNodePath;
