@@ -9,6 +9,8 @@
 namespace qdpf {
 namespace internal {
 
+FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FFA2(n)) {}
+
 void FlowFieldPathFinderImpl::Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& dest) {
   // debug mode, checks m, it's nullptr if mapx didn't find one.
   assert(m != nullptr);
@@ -50,6 +52,21 @@ void FlowFieldPathFinderImpl::Reset(const QuadtreeMap* m, int x2, int y2, const 
       }
     }
   }
+}
+
+int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
+  // TODO:
+  return 0;
+}
+
+int FlowFieldPathFinderImpl::ComputeGateFlowField() {
+  // TODO:
+  return 0;
+}
+
+int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
+  // TODO:
+  return 0;
 }
 
 }  // namespace internal

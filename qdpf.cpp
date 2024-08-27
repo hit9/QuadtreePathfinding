@@ -63,9 +63,22 @@ int FlowFieldPathFinder::Reset(int x2, int y2, const Rectangle &dest, int agentS
 }
 
 int FlowFieldPathFinder::ComputeNodeFlowField() { return impl.ComputeNodeFlowField(); }
-int FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
+int FlowFieldPathFinder::ComputeGateFlowField() { return impl.ComputeGateFlowField(); }
+int FlowFieldPathFinder::ComputeCellFlowFieldInDestRectangle() {
+  return impl.ComputeCellFlowFieldInDestRectangle();
+}
+
+void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
   // TODO
-  return 0;
+}
+
+void FlowFieldPathFinder::VisitComputedGateFlowField(CellFlowFieldVisitor &visitor) {
+  // TODO
+}
+
+void FlowFieldPathFinder::VisitComputedCellFlowFieldInDestRectangle(
+    CellFlowFieldVisitor &visitor) {
+  // TODO
 }
 
 }  // namespace qdpf
