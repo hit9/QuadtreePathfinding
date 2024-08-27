@@ -65,7 +65,7 @@ const QuadtreeMap* QuadtreeMapXImpl::Get(int agentSize, int walkableTerrainTypes
     // then the terrainTypes is a subset of given walkableTerrainTypes.
     if (terrainTypes == (terrainTypes & walkableTerrainTypes)) {
       // the terrainTypes with the most number of true bits wins.
-      int nbits = countBits(terrainTypes);
+      int nbits = CountBits(terrainTypes);
       if (nbits > terrainTypesNumBits) {
         terrainTypesNumBits = nbits;
         ans = m;

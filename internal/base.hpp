@@ -27,13 +27,17 @@ struct Rectangle {
 /////////////////////
 
 // Returns the number of true bits in given unsigned number n.
-int countBits(unsigned int n);
+int CountBits(unsigned int n);
 
 // Bresenham's line algorithm.
 // You can override it with a custom implementation.
 // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 // Ref: https://members.chello.at/easyfilter/bresenham.html
 void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector);
+
+// AABB overlap testing.
+// Check if rectangle ((ax1, ay1), (ax2, ay2)) and ((bx1,by1), (bx2, by2)) overlaps.
+bool IsOverlap(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2);
 
 // ~~~~~~~~~~~ KVContainer ~~~~~~~~~~~~
 

@@ -8,13 +8,13 @@
 namespace qdpf {
 namespace internal {
 
-void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_, int y2_) {
+void AStarPathFinderImpl::Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2) {
   // debug mode, checks m, it's nullptr if mapx didn't find one.
-  assert(m_ != nullptr);
+  assert(m != nullptr);
 
   // resets the attributes.
-  x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
-  m = m_;
+  this->x1 = x1, this->y1 = y1, this->x2 = x2, this->y2 = y2;
+  this->m = m;
   s = m->PackXY(x1, y1), t = m->PackXY(x2, y2);
 
   // finding a node is very fast: we find the start and target node without caring the wether the
@@ -26,8 +26,10 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_
   if (sNode == nullptr || tNode == nullptr) return;
 
   // reset the distance function.
-  A1::Distance distance1 = [this](QdNode *a, QdNode *b) { return m->DistanceBetweenNodes(a, b); };
-  A2::Distance distance2 = [this](int u, int v) { return m->Distance(u, v); };
+  A1::Distance distance1 = [this](QdNode *a, QdNode *b) {
+    return this->m->DistanceBetweenNodes(a, b);
+  };
+  A2::Distance distance2 = [this](int u, int v) { return this->m->Distance(u, v); };
   astar1.SetDistanceFunc(distance1);
   astar2.SetDistanceFunc(distance2);
 
@@ -36,7 +38,7 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_
   gateCellsOnNodePath.clear();
 
   // Rebuild the tmp graph. And add the start and target cells to the gate graph.
-  PathFinderHelper::Reset(m_);
+  PathFinderHelper::Reset(this->m);
 
   // Is the start and target a gate cell?
   bool sIsGate = m->IsGateCell(sNode, s);

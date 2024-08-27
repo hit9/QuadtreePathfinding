@@ -8,7 +8,7 @@
 namespace qdpf {
 namespace internal {
 
-int countBits(unsigned int n) {
+int CountBits(unsigned int n) {
   int count = 0;
   while (n) {
     n &= (n - 1);
@@ -35,6 +35,11 @@ void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collecto
       y1 += sy;
     }
   }
+}
+
+bool IsOverlap(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2) {
+  // https://writings.sh/post/aabb
+  return ax1 <= bx2 && ax2 >= bx1 && ay1 <= by2 && ay2 >= by1;
 }
 
 }  // namespace internal
