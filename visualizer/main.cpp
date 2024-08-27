@@ -445,7 +445,7 @@ void Visualizer::calculatePath() {
     auto [x, y] = routes[0];
     for (int i = 1; i < routes.size(); i++) {
       auto [x2, y2] = routes[i];
-      pf->ComputePathToNextRouteCell(x, y, x2, y2, c);
+      qdpf::ComputeStraightLine(x, y, x2, y2, c);
       x = x2, y = y2;
     }
     endAt = std::chrono::high_resolution_clock::now();

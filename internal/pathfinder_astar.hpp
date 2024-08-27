@@ -72,7 +72,7 @@ class AStar {
 // 1. Resets the map to use and start, target cells: Reset(m, x1,y1, x2, y2)
 // 2. Computes on the 1st level node graph (optional): ComputeNodeRoutes().
 // 3. Computes on the 2nd level gate graph: ComputeGateRoutes().
-// 4. Fill the detailed cells from current to next route cell: ComputePathToNextRouteCell().
+// 4. Fill the detailed cells from current to next route cell: ComputeStraightLine().
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
   // the path of nodes if ComputeNodeRoutes is called successfully.

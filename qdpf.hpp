@@ -50,6 +50,18 @@ using internal::Rectangle;
 
 using internal::QdNode;  // the quadtree node.
 
+// CellCollector is the type of the function that collects points on a path.
+// The argument (x,y) is a cell in the grid map.
+//
+// Signature: std::function<void(int x, int y)>;
+using CellCollector = internal::CellCollector;
+
+// ComputeStraightLine computes the straight line from (x1,y1) to (x2,y2) based on Bresenham's line
+// algorithm. Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm Ref:
+// https://members.chello.at/easyfilter/bresenham.html
+// Signature: void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector);
+using internal::ComputeStraightLine;
+
 //////////////////////////////////////
 /// QuadtreeMapX
 //////////////////////////////////////
@@ -181,12 +193,6 @@ class QuadtreeMapX {
 // std::function<void(const QdNode *node)>;
 using NodeVisitor = internal::QdNodeVisitor;
 
-// CellCollector is the type of the function that collects points on a path.
-// The argument (x,y) is a cell in the grid map.
-//
-// Signature: std::function<void(int x, int y)>;
-using CellCollector = internal::CellCollector;
-
 //////////////////////////////////////
 /// AStarPathFinder
 //////////////////////////////////////
@@ -218,6 +224,7 @@ class AStarPathFinder {
   // ComputeNodeRoutes computes the path of quadtree nodes from the start cell's node to the target
   // cell's node on the node graph.
   // Returns -1 if unreachable.
+  // Returns -1 if either of start and target cells are out of bound.
   // Returns the approximate cost to target node on the node graph level.
   // Reset() should be called in advance to call this api.
   // This step is optional, the benefits to use it ahead of ComputeGateRoutes:
@@ -242,17 +249,11 @@ class AStarPathFinder {
   // The route cells are composed of three kinds of cells: start(x1,y1), gate cells in the middle
   // and target(x2,y2).
   // Returns -1 if the path finding is failed.
+  // Returns -1 if either of start and target cells are out of bound.
   // Returns the distance of the shortest path on success (>=0).
   //
   // Reset() should be called in advance to call this api.
   [[nodiscard]] int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
-
-  // ComputePathToNextRoute computes the detail cells from current route cell (x1,y1) to next route
-  // cell (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected. The default
-  // implementation is based on Bresenham's line algorithm.
-  // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-  // Ref: https://members.chello.at/easyfilter/bresenham.html
-  void ComputePathToNextRouteCell(int x1, int y1, int x2, int y2, CellCollector &collector) const;
 
  private:
   const QuadtreeMapX &mx;
@@ -317,6 +318,7 @@ class FlowFieldPathFinder {
   // ~~~~~~~~~~~~~~~~~~~~~~~ Node Graph Level (Optional) ~~~~~~~~~~~~~~
 
   // Computes the node flow field.
+  // Returns -1 if the target cell is out of bound.
   //
   // In a node flow field, a node points to another field, finally points to the node where the
   // target cell locates.
@@ -326,7 +328,7 @@ class FlowFieldPathFinder {
   // 2. fast checking if the target is reachable for an agent.
   // 3. optimize the following ComputeGateFlowField(useNodeFlowField=true) call.
   // Reset() should be called in advance to call this api.
-  void ComputeNodeFlowField();
+  [[nodiscard]] int ComputeNodeFlowField();
 
   // Visits the computed node flow field.
   // Make sure the ComputeNodeFlowField has been called before calling this function.
@@ -335,13 +337,14 @@ class FlowFieldPathFinder {
   // ~~~~~~~~~~~~~~~~~~~~~~~ Gate Graph Level (Required) ~~~~~~~~~~~~~~
 
   // Computes the gate flow field.
+  // Returns -1 if the target cell is out of bound.
   //
   // In a gate flow field, a gate cell points to another gate cell, finally points to the target
   // cell.
   //
   // This step is required.
   // Reset() should be called in advance to call this api.
-  void ComputeGateFlowField();
+  [[nodiscard]] int ComputeGateFlowField();
 
   // Visits the computed gate flow field
   // Make sure the ComputeGateFlowField has been called before calling this function.
@@ -350,9 +353,11 @@ class FlowFieldPathFinder {
   // ~~~~~~~~~~~~~~~~~~~~~~~  Grid Map Level  (Required) ~~~~~~~~~~~~~~
 
   // Computes the final flow field for all cells in the destination rectangle.
+  // Returns -1 if the target cell is out of bound.
+  //
   // In this flow field, a cell points to a neighbour cell to go, finally points to the target.
   // Reset() should be called in advance to call this api.
-  void ComputeCellFlowFieldInDestRectangle();
+  [[nodiscard]] int ComputeCellFlowFieldInDestRectangle();
 
   // Visits the computed cell flow field in the destination rectangle.
   // Make sure the ComputeCellFlowFieldInDestRectangle has been called before calling this

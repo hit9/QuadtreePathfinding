@@ -16,9 +16,9 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_
   x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
   m = m_;
   s = m->PackXY(x1, y1), t = m->PackXY(x2, y2);
-  // finding a node is very fast.
-  // We find the start and target node without caring the wether the ComputeNodeRoutes
-  // is used in the future.
+
+  // finding a node is very fast: we find the start and target node without caring the wether the
+  // ComputeNodeRoutes is used in the future.
   sNode = m->FindNode(x1, y1), tNode = m->FindNode(x2, y2);
 
   // happen when: any of them out of map bound.
@@ -35,9 +35,22 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_
   nodePath.clear();
   gateCellsOnNodePath.clear();
 
-  // Rebuild the tmp graph.
+  // Rebuild the tmp graph. And add the start and target cells to the gate graph.
   PathFinderHelper::Reset(m_);
-  BuildTmpGateGraph(s, t, x1, y1, x2, y2, sNode, tNode);
+
+  // Is the start and target a gate cell?
+  bool sIsGate = m->IsGateCell(sNode, s);
+  bool tIsGate = m->IsGateCell(tNode, t);
+
+  // Add s and t to the tmp graph, if they are not gates.
+  if (!sIsGate) AddCellToNodeOnTmpGraph(s, sNode);
+  if (!tIsGate) AddCellToNodeOnTmpGraph(t, tNode);
+
+  // A special case:
+  // if s and t are in the same node, and both of them aren't gates,
+  // we should connect them with edges, the shortest path should be dist itself.
+  // TODO: should we just stop the path finding on tihs case?
+  if (tNode == sNode && s != t && !sIsGate && !tIsGate) ConnectCellsOnTmpGraph(s, t);
 }
 
 int AStarPathFinderImpl::ComputeNodeRoutes() {

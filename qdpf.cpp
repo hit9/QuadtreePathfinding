@@ -47,11 +47,6 @@ int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePat
   return impl.ComputeGateRoutes(collector, useNodePath);
 }
 
-void AStarPathFinder::ComputePathToNextRouteCell(int x1, int y1, int x2, int y2,
-                                                 CellCollector &collector) const {
-  impl.ComputePathToNextRouteCell(x1, y1, x2, y2, collector);
-}
-
 //////////////////////////////////////
 /// FlowFieldPathFinder
 //////////////////////////////////////
@@ -67,9 +62,10 @@ int FlowFieldPathFinder::Reset(int x2, int y2, const Rectangle &dest, int agentS
   return 0;
 }
 
-void FlowFieldPathFinder::ComputeNodeFlowField() { impl.ComputeNodeFlowField(); }
-void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
+int FlowFieldPathFinder::ComputeNodeFlowField() { return impl.ComputeNodeFlowField(); }
+int FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
   // TODO
+  return 0;
 }
 
 }  // namespace qdpf

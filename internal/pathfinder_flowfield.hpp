@@ -41,6 +41,8 @@ class FlowField {
   // Iterates each vertex along with its next vertex and cost informations.
   void ForEach(Visitor& visitor) const;
   void ForEach(Visitor&& visitor) const { ForEach(visitor); }  // trasfering rvalue
+  // Clears the field.
+  void Clear();
 
  private:
   // costs[v] stores the cost of vertex v to target.
@@ -70,6 +72,8 @@ class FlowFieldAlgorithm {
       std::function<void(Vertex u, NeighbourVertexVisitor<Vertex>& visitor)>;
   // Filter a neighbor vertex, returns true for cared neighbor.
   using NeighbourFilterTester = std::function<bool(Vertex)>;
+  // Test on a vertex, after its processing, whether to stop the whole flowfield processing.
+  using StopAfterFunction = std::function<bool(Vertex)>;
 
   // The n is the upper bound of number of vertices on the graph.
   FlowFieldAlgorithm(int n);
@@ -86,7 +90,7 @@ class FlowFieldAlgorithm {
   // or the node graph are both double-directed graph. That's passing in a function visiting the
   // original direction is just ok.
   void Compute(Vertex t, FlowFieldT& field, NeighbourFilterTester neighborTester,
-               NeighboursCollector& neighborsCollector);
+               NeighboursCollector& neighborsCollector, StopAfterFunction& stopAfterTester);
 
  private:
   // Pair of { cost, vertex}.
@@ -111,45 +115,53 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // n is the max number of vertex in the graphs.
   FlowFieldPathFinderImpl(int n);
 
+  // Visits the computed node flow field.
+  const NodeFlowField& GetNodeFlowField() const { return nodeFlowField; }
+  // Visits the computed gate flow field.
+  const CellFlowField& GetGateFlowField() const { return gateFlowField; }
+  // Visits the computed detailed flow field for the destination rectangle.
+  const CellFlowField& GetFlowFieldInDestRectangle() const { return finalFlowField; }
+
   // Resets current working context: the the map instance, target (x2,y2) and flow field dest
   // rectangle to fill results.
   void Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& dest);
   // Computes the node flow field.
-  void ComputeNodeFlowField();
+  // Returns -1 on failure
+  int ComputeNodeFlowField();
   // Computes the gate cell flow field.
-  void ComputeGateFlowField();
+  // Returns -1 on failure
+  int ComputeGateFlowField();
   // Computes the final cell flow field for destination rectangle.
-  void ComputeCellFlowFieldInDestRectangle();
-  // Visits the computed node flow field.
-  const NodeFlowField& GetNodeFlowField() const;
-  // Visits the computed gate flow field.
-  const CellFlowField& GetGateFlowField() const;
-  // Visits the computed detailed flow field for the destination rectangle.
-  const CellFlowField& GetFlowFieldInDestRectangle() const;
+  // Returns -1 on failure
+  int ComputeCellFlowFieldInDestRectangle();
 
  private:
-  // the quadtree map current working on
-  const QuadtreeMap* m = nullptr;
-
+  // ~~~~~~~  algorithm handlers ~~~~~~~~
   // for computing node flow field.
   using FFA1 = FlowFieldAlgorithm<QdNode*, nullptr>;
   FFA1 ffa1;
 
   // for computing gate flow field.
-  using FFA2 = FlowFieldAlgorithm<int, inf>;
+  using FFA2 = FlowFieldAlgorithm<int, inf, DefaultedVectorBool<false>>;
   FFA2 ffa2;
 
-  // stateful values for current round compution.
-
+  // ~~~~~~~  stateful values for current round compution.~~~~~~~~
+  // the quadtree map current working on
+  const QuadtreeMap* m = nullptr;
   // compution results ared limited within this rectangle.
   Rectangle dest;
   // target.
   int x2, y2;
   int t;
+  QdNode* tNode = nullptr;
+
+  // ~~~~~~~~~~ computed results ~~~~~~~~~~~~~
   // results for node flow field.
   NodeFlowField nodeFlowField;
   // results for gate flow field.
   CellFlowField gateFlowField;
+  // results for the final cell flow field.
+  CellFlowField finalFlowField;
 };
 
 //////////////////////////////////////
@@ -189,6 +201,12 @@ void FlowField<Vertex, NullVertex>::ForEach(Visitor& visitor) const {
   }
 }
 
+template <typename Vertex, Vertex NullVertex>
+void FlowField<Vertex, NullVertex>::Clear() {
+  costs.clear();
+  nexts.clear();
+}
+
 // ~~~~~~~~~~~~~~~ Implements FlowField Algorithm ~~~~~~~~~~~
 
 template <typename Vertex, Vertex NullVertex, typename Vis>
@@ -197,9 +215,10 @@ FlowFieldAlgorithm<Vertex, NullVertex, Vis>::FlowFieldAlgorithm(int n) : n(n) {
 }
 
 template <typename Vertex, Vertex NullVertex, typename Vis>
-void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(
-    Vertex t, FlowFieldT& field, NeighbourFilterTester neighborTester,
-    NeighboursCollector& neighborsCollector) {
+void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& field,
+                                                          NeighbourFilterTester neighborTester,
+                                                          NeighboursCollector& neighborsCollector,
+                                                          StopAfterFunction& stopAfterTester) {
   // dijkstra
   vis.Clear();
   vis.Resize(n);
@@ -233,6 +252,7 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(
     q.pop();
     if (vis[u]) continue;
     vis[u] = true;
+    if (stopAfterTester != nullptr && stopAfterTester(u)) break;
     neighborsCollector(u, expand);
   }
 }

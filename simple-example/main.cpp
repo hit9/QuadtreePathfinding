@@ -97,7 +97,7 @@ int main(void) {
   auto [x, y] = routes[0];
   for (int i = 1; i < routes.size(); i++) {
     auto [x2, y2] = routes[i];
-    pf.ComputePathToNextRouteCell(x, y, x2, y2, collector1);
+    qdpf::ComputeStraightLine(x, y, x2, y2, collector1);
     x = x2, y = y2;
   }
 
