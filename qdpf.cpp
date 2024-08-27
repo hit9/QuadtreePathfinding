@@ -40,7 +40,14 @@ int AStarPathFinder::ComputeNodeRoutes() { return impl.ComputeNodeRoutes(); }
 std::size_t AStarPathFinder::NodePathSize() const { return impl.NodePath().size(); }
 
 void AStarPathFinder::VisitComputedNodeRoutes(NodeVisitor &visitor) const {
-  for (auto [node, cost] : impl.NodePath()) visitor(node->x1, node->y1, node->x2, node->y2);
+  Rectangle rect;
+  for (auto [node, cost] : impl.NodePath()) {
+    rect.x1 = node->x1;
+    rect.y1 = node->y1;
+    rect.x2 = node->x2;
+    rect.y2 = node->y2;
+    visitor(rect);
+  }
 }
 
 int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {

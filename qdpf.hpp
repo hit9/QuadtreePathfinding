@@ -39,12 +39,14 @@
 
 #include "internal/base.hpp"
 #include "internal/pathfinder_astar.hpp"
+#include "internal/pathfinder_flowfield.hpp"
 #include "internal/quadtree_map.hpp"
 #include "internal/quadtree_mapx.hpp"
 
 namespace qdpf {
 
-using internal ::inf;
+using internal::inf;
+using internal::Rectangle;
 
 //////////////////////////////////////
 /// QuadtreeMapX
@@ -169,8 +171,8 @@ class QuadtreeMapX {
 //////////////////////////////////////
 
 // NodeVisitor is the type of a function to visit quadtree nodes.
-// Where (x1,y1) and (x2,y2) are the left-top and right-bottom corner cells of the visited node.
-using NodeVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
+// A quadtree node is a rectangle on the grid map.
+using NodeVisitor = std::function<void(const Rectangle &node)>;
 
 // CellCollector is the type of the function that collects points on a path.
 // The argument (x,y) is a cell in the grid map.
@@ -191,13 +193,18 @@ class AStarPathFinder {
   // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
 
   // Resets the current working context of this path finder.
+  // Returns 0 for success.
+  // Returns -1 if there's no quadtree map was found.
+  //
   // A path finder always works on a single QuadtreeMap at the same time.
-  // We must call Reset() before changing to another {agent, start and target}.
+  // We must call Reset() before changing to another kind of {agent-size, terrains, start and
+  // target}.
+  //
+  // Parameters:
   // The cell (x1,y1) and (x2,y2) are start and target cells.
   // The agentSize is the size of the pathfinding agent.
   // The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the pathfinding
   // agent can walk.
-  // Returns -1 if there's no quadtree map was found. Returns 0 for success.
   [[nodiscard]] int Reset(int x1, int y1, int x2, int y2, int agentSize,
                           int walkableterrainTypes = 1);
 
@@ -209,6 +216,7 @@ class AStarPathFinder {
   // This step is optional, the benefits to use it ahead of ComputeGateRoutes:
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable.
+  // 3. optimize the following ComputeGateRoutes(useNodePath=true) call.
   [[nodiscard]] int ComputeNodeRoutes();
 
   // Returns the count of quadtree nodes on the computed node path.
@@ -242,6 +250,81 @@ class AStarPathFinder {
  private:
   const QuadtreeMapX &mx;
   internal::AStarPathFinderImpl impl;
+};
+
+//////////////////////////////////////
+/// FlowFieldPathFinder
+//////////////////////////////////////
+
+using NodeFlowFieldVisitor = std::function<void(Rectangle &node, Rectangle &nextNode, int cost)>;
+using CellFlowFieldVisitor = std::function<void(int x, int y, int x1, int y1, int cost)>;
+
+// FlowField
+class FlowFieldPathFinder {
+  // FlowFieldPathFinder should be bound to a quadtree map manager.
+  FlowFieldPathFinder(const QuadtreeMapX &mx);
+
+  // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
+
+  // Resets the current working context of this path finder.
+  // Returns 0 for success.
+  // Returns -1 if there's no quadtree map was found.
+  //
+  // A path finder always works on a single QuadtreeMap at the same time.
+  // We must call Reset() before changing to another kind of {agent-size, terrains, destination
+  // rectangle and target}.
+  //
+  // For the case: if there are different sized or differen terrain capabilities agents in the
+  // destination rectangle, we should group them by {agent size, terrain types}, and call flow path
+  // finder for each.
+  //
+  // Parameters:
+  // * cell (x2,y2) is the target.
+  // * dest is the destination rectangle, we will fill the flow field results into this region.
+  //   It's better to use a rectangle that covers all the path finding agents.
+  // * The agentSize is the size of the pathfinding agents.
+  // * The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the
+  //    pathfinding agents can walk.
+  [[nodiscard]] int Reset(int x2, int y2, const Rectangle &dest, int agentSize,
+                          int walkableterrainTypes = 1);
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~ Node Graph Level (Optional) ~~~~~~~~~~~~~~
+
+  // Computes the node flow field.
+  //
+  // In a node flow field, a node points to another field, finally points to the node where the
+  // target cell locates.
+  //
+  // This step is optional, the benefits to use it ahead of ComputeGateFlowField:
+  // 1. faster (but less optimal).
+  // 2. fast checking if the target is reachable for an agent.
+  // 3. optimize the following ComputeGateFlowField(useNodeFlowField=true) call.
+  void ComputeNodeFlowField();
+
+  // Visits the computed node flow field.
+  void VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor);
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~ Gate Graph Level (Required) ~~~~~~~~~~~~~~
+
+  // Computes the gate flow field.
+  //
+  // In a gate flow field, a gate cell points to another gate cell, finally points to the target
+  // cell.
+  //
+  // This step is required.
+  void ComputeGateFlowField();
+
+  // Visits the computed gate flow field
+  void VisitComputedGateFlowField(CellFlowFieldVisitor &visitor);
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~  Grid Map Level  (Required) ~~~~~~~~~~~~~~
+
+  // Computes the final flow field for all cells in the destination rectangle.
+  // In this flow field, a cell points to a neighbour cell to go, finally points to the target.
+  void ComputeCellFlowFieldInDestRectangle();
+
+  // Visits the computed cell flow field in the destination rectangle.
+  void VisitComputedCellFlowFieldInDestRectangle(CellFlowFieldVisitor &visitor);
 };
 
 }  // namespace qdpf

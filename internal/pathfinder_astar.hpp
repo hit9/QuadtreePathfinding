@@ -122,6 +122,12 @@ class AStar {
 /// AStarPathFinder
 //////////////////////////////////////
 
+// AStar PathFinder.
+// how to:
+// 1. Resets the map to use and start, target cells: Reset(m, x1,y1, x2, y2)
+// 2. Computes on the 1st level node graph (optional): ComputeNodeRoutes().
+// 3. Computes on the 2nd level gate graph: ComputeGateRoutes().
+// 4. Fill the detailed cells from current to next route cell: ComputePathToNextRouteCell().
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
   // the path of nodes if ComputeNodeRoutes is called successfully.
@@ -135,8 +141,12 @@ class AStarPathFinderImpl : public PathFinderHelper {
   // Returns the computed node path.
   const std::vector<P> &NodePath() const { return nodePath; }
   // Compute the node path.
+  // Returns 0 on success.
+  // Returns -1 on failure (unreachable).
   int ComputeNodeRoutes();
   // Compute the gate cell path.
+  // Returns 0 on success.
+  // Returns -1 on failure (unreachable).
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
  private:
