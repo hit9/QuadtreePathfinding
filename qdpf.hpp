@@ -35,6 +35,7 @@
 #ifndef QDPF_HPP
 #define QDPF_HPP
 
+#include <cmath>
 #include <functional>  // for std::function
 
 #include "internal/base.hpp"
