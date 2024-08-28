@@ -32,15 +32,13 @@ template <typename Vertex, Vertex NullVertex, typename F = DefaultedUnorderedMap
           typename From = DefaultedUnorderedMap<Vertex, Vertex, NullVertex>>
 class AStar {
  public:
+  using NeighboursCollectorT = NeighboursCollector<Vertex>;
+  using NeighbourFilterTesterT = NeighbourFilterTester<Vertex>;
+
   // Collects the result path and total cost to it.
   using PathCollector = std::function<void(Vertex v, int cost)>;
   // Returns the distance between two vertices u and v.
   using Distance = std::function<int(Vertex u, Vertex v)>;
-  // Collects the neighbor vertices from u.
-  using NeighboursCollector =
-      std::function<void(Vertex u, NeighbourVertexVisitor<Vertex> &visitor)>;
-  // Filter a neighbor vertex, returns true for cared neighbor.
-  using NeighbourFilterTester = std::function<bool(Vertex)>;
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
   // The n is the upper bound of number of vertices on the graph.
@@ -52,7 +50,7 @@ class AStar {
   // Returns -1 if the target is unreachable.
   // Returns the total cost to the target on success.
   int Compute(Vertex s, Vertex t, PathCollector &collector,
-              NeighboursCollector &neighborsCollector, NeighbourFilterTester neighborTester);
+              NeighboursCollectorT &neighborsCollector, NeighbourFilterTesterT neighborTester);
 
  protected:
   int n;  // upper bound of vertices
@@ -144,8 +142,8 @@ AStar<Vertex, NullVertex, F, Vis, From>::AStar(int n) : n(n) {
 // A* search algorithm.
 template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
 int AStar<Vertex, NullVertex, F, Vis, From>::Compute(Vertex s, Vertex t, PathCollector &collector,
-                                                     NeighboursCollector &neighborsCollector,
-                                                     NeighbourFilterTester neighborTester) {
+                                                     NeighboursCollectorT &neighborsCollector,
+                                                     NeighbourFilterTesterT neighborTester) {
   f.Clear(), vis.Clear(), from.Clear();
   f.Resize(n), vis.Resize(n);
   from[t] = NullVertex;

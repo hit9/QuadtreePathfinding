@@ -6,6 +6,7 @@
 
 #include <functional>  // for std::function
 
+#include "base.hpp"
 #include "graph.hpp"
 #include "quadtree-hpp/quadtree.hpp"
 
@@ -94,7 +95,7 @@ class QuadtreeMap {
   // higher level version method based on IsGateCell(node, u).
   bool IsGateCell(int u) const;
   // Visit each gate cell inside a node and call given visitor with it.
-  void ForEachGateInNode(QdNode *node, GateVisitor &visitor) const;
+  void ForEachGateInNode(const QdNode *node, GateVisitor &visitor) const;
   // Visit all the quadtree's leaf nodes.
   void Nodes(QdNodeVisitor &visitor) const;
   // Visit all gate cells.
@@ -102,6 +103,8 @@ class QuadtreeMap {
   void Gates(GateVisitor &visitor) const;
   // Visit reachable neighbor nodes for given node on the node graph.
   void ForEachNeighbourNodes(QdNode *node, NeighbourVertexVisitor<QdNode *> &visitor) const;
+  // Visit quadtree nodes inside given rectangle range.
+  void NodesInRange(const Rectangle &rect, QdNodeVisitor &visitor) const;
 
   // ~~~~~~~~~~~~~ Graphs Maintaining ~~~~~~~~~~~~~~~~~
 

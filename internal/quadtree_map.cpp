@@ -110,13 +110,13 @@ bool QuadtreeMap::IsGateCell(int u) const {
 }
 
 // Visit each gate cell inside a node and call given visitor with it.
-void QuadtreeMap::ForEachGateInNode(QdNode *node, GateVisitor &visitor) const {
+void QuadtreeMap::ForEachGateInNode(const QdNode *node, GateVisitor &visitor) const {
   if (visitor == nullptr) return;
   std::function<void(Gate *)> visitor1 = [&visitor](Gate *gate) {
     // Won't allow user to modify gate's content.
     visitor(const_cast<const Gate *>(gate));
   };
-  forEachGateInNode(node, visitor1);
+  forEachGateInNode(const_cast<QdNode *>(node), visitor1);
 }
 
 void QuadtreeMap::Nodes(QdNodeVisitor &visitor) const {
@@ -133,6 +133,11 @@ void QuadtreeMap::Gates(GateVisitor &visitor) const {
 void QuadtreeMap::ForEachNeighbourNodes(QdNode *node,
                                         NeighbourVertexVisitor<QdNode *> &visitor) const {
   g1.ForEachNeighbours(node, visitor);
+}
+
+void QuadtreeMap::NodesInRange(const Rectangle &rect, QdNodeVisitor &visitor) const {
+  QdTree::VisitorT visitor1 = [&visitor](QdNode *node) { visitor(node); };
+  tree.QueryLeafNodesInRange(rect.x1, rect.y1, rect.x2, rect.y2, visitor1);
 }
 
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Graphs Maintaining ~~~~~~~~~~~~~~~~~

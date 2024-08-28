@@ -6,6 +6,7 @@
 
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "base.hpp"
 #include "pathfinder_helper.hpp"
@@ -67,11 +68,9 @@ template <typename Vertex, Vertex NullVertex,
 class FlowFieldAlgorithm {
  public:
   using FlowFieldT = FlowField<Vertex, NullVertex>;
-  // Collects the neighbor vertices from u.
-  using NeighboursCollector =
-      std::function<void(Vertex u, NeighbourVertexVisitor<Vertex>& visitor)>;
-  // Filter a neighbor vertex, returns true for cared neighbor.
-  using NeighbourFilterTester = std::function<bool(Vertex)>;
+  using NeighboursCollectorT = NeighboursCollector<Vertex>;
+  using NeighbourFilterTesterT = NeighbourFilterTester<Vertex>;
+
   // Test on a vertex, after its processing, whether to stop the whole flowfield processing.
   using StopAfterFunction = std::function<bool(Vertex)>;
 
@@ -89,8 +88,8 @@ class FlowFieldAlgorithm {
   // directed graph. But specially speaking, for our case, on the grid map, either the gate graph
   // or the node graph are both double-directed graph. That's passing in a function visiting the
   // original direction is just ok.
-  void Compute(Vertex t, FlowFieldT& field, NeighbourFilterTester neighborTester,
-               NeighboursCollector& neighborsCollector, StopAfterFunction& stopAfterTester);
+  void Compute(Vertex t, FlowFieldT& field, NeighboursCollectorT& neighborsCollector,
+               NeighbourFilterTesterT neighborTester, StopAfterFunction& stopAfterTester);
 
  private:
   // Pair of { cost, vertex}.
@@ -155,6 +154,11 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   int t;
   QdNode* tNode = nullptr;
 
+  // nodes inside the dest rectangle.
+  std::unordered_set<const QdNode*> nodesInDest;
+  // gate cells inside the dest rectangle
+  std::unordered_set<int> gatesInDest;
+
   // ~~~~~~~~~~ computed results ~~~~~~~~~~~~~
   // results for node flow field.
   NodeFlowField nodeFlowField;
@@ -216,8 +220,9 @@ FlowFieldAlgorithm<Vertex, NullVertex, Vis>::FlowFieldAlgorithm(int n) : n(n) {
 
 template <typename Vertex, Vertex NullVertex, typename Vis>
 void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& field,
-                                                          NeighbourFilterTester neighborTester,
-                                                          NeighboursCollector& neighborsCollector,
+
+                                                          NeighboursCollectorT& neighborsCollector,
+                                                          NeighbourFilterTesterT neighborTester,
                                                           StopAfterFunction& stopAfterTester) {
   // dijkstra
   vis.Clear();

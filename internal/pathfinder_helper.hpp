@@ -14,6 +14,14 @@
 namespace qdpf {
 namespace internal {
 
+// Collects the neighbor vertices from u.
+template <typename Vertex>
+using NeighboursCollector = std::function<void(Vertex u, NeighbourVertexVisitor<Vertex> &visitor)>;
+
+// Filter a neighbor vertex, returns true for cared neighbor.
+template <typename Vertex>
+using NeighbourFilterTester = std::function<bool(Vertex)>;
+
 // PathFinderHelper is a mixin class to provide some util functions.
 class PathFinderHelper {
  protected:

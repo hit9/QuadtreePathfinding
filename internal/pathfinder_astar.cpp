@@ -58,6 +58,8 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m, int x1, int y1, int x2, in
 int AStarPathFinderImpl::ComputeNodeRoutes() {
   // any one of start and target are out of map bounds.
   if (sNode == nullptr || tNode == nullptr) return -1;
+  // Can't route to or start from obstacles.
+  if (m->IsObstacle(x1, y1) || m->IsObstacle(x2, y2)) return -1;
   // Same node.
   if (sNode == tNode) {
     nodePath.push_back({sNode, 0});
@@ -68,8 +70,8 @@ int AStarPathFinderImpl::ComputeNodeRoutes() {
     nodePath.push_back({node, cost});
   };
   // collector for neighbour qd nodes.
-  A1::NeighboursCollector neighborsCollector = [this](QdNode *u,
-                                                      NeighbourVertexVisitor<QdNode *> &visitor) {
+  A1::NeighboursCollectorT neighborsCollector = [this](QdNode *u,
+                                                       NeighbourVertexVisitor<QdNode *> &visitor) {
     m->ForEachNeighbourNodes(u, visitor);
   };
   // compute
@@ -112,13 +114,13 @@ int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNod
     collector(x, y);
   };
 
-  A2::NeighbourFilterTester neighbourTester = [this, useNodePath](int v) {
+  A2::NeighbourFilterTesterT neighbourTester = [this, useNodePath](int v) {
     if (useNodePath && gateCellsOnNodePath.find(v) == gateCellsOnNodePath.end()) return false;
     return true;
   };
   // collector for neighbour gate cells.
-  A2::NeighboursCollector neighborsCollector = [this](int u,
-                                                      NeighbourVertexVisitor<int> &visitor) {
+  A2::NeighboursCollectorT neighborsCollector = [this](int u,
+                                                       NeighbourVertexVisitor<int> &visitor) {
     ForEachNeighbourGateWithST(u, visitor);
   };
   // compute
