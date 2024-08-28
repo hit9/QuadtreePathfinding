@@ -5,7 +5,6 @@
 
 #include <cassert>
 #include <functional>
-#include <utility>
 #include <vector>
 
 namespace qdpf {
@@ -184,7 +183,7 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
 // Computes the final flow field via dynamic programming.
 // Time Complexity O(dest.w * dest.h);
 // 1. Suppose the cost to target for cell (x,y) is f[x][y].
-// 2. For each node in dest rectangle:
+// 2. For each node in dest rectangle (excepts the target's node):
 //     1. scan from left to right, up to bottom:
 //      // directions: left-up, up, left, right-up
 //      f[x][y] <= min(f[x][y], f[x-1][y-1], f[x-1][y], f[x][y-1], f[x-1][y+1]) + cost
@@ -194,7 +193,8 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
 // 3. Then calculates the flow field via f.
 //
 // This DP process is a bit faster than performing a Dijkstra on the dest rectangle.
-// O(M*N) vs O(M*N*logMN)
+// O(M*N) vs O(M*N*logMN), since the optimal path must come from a cell on the node's borders.
+// The optimal path should be a straight line, but there's no better algorithm than O(M*N).
 int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
   if (tNode == nullptr) return -1;
   if (m->IsObstacle(x2, y2)) return -1;
@@ -206,15 +206,16 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
   // the size of f is : h x w
   Final_F f(h, std::vector<int>(w, inf));
 
-  // from[x][y] stores where the min value comes from.
-  Final_From from(h, std::vector<std::pair<int, int>>(w, {-1, -1}));
+  // from[x][y] stores which gate cell the min value comes from.
+  Final_From from(h, std::vector<int>(w, inf));
 
   // initialize f from computed gate flow field.
-  CellFlowField::Visitor visitor = [this, &f](int v, int next, int cost) {
+  CellFlowField::Visitor visitor = [this, &f, &from](int v, int next, int cost) {
     auto [x, y] = m->UnpackXY(v);
     x -= dest.x1;
     y -= dest.y1;
     f[x][y] = cost;
+    from[x][y] = next;
   };
 
   // cost unit on HV(horizonal and vertical) and diagonal directions.
@@ -224,19 +225,21 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
   // because every node is empty (without obstacles inside it),
   // so the dp works there.
   for (auto node : nodesInDest) {
-    computeFinalFlowFieldDP1(node, f, from, c1, c2);
-    computeFinalFlowFieldDP2(node, f, from, c1, c2);
+    // Excludes the tNode, since all cells within the overlaping area are already computed via
+    // Dijkstra in the previous ComputeGateFlowField() call.
+    if (node != tNode) {
+      computeFinalFlowFieldDP1(node, f, from, c1, c2);
+      computeFinalFlowFieldDP2(node, f, from, c1, c2);
+    }
   }
 
   // computes the flow field.
   for (int x = 0; x < h; ++x) {
     for (int y = 0; y < w; ++y) {
-      auto [fromX, fromY] = from[x][y];
-      if (fromX == -1 || fromY == -1) continue;
+      if (from[x][y] == inf) continue;
       int v = m->PackXY(x + dest.x1, y + dest.y1);
-      int next = m->PackXY(fromX + dest.x1, fromY + dest.y1);
       finalFlowField.SetCost(v, f[x][y]);
-      finalFlowField.SetNext(v, next);
+      finalFlowField.SetNext(v, from[x][y]);
     }
   }
 
@@ -258,19 +261,19 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
     for (int y = y0; y <= y1; ++y) {
       if (x > 0 && y > 0 && f[x][y] > f[x - 1][y - 1] + c2) {  // left-up
         f[x][y] = f[x - 1][y - 1] + c2;
-        from[x][y] = {x - 1, y - 1};
+        from[x][y] = from[x - 1][y - 1];
       }
       if (y > 0 && f[x][y] > f[x - 1][y] + c1) {  // up
         f[x][y] = f[x - 1][y] + c1;
-        from[x][y] = {x - 1, y};
+        from[x][y] = from[x - 1][y];
       }
       if (x > 0 && f[x][y] > f[x][y - 1] + c1) {  // left
         f[x][y] = f[x][y - 1] + c1;
-        from[x][y] = {x, y - 1};
+        from[x][y] = from[x][y - 1];
       }
       if (x > 0 && y < y1 && f[x][y] > f[x - 1][y + 1] + c2) {  // right-up
         f[x][y] = f[x - 1][y + 1] + c2;
-        from[x][y] = {x - 1, y + 1};
+        from[x][y] = from[x - 1][y + 1];
       }
     }
   }
@@ -291,19 +294,19 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final
     for (int y = y1; y >= y0; --y) {
       if (x < x1 && y < y1 && f[x][y] > f[x + 1][y + 1] + c2) {  // right-bottom
         f[x][y] = f[x + 1][y + 1] + c2;
-        from[x][y] = {x + 1, y + 1};
+        from[x][y] = from[x + 1][y + 1];
       }
       if (x < x1 && f[x][y] > f[x + 1][y] + c1) {  // bottom
         f[x][y] = f[x + 1][y] + c1;
-        from[x][y] = {x + 1, y};
+        from[x][y] = from[x + 1][y];
       }
       if (y < y1 && f[x][y] > f[x][y + 1] + c1) {  // right
         f[x][y] = f[x][y + 1] + c1;
-        from[x][y] = {x, y + 1};
+        from[x][y] = from[x][y + 1];
       }
       if (x < x1 && y > 0 && f[x][y] > f[x + 1][y - 1] + c2) {  // left-bottom
         f[x][y] = f[x + 1][y - 1] + c2;
-        from[x][y] = {x + 1, y - 1};
+        from[x][y] = from[x + 1][y - 1];
       }
     }
   }
