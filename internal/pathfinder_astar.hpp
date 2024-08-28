@@ -4,11 +4,10 @@
 #ifndef QDPF_INTERNAL_PATHFINDER_ASTAR_HPP
 #define QDPF_INTERNAL_PATHFINDER_ASTAR_HPP
 
-#include <functional>     // for std::function, std::hash
-#include <queue>          // for std::priority_queue
-#include <unordered_map>  // for std::unordered_map
-#include <utility>        // for std::pair
-#include <vector>         // for std::vector
+#include <functional>  // for std::function, std::hash
+#include <queue>       // for std::priority_queue
+#include <utility>     // for std::pair
+#include <vector>      // for std::vector
 
 #include "base.hpp"
 #include "graph.hpp"
@@ -121,18 +120,6 @@ class AStarPathFinderImpl : public PathFinderHelper {
 //////////////////////////////////////////
 
 // ~~~~~~~~~~~ Implements AStar ~~~~~~~~~~~~~~
-
-template <typename K, typename V, V DefaultValue>
-V &DefaultedUnorderedMap<K, V, DefaultValue>::operator[](K k) {
-  return m.try_emplace(k, defaultValue).first->second;
-}
-
-template <typename K, typename V, V DefaultValue>
-const V &DefaultedUnorderedMap<K, V, DefaultValue>::operator[](K k) const {
-  auto it = m.find(k);
-  if (it == m.end()) return defaultValue;
-  return it->second;
-}
 
 template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
 AStar<Vertex, NullVertex, F, Vis, From>::AStar(int n) : n(n) {

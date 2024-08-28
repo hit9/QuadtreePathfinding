@@ -41,34 +41,20 @@ bool IsOverlap(const Rectangle &a, const Rectangle &b);
 // Returns true if the overlap exist.
 bool GetOverlap(const Rectangle &a, const Rectangle &b, Rectangle &c);
 
-// ~~~~~~~~~~~ KVContainer ~~~~~~~~~~~~
+// ~~~~~~~~~~~ Util Containers ~~~~~~~~~~~~
 
-// KVContainer is an internal abstraction for KV containers with default value support.
+// A simple simple unordered_map with default value.
 template <typename K, typename V, V DefaultValue>
-class KVContainer {
+class DefaultedUnorderedMap {
  public:
-  // resize the container's size to n.
-  virtual void Resize(std::size_t n);
-  // set k by reference
-  virtual V &operator[](K k);
-  // get value, returns default value by default.
-  virtual const V &operator[](K k) const;
-  // clears the container.
-  virtual void Clear();
-};
-
-// KVContainer on unordered_map.
-template <typename K, typename V, V DefaultValue>
-class DefaultedUnorderedMap : public KVContainer<K, V, DefaultValue> {
- public:
-  void Resize(std::size_t _ignoredn) override {}  // ignore
-  V &operator[](K k) override { return m.try_emplace(k, defaultValue).first->second; }
-  const V &operator[](K k) const override {
+  void Resize(std::size_t _ignoredn) {}  // ignore
+  V &operator[](K k) { return m.try_emplace(k, defaultValue).first->second; }
+  const V &operator[](K k) const {
     auto it = m.find(k);
     if (it == m.end()) return defaultValue;
     return it->second;
   }
-  void Clear() override { m.clear(); }
+  void Clear() { m.clear(); }
 
  private:
   V defaultValue = DefaultValue;
@@ -83,12 +69,12 @@ using DefaultedUnorderedMapBool = DefaultedUnorderedMap<K, bool, DefaultValue>;
 
 // KVContainer on vector (faster but more memory occuption).
 template <typename V, V DefaultValue>
-class DefaultedVector : public KVContainer<int, V, DefaultValue> {
+class DefaultedVector {
  public:
-  void Resize(std::size_t n) override { vec.resize(n, defaultValue); }
-  V &operator[](int k) override { return vec[k]; }
-  const V &operator[](int k) const override { return vec[k]; }
-  void Clear() override { vec.clear(); }
+  void Resize(std::size_t n) { vec.resize(n, defaultValue); }
+  V &operator[](int k) { return vec[k]; }
+  const V &operator[](int k) const { return vec[k]; }
+  void Clear() { vec.clear(); }
 
  private:
   V defaultValue = DefaultValue;
