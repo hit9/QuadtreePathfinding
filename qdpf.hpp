@@ -270,6 +270,7 @@ class AStarPathFinder {
 // Parameters:
 // * node is current quadtree node.
 // * nextNode is the next node that the current node points to.
+//   for the node of the target cell, the nextNode is itself, aka where node == nextNode.
 // * cost is the total cost from current node to the target node.
 using NodeFlowFieldVisitor =
     std::function<void(const QdNode *node, const QdNode *nextNode, int cost)>;
@@ -281,6 +282,7 @@ using NodeFlowFieldVisitor =
 // Parameters:
 // * (x,y) is the current cell.
 // * (xNext,yNext) is the next gate cell that the current cell points to.
+//   for the target cell, the next cell is itself, aka where xNext == x and yNext == y.
 // * cost is the total cost from current cell to the target cell.
 // Signature:: std::function<void(int x, int y, int xNext, int yNext, int cost)>;
 using CellFlowFieldVisitor = internal::UnpackedCellFlowFieldVisitor;

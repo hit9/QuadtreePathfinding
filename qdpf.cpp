@@ -73,7 +73,11 @@ int FlowFieldPathFinder::ComputeCellFlowFieldInDestRectangle() {
 }
 
 void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
-  impl.GetNodeFlowField().ForEach(visitor);
+  const auto &field = impl.GetNodeFlowField();
+  for (auto [node, cost] : field.costs.GetUnderlyingUnorderedMap()) {
+    auto next = field.nexts[node];
+    visitor(node, next, cost);
+  }
 }
 
 void FlowFieldPathFinder::VisitComputedGateFlowField(CellFlowFieldVisitor &visitor) {

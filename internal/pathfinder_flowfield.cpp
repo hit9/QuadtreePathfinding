@@ -4,9 +4,7 @@
 #include "pathfinder_flowfield.hpp"
 
 #include <cassert>
-#include <functional>
 #include <iostream>
-#include <vector>
 
 namespace qdpf {
 namespace internal {
@@ -148,13 +146,11 @@ void FlowFieldPathFinderImpl::collectGateCellsOnNodeField() {
   };
 
   // nodeVisitor visits each node inside the nodeField.
-  NodeFlowField::Visitor nodeVisitor = [this, &node, &nextNode, &gateVisitor](
-                                           QdNode *v, QdNode *next, int cost) {
+  for (auto [v, cost] : nodeFlowField.costs.GetUnderlyingUnorderedMap()) {
     node = v;
-    nextNode = next;
+    nextNode = nodeFlowField.nexts[v];
     m->ForEachGateInNode(node, gateVisitor);
-  };
-  nodeFlowField.ForEach(nodeVisitor);
+  }
 }
 
 int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
@@ -191,11 +187,10 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
 //     2. scan from right to left, bottom to up:
 //      // directions: right-bottom, bottom, right, left-bottom
 //      f[x][y] <= min(f[x][y], f[x+1][y+1], f[x+1][y], f[x][y+1], f[x+1][y-1]) + cost
-// 3. Then calculates the flow field via f.
-//
 // This DP process is a bit faster than performing a Dijkstra on the dest rectangle.
-// O(M*N) vs O(M*N*logMN), since the optimal path must come from a cell on the node's borders.
-// The optimal path should be a straight line, but there's no better algorithm than O(M*N).
+// O(M*N) vs O(M*N*logMN), since the optimal path will always comes from a cell on the
+// node's borders. The optimal path should be a straight line, but there's no better
+// algorithm than O(M*N).
 int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
   if (tNode == nullptr) return -1;
   if (m->IsObstacle(x2, y2)) return -1;
@@ -203,25 +198,28 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
   // width and height of rectangle.
   int w = dest.y2 - dest.y1 + 1, h = dest.x2 - dest.x1 + 1;
 
-  // f[x][y] is the cost from (x+dest.x1, y+dest.x2) to target.
-  // the size of f is : h x w
-  Final_F f(h, std::vector<int>(w, inf));
+  // f[x][y] is the cost from the cell (x,y) to the target.
+  // for a gate cell on the gateFlowField, it's the cost value.
+  // for a non-gate cell but inside the rectangle dest, it will be derived via DP.
+  Final_F f;
 
   // from[x][y] stores which gate cell the min value comes from.
-  Final_From from(h, std::vector<int>(w, inf));
+  // for a gate cell on the gateFlowField, it's itself.
+  // for a non-gate cell in the rectangle dest, it will be derived via DP,
+  // and it will finally point to a gate cell on its node's border.
+  Final_From from;
 
-  // initialize f from computed gate flow field.
-  CellFlowField::Visitor visitor = [this, &f, &from](int v, int next, int cost) {
+  // initialize f, from and finalFlowField from computed gate flow field.
+  for (auto [v, cost] : gateFlowField.costs.GetUnderlyingUnorderedMap()) {
+    auto next = gateFlowField.nexts[v];
     auto [x, y] = m->UnpackXY(v);
-    std::cout << "!!! " << x << ", " << y << " => " << cost << std::endl;
-    if (x >= dest.x1 && x <= dest.x2 && y >= dest.y1 && y <= dest.y2) {
-      x -= dest.x1;
-      y -= dest.y1;
-      f[x][y] = cost;
-      from[x][y] = next;
-    }
-  };
-  gateFlowField.ForEach(visitor);
+    f[x][y] = cost;
+    // for a gate cell, sets the source to itself.
+    from[x][y] = v;
+    // copy existing gate field into finalFlowField
+    finalFlowField.costs[v] = cost;
+    finalFlowField.nexts[v] = next;
+  }
 
   // cost unit on HV(horizonal and vertical) and diagonal directions.
   int c1 = m->Distance(0, 0, 0, 1), c2 = m->Distance(0, 0, 1, 1);
@@ -233,27 +231,24 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
     // Excludes the tNode, since all cells within the overlaping area are already computed via
     // Dijkstra in the previous ComputeGateFlowField() call.
     if (node != tNode) {
-      Rectangle overlap;
-      Rectangle nodeRectangle{node->x1, node->y1, node->x2, node->y2};
-      if (!GetOverlap(dest, nodeRectangle, overlap)) continue;
-      int x1 = overlap.x1 - dest.x1;
-      int y1 = overlap.y1 - dest.y1;
-      int x2 = overlap.x2 - dest.x1;
-      int y2 = overlap.y2 - dest.y1;
-
-      computeFinalFlowFieldDP1(node, f, from, c1, c2, x1, y1, x2, y2);
-      computeFinalFlowFieldDP2(node, f, from, c1, c2, x1, y1, x2, y2);
+      computeFinalFlowFieldDP1(node, f, from, c1, c2);
+      computeFinalFlowFieldDP2(node, f, from, c1, c2);
     }
   }
 
-  // computes the flow field.
-  for (int x = 0; x < h; ++x) {
-    for (int y = 0; y < w; ++y) {
-      std::cout << x << " " << y << " " << f[x][y] << " " << from[x][y] << std::endl;
+  // computes the flow field in the rectangle dest.
+  for (int x = dest.x1; x <= dest.x2; ++x) {
+    for (int y = dest.y1; y <= dest.y2; ++y) {
+      auto [x1, y1] = m->UnpackXY(from[x][y]);
+      std::cout << x << " " << y << " " << f[x][y] << " " << x1 << "," << y1 << std::endl;
       if (f[x][y] == inf || from[x][y] == inf) continue;
-      int v = m->PackXY(x + dest.x1, y + dest.y1);
-      finalFlowField.SetCost(v, f[x][y]);
-      finalFlowField.SetNext(v, from[x][y]);
+      int v = m->PackXY(x, y);
+      if (!finalFlowField.Exist(v)) {
+        // don't override existing gate cell's flow field informations.
+        // we just need to set the non-gate cells inside the dest rectangle.
+        finalFlowField.costs[v] = f[x][y];
+        finalFlowField.nexts[v] = from[x][y];
+      }
     }
   }
 
@@ -264,8 +259,8 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
 // From left-top corner to right-bottom corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final_F &f,
-                                                       Final_From &from, int c1, int c2, int x1,
-                                                       int y1, int x2, int y2) {
+                                                       Final_From &from, int c1, int c2) {
+  int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
   for (int x = x1; x <= x2; ++x) {
     for (int y = y1; y <= y2; ++y) {
       if (x > 0 && y > 0 && f[x][y] > f[x - 1][y - 1] + c2) {  // left-up
@@ -292,23 +287,23 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
 // From right-bottom corner to left-top corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final_F &f,
-                                                       Final_From &from, int c1, int c2, int x1,
-                                                       int y1, int x2, int y2) {
+                                                       Final_From &from, int c1, int c2) {
+  int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
   for (int x = x2; x >= x1; --x) {
     for (int y = y2; y >= y1; --y) {
-      if (x < x1 && y < y1 && f[x][y] > f[x + 1][y + 1] + c2) {  // right-bottom
+      if (x < x2 && y < y2 && f[x][y] > f[x + 1][y + 1] + c2) {  // right-bottom
         f[x][y] = f[x + 1][y + 1] + c2;
         from[x][y] = from[x + 1][y + 1];
       }
-      if (x < x1 && f[x][y] > f[x + 1][y] + c1) {  // bottom
+      if (x < x2 && f[x][y] > f[x + 1][y] + c1) {  // bottom
         f[x][y] = f[x + 1][y] + c1;
         from[x][y] = from[x + 1][y];
       }
-      if (y < y1 && f[x][y] > f[x][y + 1] + c1) {  // right
+      if (y < y2 && f[x][y] > f[x][y + 1] + c1) {  // right
         f[x][y] = f[x][y + 1] + c1;
         from[x][y] = from[x][y + 1];
       }
-      if (x < x1 && y > 0 && f[x][y] > f[x + 1][y - 1] + c2) {  // left-bottom
+      if (x < x2 && y > 0 && f[x][y] > f[x + 1][y - 1] + c2) {  // left-bottom
         f[x][y] = f[x + 1][y - 1] + c2;
         from[x][y] = from[x + 1][y - 1];
       }
@@ -318,12 +313,12 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final
 
 void FlowFieldPathFinderImpl::VisitCellFlowField(const CellFlowField &cellFlowField,
                                                  UnpackedCellFlowFieldVisitor &visitor) const {
-  CellFlowField::Visitor visitor1 = [&visitor, this](int v, int next, int cost) {
+  for (auto [v, cost] : cellFlowField.costs.GetUnderlyingUnorderedMap()) {
+    auto next = cellFlowField.nexts[v];
     auto [x, y] = m->UnpackXY(v);
     auto [xNext, yNext] = m->UnpackXY(next);
     visitor(x, y, xNext, yNext, cost);
-  };
-  cellFlowField.ForEach(visitor1);
+  }
 }
 
 }  // namespace internal

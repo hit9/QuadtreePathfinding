@@ -6,7 +6,6 @@
 
 #include <functional>
 #include <queue>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -25,33 +24,21 @@ namespace internal {
 /// FlowField (Container)
 //////////////////////////////////////
 
-// FlowField is a data container that stores the direction from a vertex to next vertex,
+// FlowField is a simple data container that stores the direction from a vertex to next vertex,
 // along with the cost to the target.
 template <typename Vertex, Vertex NullVertex, typename Hasher = std::hash<Vertex>>
-class FlowField {
- public:
-  using Visitor = std::function<void(Vertex v, Vertex next, int cost)>;
-  // Set cost to the target for given vertex v.
-  void SetCost(Vertex v, int cost);
-  // Returns the cost from v to target.
-  // Returns inf if the v is unreachable to target.
-  int GetCost(Vertex v) const;
-  // Returns the next vertex for vertex v.
-  // Returns NullVertex if not found.
-  Vertex GetNext(Vertex v) const;
-  // Sets the next vertex for v to u.
-  void SetNext(Vertex v, Vertex u);
-  // Iterates each vertex along with its next vertex and cost informations.
-  void ForEach(Visitor& visitor) const;
-  void ForEach(Visitor&& visitor) const { ForEach(visitor); }  // trasfering rvalue
-  // Clears the field.
-  void Clear();
+struct FlowField {
+  using CostFieldT = DefaultedUnorderedMap<Vertex, int, inf>;
+  using NextFieldT = DefaultedUnorderedMap<Vertex, Vertex, NullVertex>;
 
- private:
+  bool Exist(Vertex v) const { return costs.Exist(v); }
+  void Clear() { costs.Clear(), nexts.Clear(); }
+
   // costs[v] stores the cost of vertex v to target.
-  std::unordered_map<Vertex, int, Hasher> costs;
+  CostFieldT costs;
   // nexts[v] stores the next vertex of vertex v.
-  std::unordered_map<Vertex, Vertex, Hasher> nexts;
+  // next for target is itself.
+  NextFieldT nexts;
 };
 
 // FlowField of quadtree nodes.
@@ -197,58 +184,14 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
   void collectGateCellsOnNodeField();
 
-  // DP array f for ComputeCellFlowFieldInDestRectangle()
-  using Final_F = std::vector<std::vector<int>>;
-  // DP array from for ComputeCellFlowFieldInDestRectangle()
-  using Final_From = std::vector<std::vector<int>>;
-  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2,
-                                int x1, int y1, int x2, int y2);
-  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2,
-                                int x1, int y1, int x2, int y2);
+  // DP value container of f for ComputeCellFlowFieldInDestRectangle()
+  using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
+  // DP value container of from for ComputeCellFlowFieldInDestRectangle()
+  using Final_From = NestedDefaultedUnorderedMap<int, int, int, inf>;
+
+  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
+  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
 };
-
-//////////////////////////////////////
-/// Implements templated functions
-//////////////////////////////////////
-
-// ~~~~~~~~~~~~~~~ Implements FlowField Container ~~~~~~~~~~~
-
-template <typename Vertex, Vertex NullVertex, typename Hasher>
-void FlowField<Vertex, NullVertex, Hasher>::SetCost(Vertex v, int cost) {
-  costs[v] = cost;
-}
-
-template <typename Vertex, Vertex NullVertex, typename Hasher>
-int FlowField<Vertex, NullVertex, Hasher>::GetCost(Vertex v) const {
-  auto it = costs.find(v);
-  if (it == costs.end()) return inf;
-  return it->second;
-}
-
-template <typename Vertex, Vertex NullVertex, typename Hasher>
-Vertex FlowField<Vertex, NullVertex, Hasher>::GetNext(Vertex v) const {
-  auto it = nexts.find(v);
-  if (it == nexts.end()) return NullVertex;
-  return it->second;
-}
-
-template <typename Vertex, Vertex NullVertex, typename Hasher>
-void FlowField<Vertex, NullVertex, Hasher>::SetNext(Vertex v, Vertex u) {
-  nexts[v] = u;
-}
-
-template <typename Vertex, Vertex NullVertex, typename Hasher>
-void FlowField<Vertex, NullVertex, Hasher>::ForEach(Visitor& visitor) const {
-  for (auto [v, u] : nexts) {
-    visitor(v, u, GetCost(v));
-  }
-}
-
-template <typename Vertex, Vertex NullVertex, typename Hasher>
-void FlowField<Vertex, NullVertex, Hasher>::Clear() {
-  costs.clear();
-  nexts.clear();
-}
 
 // ~~~~~~~~~~~~~~~ Implements FlowField Algorithm ~~~~~~~~~~~
 
@@ -270,7 +213,9 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   // smallest-first queue, where P is { cost, vertex }
   std::priority_queue<P, std::vector<P>, std::greater<P>> q;
 
-  field.SetCost(t, 0);
+  field.costs[t] = 0;
+  // Notes that the target's next is itself.
+  field.nexts[t] = t;
   q.push({0, t});
 
   Vertex u;
@@ -279,15 +224,15 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &field, this](Vertex v,
                                                                                       int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
-    int fu = field.GetCost(u);
-    int fv = field.GetCost(v);
+    int fu = field.costs[u];
+    int fv = field.costs[v];
     if (fv > fu + c) {
       fv = fu + c;
       q.push({fv, v});
-      field.SetCost(v, fv);
+      field.costs[v] = fv;
       // v comes from u, that is.
       // In inversing view, u is the next way to go.
-      field.SetNext(v, u);
+      field.nexts[v] = u;
     }
   };
 
