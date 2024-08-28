@@ -4,7 +4,6 @@
 #include "pathfinder_flowfield.hpp"
 
 #include <cassert>
-#include <iostream>
 
 namespace qdpf {
 namespace internal {
@@ -243,7 +242,6 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInDestRectangle() {
   for (int x = dest.x1; x <= dest.x2; ++x) {
     for (int y = dest.y1; y <= dest.y2; ++y) {
       auto [x1, y1] = m->UnpackXY(from[x][y]);
-      std::cout << x << " " << y << " " << f[x][y] << " " << x1 << "," << y1 << std::endl;
       if (f[x][y] == inf || from[x][y] == inf) continue;
       int v = m->PackXY(x, y);
       if (!b[x][y]) {

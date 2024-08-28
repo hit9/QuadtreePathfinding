@@ -5,7 +5,7 @@
 #define QDPF_INTERNAL_PATHFINDER_FLOW_FIELD_HPP
 
 #include <functional>
-#include <queue>
+#include <queue>  // for std::priority_queue
 #include <unordered_set>
 #include <vector>
 
@@ -15,7 +15,7 @@
 
 // FlowFieldPathFinder
 // ~~~~~~~~~~~~~~~~~~~
-// Implements FlowField pathfinder on a agent-size and terrain-types relateless quadtree map.
+// Implements FlowField pathfinder on an agent-size and terrain-types relateless quadtree map.
 
 namespace qdpf {
 namespace internal {
@@ -46,7 +46,7 @@ using NodeFlowField = FlowField<QdNode*, nullptr>;
 // FlowField of cells.
 using CellFlowField = FlowField<int, inf>;
 
-// UnpackedCellFlowFieldVisitor is a functino to visit each item in a CellFlowField.
+// UnpackedCellFlowFieldVisitor is a function to visit each item in a CellFlowField.
 // The (x,y) is current cell, (xNext, yNext) is the next cell that current cell pointing to.
 using UnpackedCellFlowFieldVisitor =
     std::function<void(int x, int y, int xNext, int yNext, int cost)>;
@@ -56,8 +56,7 @@ using UnpackedCellFlowFieldVisitor =
 //////////////////////////////////////
 
 // flow field algorithm:
-// 1. Compute the cost field by reverse-traversing  from the target, using the dijkstra
-// algorithm.
+// 1. Compute the cost field by reverse-traversing from the target, using the dijkstra algorithm.
 // 2. Compute the flow field by comparing each vertex with its neighours vertices.
 
 template <typename Vertex, Vertex NullVertex,
