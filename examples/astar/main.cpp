@@ -1,5 +1,3 @@
-// how to build: make
-
 #include <iostream>
 #include <utility>
 #include <vector>

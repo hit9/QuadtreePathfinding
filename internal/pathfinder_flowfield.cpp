@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <functional>
+#include <iostream>
 #include <vector>
 
 namespace qdpf {
@@ -212,11 +213,15 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
   // initialize f from computed gate flow field.
   CellFlowField::Visitor visitor = [this, &f, &from](int v, int next, int cost) {
     auto [x, y] = m->UnpackXY(v);
-    x -= dest.x1;
-    y -= dest.y1;
-    f[x][y] = cost;
-    from[x][y] = next;
+    std::cout << "!!! " << x << ", " << y << " => " << cost << std::endl;
+    if (x >= dest.x1 && x <= dest.x2 && y >= dest.y1 && y <= dest.y2) {
+      x -= dest.x1;
+      y -= dest.y1;
+      f[x][y] = cost;
+      from[x][y] = next;
+    }
   };
+  gateFlowField.ForEach(visitor);
 
   // cost unit on HV(horizonal and vertical) and diagonal directions.
   int c1 = m->Distance(0, 0, 0, 1), c2 = m->Distance(0, 0, 1, 1);
@@ -228,15 +233,24 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
     // Excludes the tNode, since all cells within the overlaping area are already computed via
     // Dijkstra in the previous ComputeGateFlowField() call.
     if (node != tNode) {
-      computeFinalFlowFieldDP1(node, f, from, c1, c2);
-      computeFinalFlowFieldDP2(node, f, from, c1, c2);
+      Rectangle overlap;
+      Rectangle nodeRectangle{node->x1, node->y1, node->x2, node->y2};
+      if (!GetOverlap(dest, nodeRectangle, overlap)) continue;
+      int x1 = overlap.x1 - dest.x1;
+      int y1 = overlap.y1 - dest.y1;
+      int x2 = overlap.x2 - dest.x1;
+      int y2 = overlap.y2 - dest.y1;
+
+      computeFinalFlowFieldDP1(node, f, from, c1, c2, x1, y1, x2, y2);
+      computeFinalFlowFieldDP2(node, f, from, c1, c2, x1, y1, x2, y2);
     }
   }
 
   // computes the flow field.
   for (int x = 0; x < h; ++x) {
     for (int y = 0; y < w; ++y) {
-      if (from[x][y] == inf) continue;
+      std::cout << x << " " << y << " " << f[x][y] << " " << from[x][y] << std::endl;
+      if (f[x][y] == inf || from[x][y] == inf) continue;
       int v = m->PackXY(x + dest.x1, y + dest.y1);
       finalFlowField.SetCost(v, f[x][y]);
       finalFlowField.SetNext(v, from[x][y]);
@@ -250,24 +264,19 @@ int FlowFieldPathFinderImpl::ComputeCellFlowFieldInDestRectangle() {
 // From left-top corner to right-bottom corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final_F &f,
-                                                       Final_From &from, int c1, int c2) {
-  // x,y's bounds in this node.
-  int x0 = std::max(0, node->x1 - dest.x1);
-  int y0 = std::max(0, node->y1 - dest.y1);
-  int x1 = std::min(node->x2, dest.x2) - dest.x1;
-  int y1 = std::min(node->y2, dest.y2) - dest.y1;
-
-  for (int x = x0; x <= x1; ++x) {
-    for (int y = y0; y <= y1; ++y) {
+                                                       Final_From &from, int c1, int c2, int x1,
+                                                       int y1, int x2, int y2) {
+  for (int x = x1; x <= x2; ++x) {
+    for (int y = y1; y <= y2; ++y) {
       if (x > 0 && y > 0 && f[x][y] > f[x - 1][y - 1] + c2) {  // left-up
         f[x][y] = f[x - 1][y - 1] + c2;
         from[x][y] = from[x - 1][y - 1];
       }
-      if (y > 0 && f[x][y] > f[x - 1][y] + c1) {  // up
+      if (x > 0 && f[x][y] > f[x - 1][y] + c1) {  // up
         f[x][y] = f[x - 1][y] + c1;
         from[x][y] = from[x - 1][y];
       }
-      if (x > 0 && f[x][y] > f[x][y - 1] + c1) {  // left
+      if (y > 0 && f[x][y] > f[x][y - 1] + c1) {  // left
         f[x][y] = f[x][y - 1] + c1;
         from[x][y] = from[x][y - 1];
       }
@@ -283,15 +292,10 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
 // From right-bottom corner to left-top corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final_F &f,
-                                                       Final_From &from, int c1, int c2) {
-  // x,y's bounds in this node.
-  int x0 = std::max(0, node->x1 - dest.x1);
-  int y0 = std::max(0, node->y1 - dest.y1);
-  int x1 = std::min(node->x2, dest.x2) - dest.x1;
-  int y1 = std::min(node->y2, dest.y2) - dest.y1;
-
-  for (int x = x1; x >= x0; --x) {
-    for (int y = y1; y >= y0; --y) {
+                                                       Final_From &from, int c1, int c2, int x1,
+                                                       int y1, int x2, int y2) {
+  for (int x = x2; x >= x1; --x) {
+    for (int y = y2; y >= y1; --y) {
       if (x < x1 && y < y1 && f[x][y] > f[x + 1][y + 1] + c2) {  // right-bottom
         f[x][y] = f[x + 1][y + 1] + c2;
         from[x][y] = from[x + 1][y + 1];

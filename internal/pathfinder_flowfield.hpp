@@ -201,8 +201,10 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   using Final_F = std::vector<std::vector<int>>;
   // DP array from for ComputeCellFlowFieldInDestRectangle()
   using Final_From = std::vector<std::vector<int>>;
-  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
-  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
+  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2,
+                                int x1, int y1, int x2, int y2);
+  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2,
+                                int x1, int y1, int x2, int y2);
 };
 
 //////////////////////////////////////

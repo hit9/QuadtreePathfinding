@@ -287,6 +287,7 @@ using CellFlowFieldVisitor = internal::UnpackedCellFlowFieldVisitor;
 
 // FlowField (stateful)
 class FlowFieldPathFinder {
+ public:
   // FlowFieldPathFinder should be bound to a quadtree map manager.
   FlowFieldPathFinder(const QuadtreeMapX &mx);
 
