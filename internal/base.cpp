@@ -3,6 +3,7 @@
 
 #include "base.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace qdpf {
@@ -37,9 +38,18 @@ void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collecto
   }
 }
 
-bool IsOverlap(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2) {
-  // https://writings.sh/post/aabb
-  return ax1 <= bx2 && ax2 >= bx1 && ay1 <= by2 && ay2 >= by1;
+// https://writings.sh/post/aabb
+bool IsOverlap(const Rectangle &a, const Rectangle &b) {
+  return a.x1 <= b.x2 && a.x2 >= b.x1 && a.y1 <= b.y2 && a.y2 >= b.y1;
+}
+
+bool GetOverlap(const Rectangle &a, const Rectangle &b, Rectangle &c) {
+  if (!IsOverlap(a, b)) return false;
+  c.x1 = std::max(a.x1, b.x1);
+  c.y1 = std::max(a.y1, b.y1);
+  c.x2 = std::min(a.x2, b.x2);
+  c.y2 = std::min(a.y2, b.y2);
+  return true;
 }
 
 }  // namespace internal

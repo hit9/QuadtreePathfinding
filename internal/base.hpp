@@ -36,8 +36,12 @@ int CountBits(unsigned int n);
 void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector);
 
 // AABB overlap testing.
-// Check if rectangle ((ax1, ay1), (ax2, ay2)) and ((bx1,by1), (bx2, by2)) overlaps.
-bool IsOverlap(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2);
+// Checks if rectangle a and b overlaps.
+bool IsOverlap(const Rectangle &a, const Rectangle &b);
+
+// Gets overlap of a and b into c.
+// Returns true if the overlap exist.
+bool GetOverlap(const Rectangle &a, const Rectangle &b, Rectangle &c);
 
 // ~~~~~~~~~~~ KVContainer ~~~~~~~~~~~~
 

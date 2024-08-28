@@ -35,16 +35,15 @@ void FlowFieldPathFinderImpl::Reset(const QuadtreeMap* m, int x2, int y2, const 
   bool tIsGate = m->IsGateCell(tNode, t);
   if (!tIsGate) AddCellToNodeOnTmpGraph(t, tNode);
 
-  if (IsOverlap(tNode->x1, tNode->y1, tNode->x2, tNode->y2, dest.x1, dest.y1, dest.x2, dest.y2)) {
-    // Special case:
-    // if the target node overlaps the dest rectangle, we should connects the overlaping cells to
-    // the target, since the best path is a straight line then.
-    int x3 = std::max(tNode->x1, dest.x1);
-    int y3 = std::max(tNode->y1, dest.y1);
-    int x4 = std::min(tNode->x2, dest.x2);
-    int y4 = std::min(tNode->y2, dest.y2);
-    for (int x = x3; x <= x4; ++x) {
-      for (int y = y3; y <= y4; ++y) {
+  // Special case:
+  // if the target node overlaps the dest rectangle, we should connects the overlaping cells to
+  // the target, since the best path is a straight line then.
+  Rectangle tNodeRectangle{tNode->x1, tNode->y1, tNode->x2, tNode->y2};
+  Rectangle overlap;
+  auto hasOverlap = GetOverlap(tNodeRectangle, dest, overlap);
+  if (hasOverlap) {
+    for (int x = overlap.x1; x <= overlap.x2; ++x) {
+      for (int y = overlap.y1; y <= overlap.y2; ++y) {
         int u = m->PackXY(x, y);
         // detail notice is: u should not be a gate cell,
         // since we already connect all gate cells with t.

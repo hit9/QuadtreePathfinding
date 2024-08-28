@@ -355,7 +355,11 @@ class FlowFieldPathFinder {
   // Computes the final flow field for all cells in the destination rectangle.
   // Returns -1 if the target cell is out of bound.
   //
-  // In this flow field, a cell points to a neighbour cell to go, finally points to the target.
+  // In this flow field, a cell inside the destination rectangle points to a gate cell to go,
+  // finally points to the target.
+  // If we want to show the detailed path, call ComputeStraightLine between current cell and the
+  // next gate cell.
+  //
   // Reset() should be called in advance to call this api.
   [[nodiscard]] int ComputeCellFlowFieldInDestRectangle();
 
