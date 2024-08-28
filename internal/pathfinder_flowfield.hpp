@@ -8,6 +8,7 @@
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "base.hpp"
 #include "pathfinder_helper.hpp"
@@ -157,7 +158,8 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   using FFA2 = FlowFieldAlgorithm<int, inf, DefaultedVectorBool<false>>;
   FFA2 ffa2;
 
-  // ~~~~~~~  stateful values for current round compution.~~~~~~~~
+  // ~~~~~~~ stateful values for current round compution.~~~~~~~~
+  // ~~~~~~~ they should be cleared on every Reset call ~~~~~~
   // the quadtree map current working on
   const QuadtreeMap* m = nullptr;
   // compution results ared limited within this rectangle.
@@ -166,11 +168,13 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   int x2, y2;
   int t;
   QdNode* tNode = nullptr;
-
+  // ~~~~~ for earlier quit ~~~~~~~
   // nodes inside the dest rectangle.
   std::unordered_set<const QdNode*> nodesInDest;
   // gate cells inside the dest rectangle
   std::unordered_set<int> gatesInDest;
+
+  // ~~~~~ for reducing the number of gates that participating the ComputeGateFlowField(). ~~~~~~~
   // the gate cells on the node field if ComputeNodeFlowField is called successfully.
   std::unordered_set<int> gateCellsOnNodeFields;
 
@@ -182,7 +186,23 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // results for the final cell flow field.
   CellFlowField finalFlowField;
 
+  // ~~~~~~~~ compution lambdas (optimization for reuses) ~~~~~~~~~
+  // lambda to collects quadtree nodes inside given dest rectangle.
+  QdNodeVisitor nodesInDestCollector = nullptr;
+  // lambda to collects gate cells inside given dest rectangle.
+  GateVisitor gatesInDestCollector = nullptr;
+
+  FFA1::NeighboursCollectorT ffa1NeighborsCollector = nullptr;
+  FFA2::NeighboursCollectorT ffa2NeighborsCollector = nullptr;
+
   void collectGateCellsOnNodeField();
+
+  // DP array f for ComputeCellFlowFieldInDestRectangle()
+  using Final_F = std::vector<std::vector<int>>;
+  // DP array from for ComputeCellFlowFieldInDestRectangle()
+  using Final_From = std::vector<std::vector<std::pair<int, int>>>;
+  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
+  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, int c2, int c2);
 };
 
 //////////////////////////////////////
