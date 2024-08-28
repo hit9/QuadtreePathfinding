@@ -123,7 +123,7 @@ int main(void) {
                                                             int cost) {
     int dx = xNext - x, dy = yNext - y;
     int d = (dx + 1) * 3 + (dy + 1);
-    if (d >= 0 && d <= 8) direction_fields[x][y] = d;
+    if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) direction_fields[x][y] = d;
   };
   pf.VisitComputedCellFlowFieldInDestRectangle(visitor4);
 
