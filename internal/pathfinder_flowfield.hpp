@@ -4,6 +4,7 @@
 #ifndef QDPF_INTERNAL_PATHFINDER_FLOW_FIELD_HPP
 #define QDPF_INTERNAL_PATHFINDER_FLOW_FIELD_HPP
 
+#include <functional>
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
@@ -25,7 +26,7 @@ namespace internal {
 
 // FlowField is a data container that stores the direction from a vertex to next vertex,
 // along with the cost to the target.
-template <typename Vertex, Vertex NullVertex>
+template <typename Vertex, Vertex NullVertex, typename Hasher = std::hash<Vertex>>
 class FlowField {
  public:
   using Visitor = std::function<void(Vertex v, Vertex next, int cost)>;
@@ -47,20 +48,28 @@ class FlowField {
 
  private:
   // costs[v] stores the cost of vertex v to target.
-  std::unordered_map<Vertex, int> costs;
+  std::unordered_map<Vertex, int, Hasher> costs;
   // nexts[v] stores the next vertex of vertex v.
-  std::unordered_map<Vertex, Vertex> nexts;
+  std::unordered_map<Vertex, Vertex, Hasher> nexts;
 };
 
+// FlowField of quadtree nodes.
 using NodeFlowField = FlowField<QdNode*, nullptr>;
+// FlowField of cells.
 using CellFlowField = FlowField<int, inf>;
+
+// UnpackedCellFlowFieldVisitor is a functino to visit each item in a CellFlowField.
+// The (x,y) is current cell, (xNext, yNext) is the next cell that current cell pointing to.
+using UnpackedCellFlowFieldVisitor =
+    std::function<void(int x, int y, int xNext, int yNext, int cost)>;
 
 //////////////////////////////////////
 /// FlowField (Algorithm)
 //////////////////////////////////////
 
 // flow field algorithm:
-// 1. Compute the cost field by reverse-traversing  from the target, using the dijkstra algorithm.
+// 1. Compute the cost field by reverse-traversing  from the target, using the dijkstra
+// algorithm.
 // 2. Compute the flow field by comparing each vertex with its neighours vertices.
 
 template <typename Vertex, Vertex NullVertex,
@@ -114,13 +123,6 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // n is the max number of vertex in the graphs.
   FlowFieldPathFinderImpl(int n);
 
-  // Visits the computed node flow field.
-  const NodeFlowField& GetNodeFlowField() const { return nodeFlowField; }
-  // Visits the computed gate flow field.
-  const CellFlowField& GetGateFlowField() const { return gateFlowField; }
-  // Visits the computed detailed flow field for the destination rectangle.
-  const CellFlowField& GetFlowFieldInDestRectangle() const { return finalFlowField; }
-
   // Resets current working context: the the map instance, target (x2,y2) and flow field dest
   // rectangle to fill results.
   void Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& dest);
@@ -129,10 +131,21 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   int ComputeNodeFlowField();
   // Computes the gate cell flow field.
   // Returns -1 on failure
-  int ComputeGateFlowField();
+  int ComputeGateFlowField(bool useNodeFlowField = true);
   // Computes the final cell flow field for destination rectangle.
   // Returns -1 on failure
   int ComputeCellFlowFieldInDestRectangle();
+
+  // Visits the computed node flow field.
+  const NodeFlowField& GetNodeFlowField() const { return nodeFlowField; }
+  // Visits the computed gate flow field.
+  const CellFlowField& GetGateFlowField() const { return gateFlowField; }
+  // Visits the computed detailed flow field for the destination rectangle.
+  // The final flow field.
+  const CellFlowField& GetFinalFlowFieldInDestRectangle() const { return finalFlowField; }
+  // Helps to visit the cell flow field via (x,y,nextX,nextY,cost)
+  void VisitCellFlowField(const CellFlowField& cellFlowField,
+                          UnpackedCellFlowFieldVisitor& visitor) const;
 
  private:
   // ~~~~~~~  algorithm handlers ~~~~~~~~
@@ -158,6 +171,8 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   std::unordered_set<const QdNode*> nodesInDest;
   // gate cells inside the dest rectangle
   std::unordered_set<int> gatesInDest;
+  // the gate cells on the node field if ComputeNodeFlowField is called successfully.
+  std::unordered_set<int> gateCellsOnNodeFields;
 
   // ~~~~~~~~~~ computed results ~~~~~~~~~~~~~
   // results for node flow field.
@@ -166,6 +181,8 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   CellFlowField gateFlowField;
   // results for the final cell flow field.
   CellFlowField finalFlowField;
+
+  void collectGateCellsOnNodeField();
 };
 
 //////////////////////////////////////
@@ -174,39 +191,39 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
 // ~~~~~~~~~~~~~~~ Implements FlowField Container ~~~~~~~~~~~
 
-template <typename Vertex, Vertex NullVertex>
-void FlowField<Vertex, NullVertex>::SetCost(Vertex v, int cost) {
+template <typename Vertex, Vertex NullVertex, typename Hasher>
+void FlowField<Vertex, NullVertex, Hasher>::SetCost(Vertex v, int cost) {
   costs[v] = cost;
 }
 
-template <typename Vertex, Vertex NullVertex>
-int FlowField<Vertex, NullVertex>::GetCost(Vertex v) const {
+template <typename Vertex, Vertex NullVertex, typename Hasher>
+int FlowField<Vertex, NullVertex, Hasher>::GetCost(Vertex v) const {
   auto it = costs.find(v);
   if (it == costs.end()) return inf;
   return it->second;
 }
 
-template <typename Vertex, Vertex NullVertex>
-Vertex FlowField<Vertex, NullVertex>::GetNext(Vertex v) const {
+template <typename Vertex, Vertex NullVertex, typename Hasher>
+Vertex FlowField<Vertex, NullVertex, Hasher>::GetNext(Vertex v) const {
   auto it = nexts.find(v);
   if (it == nexts.end()) return NullVertex;
   return it->second;
 }
 
-template <typename Vertex, Vertex NullVertex>
-void FlowField<Vertex, NullVertex>::SetNext(Vertex v, Vertex u) {
+template <typename Vertex, Vertex NullVertex, typename Hasher>
+void FlowField<Vertex, NullVertex, Hasher>::SetNext(Vertex v, Vertex u) {
   nexts[v] = u;
 }
 
-template <typename Vertex, Vertex NullVertex>
-void FlowField<Vertex, NullVertex>::ForEach(Visitor& visitor) const {
+template <typename Vertex, Vertex NullVertex, typename Hasher>
+void FlowField<Vertex, NullVertex, Hasher>::ForEach(Visitor& visitor) const {
   for (auto [v, u] : nexts) {
     visitor(v, u, GetCost(v));
   }
 }
 
-template <typename Vertex, Vertex NullVertex>
-void FlowField<Vertex, NullVertex>::Clear() {
+template <typename Vertex, Vertex NullVertex, typename Hasher>
+void FlowField<Vertex, NullVertex, Hasher>::Clear() {
   costs.clear();
   nexts.clear();
 }

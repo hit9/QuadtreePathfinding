@@ -279,11 +279,10 @@ using NodeFlowFieldVisitor =
 //
 // Parameters:
 // * (x,y) is the current cell.
-// * (x1,y1) is the next cell that the current cell points to.
-//   for a gate flow field, it would be the next gate cell to go.
-//   for a final cell flow field, it would be a neighbour cell to go.
+// * (xNext,yNext) is the next gate cell that the current cell points to.
 // * cost is the total cost from current cell to the target cell.
-using CellFlowFieldVisitor = std::function<void(int x, int y, int x1, int y1, int cost)>;
+// Signature:: std::function<void(int x, int y, int xNext, int yNext, int cost)>;
+using CellFlowFieldVisitor = internal::UnpackedCellFlowFieldVisitor;
 
 // FlowField (stateful)
 class FlowFieldPathFinder {
@@ -338,13 +337,15 @@ class FlowFieldPathFinder {
 
   // Computes the gate flow field.
   // Returns -1 if the target cell is out of bound.
+  // Setting useNodeFlowField to true to use node flow field results of ComputeNodeFlowField().
+  // This makes ComputeGateFlowField() runs faster.
   //
   // In a gate flow field, a gate cell points to another gate cell, finally points to the target
   // cell.
   //
   // This step is required.
   // Reset() should be called in advance to call this api.
-  [[nodiscard]] int ComputeGateFlowField();
+  [[nodiscard]] int ComputeGateFlowField(bool useNodeFlowField = true);
 
   // Visits the computed gate flow field
   // Make sure the ComputeGateFlowField has been called before calling this function.

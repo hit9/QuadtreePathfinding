@@ -22,9 +22,7 @@ struct Rectangle {
   int x1, y1, x2, y2;
 };
 
-//////////////////////
-/// Utils
-/////////////////////
+// ~~~~~~~~~~~~  Utils ~~~~~~~~~~~~~~~
 
 // Returns the number of true bits in given unsigned number n.
 int CountBits(unsigned int n);

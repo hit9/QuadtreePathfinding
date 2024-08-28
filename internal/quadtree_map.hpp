@@ -77,6 +77,7 @@ class QuadtreeMap {
   int N() const { return n; }
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
+  int Distance(int x1, int y1, int x2, int y2) const;
   // Returns true if the given cell (x,y) is an obstacle.
   bool IsObstacle(int x, int y) const { return isObstacle(x, y); }
   // Approximate distance between two quadtree nodes.

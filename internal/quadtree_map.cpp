@@ -74,6 +74,10 @@ int QuadtreeMap::UnpackY(int v) const { return v % s; }
 
 // ~~~~~~~~~~~~~~~ QuadtreeMap::Impl :: Basic methods ~~~~~~~~~~~
 
+int QuadtreeMap::Distance(int x1, int y1, int x2, int y2) const {
+  return distance(x1, y1, x2, y2);
+}
+
 int QuadtreeMap::Distance(int u, int v) const {
   if (u == v) return 0;  // avoid further calculation.
   auto [x1, y1] = UnpackXY(u);
