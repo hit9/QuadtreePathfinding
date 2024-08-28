@@ -122,7 +122,7 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   int ComputeGateFlowField(bool useNodeFlowField = true);
   // Computes the final cell flow field for destination rectangle.
   // Returns -1 on failure
-  int ComputeCellFlowFieldInDestRectangle();
+  int ComputeFinalFlowFieldInDestRectangle();
 
   // Visits the computed node flow field.
   const NodeFlowField& GetNodeFlowField() const { return nodeFlowField; }
@@ -188,9 +188,14 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
   // DP value container of from for ComputeCellFlowFieldInDestRectangle()
   using Final_From = NestedDefaultedUnorderedMap<int, int, int, inf>;
+  // B[x][y] indicates whether (x,y) is a computed gate cell for
+  // ComputeCellFlowFieldInDestRectangle().
+  using Final_B = NestedDefaultedUnorderedMap<int, int, bool, false>;
 
-  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
-  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
+  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
+                                int c1, int c2);
+  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
+                                int c1, int c2);
 };
 
 // ~~~~~~~~~~~~~~~ Implements FlowField Algorithm ~~~~~~~~~~~

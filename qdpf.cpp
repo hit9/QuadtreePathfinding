@@ -68,8 +68,8 @@ int FlowFieldPathFinder::ComputeGateFlowField(bool useNodeFlowField) {
   return impl.ComputeGateFlowField(useNodeFlowField);
 }
 
-int FlowFieldPathFinder::ComputeCellFlowFieldInDestRectangle() {
-  return impl.ComputeCellFlowFieldInDestRectangle();
+int FlowFieldPathFinder::ComputeFinalFlowFieldInDestRectangle() {
+  return impl.ComputeFinalFlowFieldInDestRectangle();
 }
 
 void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {

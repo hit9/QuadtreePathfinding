@@ -17,7 +17,7 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m, int x1, int y1, int x2, in
   this->m = m;
   s = m->PackXY(x1, y1), t = m->PackXY(x2, y2);
 
-  // finding a node is very fast: we find the start and target node without caring the wether the
+  // finding a node is very fast: we find the start and target node without caring whether the
   // ComputeNodeRoutes is used in the future.
   sNode = m->FindNode(x1, y1), tNode = m->FindNode(x2, y2);
 

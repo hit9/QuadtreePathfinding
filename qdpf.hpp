@@ -281,8 +281,10 @@ using NodeFlowFieldVisitor =
 //
 // Parameters:
 // * (x,y) is the current cell.
-// * (xNext,yNext) is the next gate cell that the current cell points to.
+// * (xNext,yNext) is the next cell that the current cell points to.
 //   for the target cell, the next cell is itself, aka where xNext == x and yNext == y.
+//   it's okay to walk on staright line between current cell and next cell, no obstacles will
+//   appear unless any terrain changed.
 // * cost is the total cost from current cell to the target cell.
 // Signature:: std::function<void(int x, int y, int xNext, int yNext, int cost)>;
 using CellFlowFieldVisitor = internal::UnpackedCellFlowFieldVisitor;
@@ -297,7 +299,7 @@ class FlowFieldPathFinder {
 
   // Resets the current working context of this path finder.
   // Returns 0 for success.
-  // Returns -1 if there's no quadtree map was found.
+  // Returns -1 if there's no such quadtree map was found.
   //
   // A path finder always works on a single QuadtreeMap at the same time.
   // We must call Reset() before changing to another kind of {agent-size, terrains, destination
@@ -360,16 +362,17 @@ class FlowFieldPathFinder {
   // Computes the final flow field for all cells in the destination rectangle.
   // Returns -1 if the target cell is out of bound.
   //
-  // In this flow field, a cell inside the destination rectangle points to a gate cell to go,
-  // finally points to the target.
-  // If we want to show the detailed path, call ComputeStraightLine between current cell and the
-  // next gate cell.
+  // In this flow field:
+  // 1. a cell inside the given dest rectangle points to a neighbor cell to go.
+  // 2. a cell outside the given dest rectangle points to a gate cell to go.
+  //    finally points to the target.
+  // But for both cases, using ComputeStraightLine between them produces the detailed path.
   //
   // Reset() should be called in advance to call this api.
-  [[nodiscard]] int ComputeCellFlowFieldInDestRectangle();
+  [[nodiscard]] int ComputeFinalFlowFieldInDestRectangle();
 
   // Visits the computed cell flow field in the destination rectangle.
-  // Make sure the ComputeCellFlowFieldInDestRectangle has been called before calling this
+  // Make sure the ComputeFinalFlowFieldInDestRectangle has been called before calling this
   // function.
   void VisitComputedCellFlowFieldInDestRectangle(CellFlowFieldVisitor &visitor);
 

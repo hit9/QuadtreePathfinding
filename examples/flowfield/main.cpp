@@ -1,6 +1,5 @@
+#include <iomanip>
 #include <iostream>
-#include <utility>
-#include <vector>
 
 #include "qdpf.hpp"
 
@@ -19,11 +18,23 @@ int grid[N][N] = {
     {1, 1, 1, 1, 1, 1, 1, 1},
     {1, 1, 1, 1, 1, 1, 1, 1},
     {4, 4, 4, 4, 4, 4, 1, 1},
-    {1, 2, 2, 2, 2, 1, 1, 1},
-    {1, 1, 1, 2, 1, 2, 2, 2},
-    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 2, 2, 2, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 2, 2, 2},
+    {1, 1, 1, 4, 4, 1, 1, 1},
     {1, 1, 1, 1, 1, 1, 1, 1},
     // clang-format on
+};
+
+const char DIRECTION_REPL[9][4]{
+    "↖",  // 0
+    "↑",  // 1
+    "↗",  // 2
+    "←",  // 3
+    "☆",  // 4
+    "→",  // 5
+    "↙",  // 6
+    "↓",  // 7
+    "↘",  // 8
 };
 
 int main(void) {
@@ -51,8 +62,8 @@ int main(void) {
 
   // Resets the path finder.
   // Find path to (7,7), agent size is 10, we can only walk on { Land }.
-  // Computes the flow fields for all cells inside rectangle (0,0),(2,2)
-  qdpf::Rectangle dest{0, 0, 2, 2};
+  // Computes the flow fields for all cells inside rectangle dest.
+  qdpf::Rectangle dest{0, 0, 7, 7};
   if (-1 == pf.Reset(7, 7, dest, 10, Terrain::Land)) {
     std::cout << "reset failed!" << std::endl;
     return -1;
@@ -92,7 +103,7 @@ int main(void) {
 
   // Computes the final flow field.
   std::cout << "3rd step: ComputeCellFlowFieldInDestRectangle..." << std::endl;
-  if (-1 == pf.ComputeCellFlowFieldInDestRectangle()) {
+  if (-1 == pf.ComputeFinalFlowFieldInDestRectangle()) {
     std::cout << "ComputeCellFlowFieldInDestRectangle failed!" << std::endl;
     return -1;
   }
@@ -103,5 +114,29 @@ int main(void) {
     std::cout << " cost : " << cost << std::endl;
   };
   pf.VisitComputedCellFlowFieldInDestRectangle(visitor3);
+
+  // Let's draw a flow field.
+  // direction encoding: (dx+1)*3+(dy+1)
+  int direction_fields[N][N];
+  memset(direction_fields, 0xff, sizeof direction_fields);  // -1
+  qdpf::CellFlowFieldVisitor visitor4 = [&direction_fields](int x, int y, int xNext, int yNext,
+                                                            int cost) {
+    int dx = xNext - x, dy = yNext - y;
+    int d = (dx + 1) * 3 + (dy + 1);
+    if (d >= 0 && d <= 8) direction_fields[x][y] = d;
+  };
+  pf.VisitComputedCellFlowFieldInDestRectangle(visitor4);
+
+  for (int x = 0; x < N; ++x) {
+    for (int y = 0; y < N; ++y) {
+      int d = direction_fields[x][y];
+      if (d >= 0)
+        std::cout << std::setw(6) << DIRECTION_REPL[d];
+      else
+        std::cout << std::setw(4) << "-";
+    }
+    std::cout << std::endl;
+  }
+
   return 0;
 }
