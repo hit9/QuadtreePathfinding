@@ -27,7 +27,7 @@ const int COST_UNIT = 10;
 using Cell = std::pair<int, int>;  // {x,y}
 
 struct CommandlineOptions {
-  int w = 100, h = 60;
+  int w = 100, h = 70;
   // number of pixels per grid side.
   int gridSize = 18;
   // directory to fonts.
@@ -703,6 +703,9 @@ void Visualizer::handleInputsAStarSetTarget(SDL_Event& e) {
 }
 
 void Visualizer::renderImguiPanel() {
+  // window's background
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.7f));
+
   ImGui::Begin("Quadtree Pathfinder Visualizer");
 
   // Status
@@ -729,6 +732,8 @@ void Visualizer::renderImguiPanel() {
   renderImguiPanelSectionPathFinding();
 
   ImGui::End();
+
+  ImGui::PopStyleColor();
 }
 
 void Visualizer::renderImguiPanelSectionCommon() {
@@ -1308,11 +1313,11 @@ int ParseCommandlineOptions(int argc, char* argv[]) {
   argparse::ArgumentParser program("quadtree-pathfinding-visualizer");
   program.add_argument("-w", "--width")
       .help("width of grid map")
-      .default_value(60)
+      .default_value(70)
       .store_into(options.w);
   program.add_argument("-h", "--height")
       .help("height of grid map")
-      .default_value(40)
+      .default_value(50)
       .store_into(options.h);
   program.add_argument("-gs", "--grid-cell-size-in-pixels")
       .help("grid cell size in pixels")
