@@ -1,10 +1,12 @@
 #include <SDL2/SDL.h>
+#include <fmt/format.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 #include <spdlog/spdlog.h>
 
 #include <argparse/argparse.hpp>
+#include <chrono>
 #include <qdpf.hpp>
 #include <string>
 #include <string_view>
@@ -39,6 +41,7 @@ struct Agent {
 };
 
 struct Map {
+  // qmx is never changed once set.
   qdpf::QuadtreeMapX* qmx = nullptr;
   // width and height (in cell/grids)
   const int w = 32, h = 32;
@@ -57,8 +60,7 @@ struct Map {
   Map(int w, int h, int gridSize, int step = -1, bool useStepFunction = false);
   ~Map();
   void Reset();
-  // Destruct existing quadtree mapx and recreate one.
-  void RebuildMapX();
+  void BuildMapX();  // call only once.
   // Change Terrain
   void WantChangeTerrain(const Cell& cell, Terrain to);
   void ApplyChangeTerrain(const std::vector<Cell>& cells);
@@ -66,23 +68,30 @@ struct Map {
 };
 
 struct AStarContext {
+  // never change once set.
+  qdpf::AStarPathFinder* pf = nullptr;
+  bool isPfReset = false;
   // start cell
   int x1 = 0, y1 = 0;
   // target cell
   int x2 = 0, y2 = 0;
   // ~~~~~~ results ~~~~~~
-  std::vector<qdpf::QdNode*> nodePath;
+  std::vector<const qdpf::QdNode*> nodePath;
   std::vector<Cell> gatePath;
   std::vector<Cell> finalPath;
 
+  ~AStarContext();
+  void InitPf(qdpf::QuadtreeMapX* qmx);
   void ClearResults();
   void Reset();
+  int ResetPf(int agentSize, int capabilities);
 };
 
 template <typename V>
 using FlowField = std::unordered_map<V, std::pair<V, int>>;  // V => {Next, cost}
 
 struct FlowFieldContext {
+  qdpf::FlowFieldPathFinder* pf = nullptr;
   // target cell.
   int x2 = 0, y2 = 0;
   // dest rectangle.
@@ -94,6 +103,9 @@ struct FlowFieldContext {
   FlowField<int> gateFlowField;
   FlowField<int> finalFlowField;
 
+  ~FlowFieldContext();
+  void InitPf(qdpf::QuadtreeMapX* qmx);
+  int ResetPf(int agentSize, int capabilities);
   void ClearResults();
   void Reset();
 };
@@ -132,7 +144,8 @@ enum class State {
 
   // ~~~~ AStar ~~~~
   AStarWaitStart = 21,          // => AStarWaitTarget
-  AStarWaitTarget = 22,         // => AStarNodePathComputed
+  AStarWaitTarget = 22,         // => AStarWaitCompution
+  AStarWaitCompution = 23,      // => AStarNodePathComputed  | AStarGatePathComputed
   AStarNodePathComputed = 25,   // => AStarGatePathComputed
   AStarGatePathComputed = 26,   // => AStarFinalPathComputed
   AStarFinalPathComputed = 27,  // => Idle | AStarWaitStart
@@ -157,6 +170,10 @@ const SDL_Color LightGray{180, 180, 180, 255};
 const SDL_Color Red{255, 0, 0, 255};
 const SDL_Color Blue{0, 0, 255, 255};
 const SDL_Color Black{0, 0, 0, 255};
+const SDL_Color Green{0, 180, 0, 255};
+const SDL_Color LightOrange{255, 200, 128, 255};
+const SDL_Color Orange{255, 165, 0, 255};
+const SDL_Color LightPurple{230, 190, 230, 255};
 
 const ImVec4 ImRed(0.7f, 0.2f, 0.2f, 1.0f);
 const ImVec4 ImWhite(1.0f, 1.0f, 1.0f, 1.0f);
@@ -182,6 +199,7 @@ class Visualizer {
   Agent agent;
 
   Map map;
+
   AStarContext astar;
   FlowFieldContext flowfield;
 
@@ -209,6 +227,12 @@ class Visualizer {
   void renderWorld();
   void renderGrids();
   void renderQuadtreeNodes();
+  void renderGates();
+  void renderHighlightedNodes();
+  void renderHighlightedNodesAstar();
+  void renderPathfindingDispatch();
+  void renderPathfindingAStar();
+  void renderPathfindingFlowField();
   void renderDrawRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderFillRect(const SDL_Rect& rect, const SDL_Color& color);
   void setMessageHint(std::string_view message, const ImVec4& color);
@@ -226,6 +250,7 @@ class Visualizer {
   void computeAstarNodePath();
   void computeAstarGatePath();
   void computeAstarFinalPath();
+  void handleAstarInputBegin();
   // ~~~~~ flowfield ~~~~~~
   void computeNodeFlowField();
   void computeGateFlowField();
@@ -237,6 +262,8 @@ class Visualizer {
   void handleInputsForCrameMovementsByMouse(SDL_Event& e);
   void handleInputsDispatchByState(SDL_Event& e);
   void handleInputsChangeTerrains(SDL_Event& e);
+  void handleInputsAStarSetStart(SDL_Event& e);
+  void handleInputsAStarSetTarget(SDL_Event& e);
   // ~~~~~~~~ handlers ~~~~~~~~~~~
   void handleStartDrawBuildings();
   void handleStartDrawWater();
@@ -310,8 +337,7 @@ void Map::Reset() {
   useStepFunction = true;
 }
 
-void Map::RebuildMapX() {
-  if (qmx != nullptr) delete qmx;
+void Map::BuildMapX() {
   auto stepf = (step == -1) ? [](int z) -> int { return z / 8 + 1; } : nullptr;
   qdpf::QuadtreeMapXSettings settings{
       {COST_UNIT, Terrain::Land},
@@ -354,11 +380,39 @@ void Map::ClearAllTerrains() {
   qmx->Compute();
 }
 
+void AStarContext::InitPf(qdpf::QuadtreeMapX* qmx) { pf = new qdpf::AStarPathFinder(*qmx); }
+
+AStarContext::~AStarContext() {
+  delete pf;
+  pf = nullptr;
+}
+
 void AStarContext::ClearResults() { nodePath.clear(), gatePath.clear(), finalPath.clear(); }
 
 void AStarContext::Reset() {
   ClearResults();
   x1 = y1 = x2 = y2 = 0;
+  isPfReset = false;
+}
+
+int AStarContext::ResetPf(int agentSize, int capabilities) {
+  if (isPfReset) return 0;
+  auto ret = pf->Reset(x1, y1, x2, y2, agentSize, capabilities);
+  isPfReset = true;
+  return ret;
+}
+
+FlowFieldContext::~FlowFieldContext() {
+  delete pf;
+  pf = nullptr;
+}
+
+void FlowFieldContext::InitPf(qdpf::QuadtreeMapX* qmx) {
+  pf = new qdpf::FlowFieldPathFinder(*qmx);
+}
+
+int FlowFieldContext::ResetPf(int agentSize, int capabilities) {
+  return pf->Reset(x2, y2, dest, agentSize, capabilities);
 }
 
 void FlowFieldContext::ClearResults() {
@@ -405,7 +459,10 @@ int Visualizer::Init() {
   spdlog::info("Visualizer Init done.");
 
   // Build the map.
-  map.RebuildMapX();
+  map.BuildMapX();
+  // Build the pfs;
+  astar.InitPf(map.qmx);
+  flowfield.InitPf(map.qmx);
   return 0;
 }
 
@@ -490,7 +547,7 @@ void Visualizer::Start() {
     renderImguiPanel();
     ImGui::Render();
 
-    // clears SDL buffer.
+    // clears SDL buffer (white background)
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
@@ -592,6 +649,12 @@ void Visualizer::handleInputsDispatchByState(SDL_Event& e) {
     case State::DrawingWaters:
       handleInputsChangeTerrains(e);
       break;
+    case State::AStarWaitStart:
+      handleInputsAStarSetStart(e);
+      break;
+    case State::AStarWaitTarget:
+      handleInputsAStarSetTarget(e);
+      break;
     default:
       break;  // avoid warning.
   }
@@ -611,10 +674,24 @@ void Visualizer::handleInputsChangeTerrains(SDL_Event& e) {
   }
 }
 
-void Visualizer::renderWorld() {
-  renderGrids();
-  renderQuadtreeNodes();
-  // TODO
+void Visualizer::handleInputsAStarSetStart(SDL_Event& e) {
+  if (e.type == SDL_MOUSEBUTTONDOWN) {
+    auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+    astar.x1 = cell.first;
+    astar.y1 = cell.second;
+    state = State::AStarWaitTarget;
+    setMessageHint("A*: waiting to click a target cell", ImGreen);
+  }
+}
+
+void Visualizer::handleInputsAStarSetTarget(SDL_Event& e) {
+  if (e.type == SDL_MOUSEBUTTONDOWN) {
+    auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+    astar.x2 = cell.first;
+    astar.y2 = cell.second;
+    state = State::AStarWaitCompution;
+    setMessageHint("A*: waiting to click a compution button", ImGreen);
+  }
 }
 
 void Visualizer::renderImguiPanel() {
@@ -749,22 +826,20 @@ void Visualizer::renderImguiPanelSectionPathFinding() {
 }
 
 void Visualizer::renderImguiPanelSectionPathFindingAStar() {
-  if (ImGui::Button("Set Start  < S >")) {
-    // TODO
+  if (ImGui::Button("Set Start and Target")) {
+    handleAstarInputBegin();
   }
-  if (ImGui::Button("Set Target  < T >")) {
-    // TODO
-  }
+  ImGui::SameLine();
   if (ImGui::Button("Compute Node Path")) {
-    // TODO
+    computeAstarNodePath();
   }
   ImGui::SameLine();
   if (ImGui::Button("Compute Gate Path")) {
-    // TODO
+    computeAstarGatePath();
   }
   ImGui::SameLine();
   if (ImGui::Button("Compute Final Path")) {
-    // TODO
+    computeAstarFinalPath();
   }
 }
 
@@ -787,6 +862,14 @@ void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
   if (ImGui::Button("Compute Final FlowField")) {
     // TODO
   }
+}
+
+void Visualizer::renderWorld() {
+  renderHighlightedNodes();
+  renderGates();
+  renderGrids();
+  renderQuadtreeNodes();
+  renderPathfindingDispatch();
 }
 
 void Visualizer::renderGrids() {
@@ -830,6 +913,112 @@ void Visualizer::renderQuadtreeNodes() {
     mp->Nodes(c1);
   }
 }
+void Visualizer::renderGates() {
+  auto mp = getCurrentQuadtreeMapByAgent();
+  if (mp != nullptr) {
+    // Gates.
+    qdpf::internal::GateVisitor visitor = [this, &mp](const qdpf::internal::Gate* gate) {
+      auto [x1, y1] = mp->UnpackXY(gate->a);
+      int x3 = y1 * map.gridSize + 1;
+      int y3 = x1 * map.gridSize + 1;
+      SDL_Rect rect = {x3, y3, map.gridSize - 2, map.gridSize - 2};
+      renderFillRect(rect, LightPurple);
+    };
+
+    mp->Gates(visitor);
+  }
+}
+
+void Visualizer::renderPathfindingDispatch() {
+  switch (pathfinderFlag) {
+    case PathFinderFlag::AStar:
+      renderPathfindingAStar();
+      return;
+    case PathFinderFlag::FlowField:
+      renderPathfindingFlowField();
+      return;
+  }
+}
+
+void Visualizer::renderHighlightedNodes() {
+  // render highlighted nodes with background at first.
+  switch (state) {
+    case State::AStarNodePathComputed:
+      [[fallthrough]];
+    case State::AStarGatePathComputed:
+      [[fallthrough]];
+    case State::AStarFinalPathComputed:
+      renderHighlightedNodesAstar();
+      break;
+    default:
+      break;  // avoiding warning
+  }
+  // TODO:  flow field
+}
+
+void Visualizer::renderHighlightedNodesAstar() {
+  for (auto node : astar.nodePath) {
+    int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
+    int h = (x2 - x1 + 1) * map.gridSize;
+    int w = (y2 - y1 + 1) * map.gridSize;
+    int x = y1 * map.gridSize;
+    int y = x1 * map.gridSize;
+    SDL_Rect rect = {x, y, w, h};
+    SDL_Rect inner = {x + 1, y + 1, w - 2, h - 2};
+    renderFillRect(inner, LightOrange);
+  }
+}
+
+void Visualizer::renderPathfindingAStar() {
+  auto drawCell = [this](int x, int y) {
+    SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
+    renderFillRect(cell, Green);
+  };
+
+  int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
+
+  auto drawAgent = [this, agentSizeInPixels](int x, int y) {
+    SDL_Rect outer{y * map.gridSize, x * map.gridSize, agentSizeInPixels, agentSizeInPixels};
+    SDL_Rect inner{outer.x + 1, outer.y + 1, outer.w - 2, outer.h - 2};
+    renderDrawRect(outer, Black);
+    renderFillRect(inner, Green);
+  };
+
+  switch (state) {
+    case State::AStarWaitTarget:
+      drawCell(astar.x1, astar.y1);  // start
+      break;
+    case State::AStarWaitCompution:
+      [[fallthrough]];
+    case State::AStarNodePathComputed:
+      drawCell(astar.x1, astar.y1);  // start
+      drawCell(astar.x2, astar.y2);  // target
+      // NOTE: nodepath already render in renderHighlightedNodesAstar.
+      break;
+    case State::AStarGatePathComputed:
+      // draw gate route cells.
+      // start and target are included in gate path.
+      for (const auto [x, y] : astar.gatePath) {
+        drawCell(x, y);
+      }
+      break;
+    case State::AStarFinalPathComputed:  //
+      for (const auto [x, y] : astar.finalPath) {
+        drawAgent(x, y);
+      }
+      break;
+    default:
+      return;  // do nothing
+  }
+}
+
+void Visualizer::renderPathfindingFlowField() {
+  // TODO
+  switch (state) {
+    default:
+      return;  // do nothing
+  }
+}
 
 void Visualizer::renderDrawRect(const SDL_Rect& rect, const SDL_Color& color) {
   SDL_Rect overlap;
@@ -862,6 +1051,7 @@ bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap) {
   return true;
 }
 
+// reset path finder compution results.
 void Visualizer::reset() {
   state = State::Idle;
   astar.Reset();
@@ -951,6 +1141,107 @@ Cell Visualizer::getCellAtPixelPosition(int x, int y) const {
   return {(y + camera->y) / map.gridSize, (x + camera->x) / map.gridSize};
 }
 
+void Visualizer::handleAstarInputBegin() {
+  if (state != State::Idle) reset();
+  state = State::AStarWaitStart;
+  setMessageHint("A*: waiting to click a start cell", ImGreen);
+}
+
+void Visualizer::computeAstarNodePath() {
+  if (state != State::AStarWaitCompution && state != State::AStarNodePathComputed) {
+    setMessageHint("invalid state", ImRed);
+    return;
+  }
+  if (0 != astar.ResetPf(agent.size, agent.capability)) {
+    setMessageHint("internal error: astar reset failure", ImRed);
+    return;
+  }
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+  startAt = std::chrono::high_resolution_clock::now();
+
+  int cost = astar.pf->ComputeNodeRoutes();
+  state = State::AStarNodePathComputed;
+  if (cost == -1) {
+    setMessageHint("A*: unreachable!", ImRed);
+    return;
+  }
+
+  if (astar.nodePath.size()) astar.nodePath.clear();
+  qdpf::NodeVisitor visitor = [this](const qdpf::QdNode* node) { astar.nodePath.push_back(node); };
+  if (astar.pf->NodePathSize()) astar.pf->VisitComputedNodeRoutes(visitor);
+
+  endAt = std::chrono::high_resolution_clock::now();
+
+  setMessageHint(
+      fmt::format("A*: Node path computed! cost {}us",
+                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      ImGreen);
+}
+
+void Visualizer::computeAstarGatePath() {
+  if (state != State::AStarWaitCompution && state != State::AStarNodePathComputed &&
+      state != State::AStarGatePathComputed) {
+    setMessageHint("invalid state", ImRed);
+    return;
+  }
+  if (0 != astar.ResetPf(agent.size, agent.capability)) {
+    setMessageHint("internal error: astar reset failure", ImRed);
+    return;
+  }
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+  startAt = std::chrono::high_resolution_clock::now();
+
+  if (astar.gatePath.size()) astar.gatePath.clear();
+  bool useNodePath = astar.pf->NodePathSize() > 0;
+  qdpf::CellCollector collector = [this](int x, int y) { astar.gatePath.push_back({x, y}); };
+  int cost = astar.pf->ComputeGateRoutes(collector, useNodePath);
+  state = State::AStarGatePathComputed;
+  endAt = std::chrono::high_resolution_clock::now();
+  if (cost == -1) {
+    setMessageHint("A*: unreachable!", ImRed);
+    return;
+  }
+
+  setMessageHint(
+      fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us", useNodePath,
+                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      ImGreen);
+}
+
+void Visualizer::computeAstarFinalPath() {
+  if (state != State::AStarGatePathComputed && state != State::AStarNodePathComputed) {
+    setMessageHint("invalid state", ImRed);
+    return;
+  }
+  if (astar.gatePath.empty()) {
+    setMessageHint("A*: empty gate route cells!", ImRed);
+    return;
+  }
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+  startAt = std::chrono::high_resolution_clock::now();
+  if (astar.finalPath.size()) astar.finalPath.clear();
+  qdpf::CellCollector collector = [this](int x, int y) {
+    if (astar.finalPath.size()) {
+      auto [x2, y2] = astar.finalPath.back();
+      if ((x2 == x && y2 == y)) return;
+    }
+    astar.finalPath.push_back({x, y});
+  };
+  auto [x, y] = astar.gatePath[0];
+  for (int i = 1; i < astar.gatePath.size(); i++) {
+    auto [x2, y2] = astar.gatePath[i];
+    qdpf::ComputeStraightLine(x, y, x2, y2, collector);
+    x = x2, y = y2;
+  }
+  state = State::AStarFinalPathComputed;
+  endAt = std::chrono::high_resolution_clock::now();
+  setMessageHint(
+      fmt::format("A*: final path computed! cost {}us",
+                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      ImGreen);
+}
+
 std::string StateToString(State state) {
   switch (state) {
     case State::Idle:
@@ -963,6 +1254,8 @@ std::string StateToString(State state) {
       return "(A*) Waiting Input Start Cell";
     case State::AStarWaitTarget:
       return "(A*) Waiting Input Target Cell";
+    case State::AStarWaitCompution:
+      return "(A*) Waiting Compution";
     case State::AStarNodePathComputed:
       return "(A*) Node Path Computed";
     case State::AStarGatePathComputed:
