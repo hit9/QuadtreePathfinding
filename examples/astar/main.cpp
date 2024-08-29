@@ -1,5 +1,3 @@
-// how to build: make
-
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -65,8 +63,8 @@ int main(void) {
     std::cout << "unreachable!" << std::endl;
     return -1;
   }
-  qdpf::NodeVisitor visitor1 = [](int x1, int y1, int x2, int y2) {
-    std::cout << x1 << "," << y1 << " " << x2 << "," << y2 << std::endl;
+  qdpf::NodeVisitor visitor1 = [](const qdpf::QdNode* node) {
+    std::cout << node->x1 << "," << node->y1 << " " << node->x2 << "," << node->y2 << std::endl;
   };
   pf.VisitComputedNodeRoutes(visitor1);
 
@@ -97,7 +95,7 @@ int main(void) {
   auto [x, y] = routes[0];
   for (int i = 1; i < routes.size(); i++) {
     auto [x2, y2] = routes[i];
-    pf.ComputePathToNextRouteCell(x, y, x2, y2, collector1);
+    qdpf::ComputeStraightLine(x, y, x2, y2, collector1);
     x = x2, y = y2;
   }
 

@@ -40,16 +40,53 @@ int AStarPathFinder::ComputeNodeRoutes() { return impl.ComputeNodeRoutes(); }
 std::size_t AStarPathFinder::NodePathSize() const { return impl.NodePath().size(); }
 
 void AStarPathFinder::VisitComputedNodeRoutes(NodeVisitor &visitor) const {
-  for (auto [node, cost] : impl.NodePath()) visitor(node->x1, node->y1, node->x2, node->y2);
+  for (auto [node, _] : impl.NodePath()) visitor(node);
 }
 
 int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
   return impl.ComputeGateRoutes(collector, useNodePath);
 }
 
-void AStarPathFinder::ComputePathToNextRouteCell(int x1, int y1, int x2, int y2,
-                                                 CellCollector &collector) const {
-  impl.ComputePathToNextRouteCell(x1, y1, x2, y2, collector);
+//////////////////////////////////////
+/// FlowFieldPathFinder
+//////////////////////////////////////
+
+FlowFieldPathFinder::FlowFieldPathFinder(const QuadtreeMapX &mx)
+    : mx(mx), impl(internal::FlowFieldPathFinderImpl(mx.impl.N())) {}
+
+int FlowFieldPathFinder::Reset(int x2, int y2, const Rectangle &dest, int agentSize,
+                               int walkableterrainTypes) {
+  auto m = mx.Get(agentSize, walkableterrainTypes);
+  if (m == nullptr) return -1;
+  impl.Reset(m, x2, y2, dest);
+  return 0;
+}
+
+int FlowFieldPathFinder::ComputeNodeFlowField() { return impl.ComputeNodeFlowField(); }
+
+int FlowFieldPathFinder::ComputeGateFlowField(bool useNodeFlowField) {
+  return impl.ComputeGateFlowField(useNodeFlowField);
+}
+
+int FlowFieldPathFinder::ComputeFinalFlowFieldInDestRectangle() {
+  return impl.ComputeFinalFlowFieldInDestRectangle();
+}
+
+void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
+  const auto &field = impl.GetNodeFlowField();
+  for (auto [node, cost] : field.costs.GetUnderlyingUnorderedMap()) {
+    auto next = field.nexts[node];
+    visitor(node, next, cost);
+  }
+}
+
+void FlowFieldPathFinder::VisitComputedGateFlowField(CellFlowFieldVisitor &visitor) {
+  impl.VisitCellFlowField(impl.GetGateFlowField(), visitor);
+}
+
+void FlowFieldPathFinder::VisitComputedCellFlowFieldInDestRectangle(
+    CellFlowFieldVisitor &visitor) {
+  impl.VisitCellFlowField(impl.GetFinalFlowFieldInDestRectangle(), visitor);
 }
 
 }  // namespace qdpf

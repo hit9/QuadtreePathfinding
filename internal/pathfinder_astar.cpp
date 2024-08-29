@@ -3,19 +3,33 @@
 
 #include "pathfinder_astar.hpp"
 
+#include <cassert>
+
 namespace qdpf {
 namespace internal {
 
-void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_, int y2_) {
+void AStarPathFinderImpl::Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2) {
+  // debug mode, checks m, it's nullptr if mapx didn't find one.
+  assert(m != nullptr);
+
   // resets the attributes.
-  x1 = x1_, y1 = y1_, x2 = x2_, y2 = y2_;
-  m = m_;
+  this->x1 = x1, this->y1 = y1, this->x2 = x2, this->y2 = y2;
+  this->m = m;
   s = m->PackXY(x1, y1), t = m->PackXY(x2, y2);
+
+  // finding a node is very fast: we find the start and target node without caring whether the
+  // ComputeNodeRoutes is used in the future.
   sNode = m->FindNode(x1, y1), tNode = m->FindNode(x2, y2);
 
+  // happen when: any of them out of map bound.
+  // stop further handlings.
+  if (sNode == nullptr || tNode == nullptr) return;
+
   // reset the distance function.
-  A1::Distance distance1 = [this](QdNode *a, QdNode *b) { return m->DistanceBetweenNodes(a, b); };
-  A2::Distance distance2 = [this](int u, int v) { return m->Distance(u, v); };
+  A1::Distance distance1 = [this](QdNode *a, QdNode *b) {
+    return this->m->DistanceBetweenNodes(a, b);
+  };
+  A2::Distance distance2 = [this](int u, int v) { return this->m->Distance(u, v); };
   astar1.SetDistanceFunc(distance1);
   astar2.SetDistanceFunc(distance2);
 
@@ -23,14 +37,31 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m_, int x1_, int y1_, int x2_
   nodePath.clear();
   gateCellsOnNodePath.clear();
 
-  // Rebuild the tmp graph.
-  PathFinderHelper::Reset(m_);
-  BuildTmpGateGraph(s, t, x1, y1, x2, y2, sNode, tNode);
+  // Rebuild the tmp graph. And add the start and target cells to the gate graph.
+  PathFinderHelper::Reset(this->m);
+
+  // Is the start and target a gate cell?
+  bool sIsGate = m->IsGateCell(sNode, s);
+  bool tIsGate = m->IsGateCell(tNode, t);
+
+  // Add s and t to the tmp graph, if they are not gates.
+  if (!sIsGate) AddCellToNodeOnTmpGraph(s, sNode);
+  if (!tIsGate) AddCellToNodeOnTmpGraph(t, tNode);
+
+  // A special case:
+  // if s and t are in the same node, and both of them aren't gates,
+  // we should connect them with edges, the shortest path should be dist itself.
+  // TODO: should we just stop the path finding on tihs case?
+  if (tNode == sNode && s != t && !sIsGate && !tIsGate) ConnectCellsOnTmpGraph(s, t);
 }
 
 int AStarPathFinderImpl::ComputeNodeRoutes() {
+  // any one of start and target are out of map bounds.
+  if (sNode == nullptr || tNode == nullptr) return -1;
+  // Can't route to or start from obstacles.
+  if (m->IsObstacle(x1, y1) || m->IsObstacle(x2, y2)) return -1;
+  // Same node.
   if (sNode == tNode) {
-    // Same node.
     nodePath.push_back({sNode, 0});
     return 0;
   }
@@ -39,12 +70,12 @@ int AStarPathFinderImpl::ComputeNodeRoutes() {
     nodePath.push_back({node, cost});
   };
   // collector for neighbour qd nodes.
-  A1::NeighboursCollector neighborsCollector = [this](QdNode *u,
-                                                      NeighbourVertexVisitor<QdNode *> &visitor) {
+  A1::NeighboursCollectorT neighborsCollector = [this](QdNode *u,
+                                                       NeighbourVertexVisitor<QdNode *> &visitor) {
     m->ForEachNeighbourNodes(u, visitor);
   };
   // compute
-  return astar1.Compute(neighborsCollector, sNode, tNode, collector, nullptr);
+  return astar1.Compute(sNode, tNode, collector, neighborsCollector, nullptr);
 }
 
 // Collects the gate cells on node path if ComputeNodeRoutes is successfully called and any further
@@ -66,6 +97,8 @@ void AStarPathFinderImpl::collectGateCellsOnNodePath() {
 }
 
 int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
+  // any one of start and target are out of map bounds.
+  if (sNode == nullptr || tNode == nullptr) return -1;
   // Can't route to or start from obstacles.
   if (m->IsObstacle(x1, y1) || m->IsObstacle(x2, y2)) return -1;
   // Same point.
@@ -81,17 +114,17 @@ int AStarPathFinderImpl::ComputeGateRoutes(CellCollector &collector, bool useNod
     collector(x, y);
   };
 
-  A2::NeighbourFilterTester neighbourTester = [this, useNodePath](int v) {
+  A2::NeighbourFilterTesterT neighbourTester = [this, useNodePath](int v) {
     if (useNodePath && gateCellsOnNodePath.find(v) == gateCellsOnNodePath.end()) return false;
     return true;
   };
   // collector for neighbour gate cells.
-  A2::NeighboursCollector neighborsCollector = [this](int u,
-                                                      NeighbourVertexVisitor<int> &visitor) {
+  A2::NeighboursCollectorT neighborsCollector = [this](int u,
+                                                       NeighbourVertexVisitor<int> &visitor) {
     ForEachNeighbourGateWithST(u, visitor);
   };
   // compute
-  return astar2.Compute(neighborsCollector, s, t, collector1, neighbourTester);
+  return astar2.Compute(s, t, collector1, neighborsCollector, neighbourTester);
 }
 
 }  // namespace internal

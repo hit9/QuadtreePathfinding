@@ -4,11 +4,10 @@
 #ifndef QDPF_INTERNAL_PATHFINDER_ASTAR_HPP
 #define QDPF_INTERNAL_PATHFINDER_ASTAR_HPP
 
-#include <functional>     // for std::function, std::hash
-#include <queue>          // for std::priority_queue
-#include <unordered_map>  // for std::unordered_map
-#include <utility>        // for std::pair
-#include <vector>         // for std::vector
+#include <functional>  // for std::function, std::hash
+#include <queue>       // for std::priority_queue
+#include <utility>     // for std::pair
+#include <vector>      // for std::vector
 
 #include "base.hpp"
 #include "graph.hpp"
@@ -26,76 +25,19 @@ namespace internal {
 /// Algorithm AStar
 //////////////////////////////////////
 
-// KVContainer is an internal abstraction for KV containers with default value support.
-template <typename K, typename V, V DefaultValue>
-class KVContainer {
- public:
-  // resize the container's size to n.
-  virtual void Resize(std::size_t n);
-  // set k by reference
-  virtual V &operator[](K k);
-  // get value, returns default value by default.
-  virtual const V &operator[](K k) const;
-  // clears the container.
-  virtual void Clear();
-};
-
-// KVContainer on unordered_map.
-template <typename K, typename V, V DefaultValue>
-class DefaultedUnorderedMap : KVContainer<K, V, DefaultValue> {
- public:
-  void Resize(std::size_t _ignoredn) override {}  // ignore
-  V &operator[](K k) override;
-  const V &operator[](K k) const override;
-  void Clear() override { m.clear(); }
-
- private:
-  V defaultValue = DefaultValue;
-  std::unordered_map<K, V> m;
-};
-
-template <typename K, int DefaultValue>
-using DefaultedUnorderedMapInt = DefaultedUnorderedMap<K, int, DefaultValue>;
-
-template <typename K, bool DefaultValue>
-using DefaultedUnorderedMapBool = DefaultedUnorderedMap<K, bool, DefaultValue>;
-
-// KVContainer on vector (faster but more memory occuption).
-template <typename V, V DefaultValue>
-class DefaultedVector : KVContainer<int, V, DefaultValue> {
- public:
-  void Resize(std::size_t n) override { vec.resize(n, defaultValue); }
-  V &operator[](int k) override { return vec[k]; }
-  const V &operator[](int k) const override { return vec[k]; }
-  void Clear() override { vec.clear(); }
-
- private:
-  V defaultValue = DefaultValue;
-  std::vector<V> vec;
-};
-
-template <int DefaultValue>
-using DefaultedVectorInt = DefaultedVector<int, DefaultValue>;
-
-// avoid using std::vector<bool>
-template <bool DefaultValue>
-using DefaultedVectorBool = DefaultedVector<unsigned char, DefaultValue>;
-
 // AStar algorithm on a directed graph.
 template <typename Vertex, Vertex NullVertex, typename F = DefaultedUnorderedMapInt<Vertex, inf>,
           typename Vis = DefaultedUnorderedMapBool<Vertex, false>,
           typename From = DefaultedUnorderedMap<Vertex, Vertex, NullVertex>>
 class AStar {
  public:
+  using NeighboursCollectorT = NeighboursCollector<Vertex>;
+  using NeighbourFilterTesterT = NeighbourFilterTester<Vertex>;
+
   // Collects the result path and total cost to it.
   using PathCollector = std::function<void(Vertex v, int cost)>;
   // Returns the distance between two vertices u and v.
   using Distance = std::function<int(Vertex u, Vertex v)>;
-  // Collects the neighbor vertices from u.
-  using NeighboursCollector =
-      std::function<void(Vertex u, NeighbourVertexVisitor<Vertex> &visitor)>;
-  // Filter a neighbor vertex, returns true for cared neighbor.
-  using NeighbourFilterTester = std::function<bool(Vertex)>;
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
   // The n is the upper bound of number of vertices on the graph.
@@ -106,8 +48,8 @@ class AStar {
   // along with the cost walking to it.
   // Returns -1 if the target is unreachable.
   // Returns the total cost to the target on success.
-  int Compute(NeighboursCollector &neighborsCollector, Vertex s, Vertex t,
-              PathCollector &collector, NeighbourFilterTester neighborTester);
+  int Compute(Vertex s, Vertex t, PathCollector &collector,
+              NeighboursCollectorT &neighborsCollector, NeighbourFilterTesterT neighborTester);
 
  protected:
   int n;  // upper bound of vertices
@@ -122,6 +64,12 @@ class AStar {
 /// AStarPathFinder
 //////////////////////////////////////
 
+// AStar PathFinder.
+// how to:
+// 1. Resets the map to use and start, target cells: Reset(m, x1,y1, x2, y2)
+// 2. Computes on the 1st level node graph (optional): ComputeNodeRoutes().
+// 3. Computes on the 2nd level gate graph: ComputeGateRoutes().
+// 4. Fill the detailed cells from current to next route cell: ComputeStraightLine().
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
   // the path of nodes if ComputeNodeRoutes is called successfully.
@@ -135,8 +83,12 @@ class AStarPathFinderImpl : public PathFinderHelper {
   // Returns the computed node path.
   const std::vector<P> &NodePath() const { return nodePath; }
   // Compute the node path.
+  // Returns 0 on success.
+  // Returns -1 on failure (unreachable).
   int ComputeNodeRoutes();
   // Compute the gate cell path.
+  // Returns 0 on success.
+  // Returns -1 on failure (unreachable).
   int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
  private:
@@ -145,7 +97,7 @@ class AStarPathFinderImpl : public PathFinderHelper {
 
   // Astar for computing node path.
   using A1 = AStar<QdNode *, nullptr>;
-  AStar<QdNode *, nullptr> astar1;
+  A1 astar1;
 
   // Astar for computing gate cell path.
   using A2 = AStar<int, inf, DefaultedVectorInt<inf>, DefaultedVectorBool<false>,
@@ -155,7 +107,7 @@ class AStarPathFinderImpl : public PathFinderHelper {
   // stateful values for current round compution.
   int x1, y1, x2, y2;
   int s, t;
-  QdNode *sNode, *tNode;
+  QdNode *sNode = nullptr, *tNode = nullptr;
   std::vector<P> nodePath;
   // the gate cells on the node path if ComputeNodeRoutes is called successfully.
   std::unordered_set<int> gateCellsOnNodePath;
@@ -169,18 +121,6 @@ class AStarPathFinderImpl : public PathFinderHelper {
 
 // ~~~~~~~~~~~ Implements AStar ~~~~~~~~~~~~~~
 
-template <typename K, typename V, V DefaultValue>
-V &DefaultedUnorderedMap<K, V, DefaultValue>::operator[](K k) {
-  return m.try_emplace(k, defaultValue).first->second;
-}
-
-template <typename K, typename V, V DefaultValue>
-const V &DefaultedUnorderedMap<K, V, DefaultValue>::operator[](K k) const {
-  auto it = m.find(k);
-  if (it == m.end()) return defaultValue;
-  return it->second;
-}
-
 template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
 AStar<Vertex, NullVertex, F, Vis, From>::AStar(int n) : n(n) {
   f.Resize(n), vis.Resize(n), from.Resize(n);
@@ -188,9 +128,9 @@ AStar<Vertex, NullVertex, F, Vis, From>::AStar(int n) : n(n) {
 
 // A* search algorithm.
 template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
-int AStar<Vertex, NullVertex, F, Vis, From>::Compute(NeighboursCollector &neighborsCollector,
-                                                     Vertex s, Vertex t, PathCollector &collector,
-                                                     NeighbourFilterTester neighborTester) {
+int AStar<Vertex, NullVertex, F, Vis, From>::Compute(Vertex s, Vertex t, PathCollector &collector,
+                                                     NeighboursCollectorT &neighborsCollector,
+                                                     NeighbourFilterTesterT neighborTester) {
   f.Clear(), vis.Clear(), from.Clear();
   f.Resize(n), vis.Resize(n);
   from[t] = NullVertex;

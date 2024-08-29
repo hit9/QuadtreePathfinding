@@ -15,7 +15,7 @@
 namespace qdpf {
 namespace internal {
 
-// NeighbourVertexVisitor is the type of the function that visit neighbor vertices of a given
+// NeighbourVertexVisitor is the type of the function that visits neighbor vertices of a given
 // vertex in a directed graph.
 template <typename Vertex>
 using NeighbourVertexVisitor = std::function<void(Vertex v, int cost)>;

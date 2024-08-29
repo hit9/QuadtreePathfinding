@@ -1,3 +1,5 @@
+// Visualizer for quadtree-pathfinding's astar path finder.
+
 #include <SDL2/SDL.h>
 #include <spdlog/spdlog.h>
 
@@ -21,7 +23,7 @@ enum Terrain {
 };
 
 // Max value of w and h.
-const int N = 5000;
+const int N = 800;
 
 // the value of GRIDS[x][y] is a terrain type integer.
 int GRIDS[N][N];
@@ -445,7 +447,7 @@ void Visualizer::calculatePath() {
     auto [x, y] = routes[0];
     for (int i = 1; i < routes.size(); i++) {
       auto [x2, y2] = routes[i];
-      pf->ComputePathToNextRouteCell(x, y, x2, y2, c);
+      qdpf::ComputeStraightLine(x, y, x2, y2, c);
       x = x2, y = y2;
     }
     endAt = std::chrono::high_resolution_clock::now();
@@ -489,7 +491,8 @@ void Visualizer::updateRectRelativeToCamera(SDL_Rect& rect) {
 void Visualizer::draw() {
   // highlights the route nodes.
 
-  qdpf::NodeVisitor visitor = [this](int x1, int y1, int x2, int y2) {
+  qdpf::NodeVisitor visitor = [this](const qdpf::QdNode* node) {
+    int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
     int h = (x2 - x1) * GRID_SIZE - 2;
     int w = (y2 - y1) * GRID_SIZE - 2;
     int x = y1 * GRID_SIZE + 1;

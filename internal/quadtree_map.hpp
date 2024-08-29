@@ -6,6 +6,7 @@
 
 #include <functional>  // for std::function
 
+#include "base.hpp"
 #include "graph.hpp"
 #include "quadtree-hpp/quadtree.hpp"
 
@@ -76,6 +77,7 @@ class QuadtreeMap {
   int N() const { return n; }
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
+  int Distance(int x1, int y1, int x2, int y2) const;
   // Returns true if the given cell (x,y) is an obstacle.
   bool IsObstacle(int x, int y) const { return isObstacle(x, y); }
   // Approximate distance between two quadtree nodes.
@@ -86,6 +88,7 @@ class QuadtreeMap {
   // ~~~~~~~~~~~~~ Visits and Reads ~~~~~~~~~~~~~~~~~
 
   // Get the quadtree node where the given cell (x,y) locates.
+  // Returns nullptr if (x,y) is invalid (out of bound).
   QdNode *FindNode(int x, int y) const;
   // Is given cell u locating at given node a gate cell?
   bool IsGateCell(QdNode *node, int u) const;
@@ -93,7 +96,7 @@ class QuadtreeMap {
   // higher level version method based on IsGateCell(node, u).
   bool IsGateCell(int u) const;
   // Visit each gate cell inside a node and call given visitor with it.
-  void ForEachGateInNode(QdNode *node, GateVisitor &visitor) const;
+  void ForEachGateInNode(const QdNode *node, GateVisitor &visitor) const;
   // Visit all the quadtree's leaf nodes.
   void Nodes(QdNodeVisitor &visitor) const;
   // Visit all gate cells.
@@ -101,6 +104,8 @@ class QuadtreeMap {
   void Gates(GateVisitor &visitor) const;
   // Visit reachable neighbor nodes for given node on the node graph.
   void ForEachNeighbourNodes(QdNode *node, NeighbourVertexVisitor<QdNode *> &visitor) const;
+  // Visit quadtree nodes inside given rectangle range.
+  void NodesInRange(const Rectangle &rect, QdNodeVisitor &visitor) const;
 
   // ~~~~~~~~~~~~~ Graphs Maintaining ~~~~~~~~~~~~~~~~~
 

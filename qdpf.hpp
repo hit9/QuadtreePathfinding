@@ -1,5 +1,5 @@
 // Hierarchical path finding on quadtree for equal-weighted 2D grid map.
-// License: BSD. Version: 0.2.0. Author: Chao Wang, hit9[At]icloud.com.
+// License: BSD. Version: 0.3.0. Author: Chao Wang, hit9[At]icloud.com.
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
@@ -35,16 +35,33 @@
 #ifndef QDPF_HPP
 #define QDPF_HPP
 
+#include <cmath>
 #include <functional>  // for std::function
 
 #include "internal/base.hpp"
 #include "internal/pathfinder_astar.hpp"
+#include "internal/pathfinder_flowfield.hpp"
 #include "internal/quadtree_map.hpp"
 #include "internal/quadtree_mapx.hpp"
 
 namespace qdpf {
 
-using internal ::inf;
+using internal::inf;
+using internal::Rectangle;
+
+using internal::QdNode;  // the quadtree node.
+
+// CellCollector is the type of the function that collects points on a path.
+// The argument (x,y) is a cell in the grid map.
+//
+// Signature: std::function<void(int x, int y)>;
+using CellCollector = internal::CellCollector;
+
+// ComputeStraightLine computes the straight line from (x1,y1) to (x2,y2) based on Bresenham's line
+// algorithm. Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm Ref:
+// https://members.chello.at/easyfilter/bresenham.html
+// Signature: void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector);
+using internal::ComputeStraightLine;
 
 //////////////////////////////////////
 /// QuadtreeMapX
@@ -53,8 +70,11 @@ using internal ::inf;
 // DistanceCalculator is the type of the function that calculates the distance
 // from cell (x1,y1) to (x2,y2).
 //
-// The distance calculator should guarantee that the distance between (x1,y1)
-// and (x2,y2) always equals to the distance between (x2,y2) and (x1,y1).
+// The distance calculator should guarantee that:
+// 1. the distance between (x1,y1) and (x2,y2) always equals to the distance between (x2,y2) and
+//    (x1,y1).
+// 2. the distance between two same cells is always 0.
+//
 // We can just use quadtree_astar::EuclideanDistance<CostUnit> to build a euclidean distance
 // calculator.
 //
@@ -162,6 +182,7 @@ class QuadtreeMapX {
 
   // friend with all path finders.
   friend class AStarPathFinder;
+  friend class FlowFieldPathFinder;
 };
 
 //////////////////////////////////////
@@ -169,20 +190,15 @@ class QuadtreeMapX {
 //////////////////////////////////////
 
 // NodeVisitor is the type of a function to visit quadtree nodes.
-// Where (x1,y1) and (x2,y2) are the left-top and right-bottom corner cells of the visited node.
-using NodeVisitor = std::function<void(int x1, int y1, int x2, int y2)>;
-
-// CellCollector is the type of the function that collects points on a path.
-// The argument (x,y) is a cell in the grid map.
-//
-// Signature: std::function<void(int x, int y)>;
-using CellCollector = internal::CellCollector;
+// Signature:
+// std::function<void(const QdNode *node)>;
+using NodeVisitor = internal::QdNodeVisitor;
 
 //////////////////////////////////////
 /// AStarPathFinder
 //////////////////////////////////////
 
-// A* path finder.
+// A* path finder (stateful).
 class AStarPathFinder {
  public:
   // AStarPathFinder is bound to a quadtree map manager.
@@ -191,24 +207,31 @@ class AStarPathFinder {
   // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
 
   // Resets the current working context of this path finder.
+  // Returns 0 for success.
+  // Returns -1 if there's no quadtree map was found.
+  //
   // A path finder always works on a single QuadtreeMap at the same time.
-  // We must call Reset() before changing to another {agent, start and target}.
+  // We must call Reset() before changing to another kind of {agent-size, terrains, start and
+  // target}.
+  //
+  // Parameters:
   // The cell (x1,y1) and (x2,y2) are start and target cells.
   // The agentSize is the size of the pathfinding agent.
   // The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the pathfinding
   // agent can walk.
-  // Returns -1 if there's no quadtree map was found. Returns 0 for success.
   [[nodiscard]] int Reset(int x1, int y1, int x2, int y2, int agentSize,
                           int walkableterrainTypes = 1);
 
   // ComputeNodeRoutes computes the path of quadtree nodes from the start cell's node to the target
   // cell's node on the node graph.
   // Returns -1 if unreachable.
+  // Returns -1 if either of start and target cells are out of bound.
   // Returns the approximate cost to target node on the node graph level.
   // Reset() should be called in advance to call this api.
   // This step is optional, the benefits to use it ahead of ComputeGateRoutes:
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable.
+  // 3. optimize the following ComputeGateRoutes(useNodePath=true) call.
   [[nodiscard]] int ComputeNodeRoutes();
 
   // Returns the count of quadtree nodes on the computed node path.
@@ -227,21 +250,135 @@ class AStarPathFinder {
   // The route cells are composed of three kinds of cells: start(x1,y1), gate cells in the middle
   // and target(x2,y2).
   // Returns -1 if the path finding is failed.
+  // Returns -1 if either of start and target cells are out of bound.
   // Returns the distance of the shortest path on success (>=0).
   //
   // Reset() should be called in advance to call this api.
   [[nodiscard]] int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
 
-  // ComputePathToNextRoute computes the detail cells from current route cell (x1,y1) to next route
-  // cell (x2,y2). Note that the (x1,y1) and the (x2,y2) will both be collected. The default
-  // implementation is based on Bresenham's line algorithm.
-  // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-  // Ref: https://members.chello.at/easyfilter/bresenham.html
-  void ComputePathToNextRouteCell(int x1, int y1, int x2, int y2, CellCollector &collector) const;
-
  private:
   const QuadtreeMapX &mx;
   internal::AStarPathFinderImpl impl;
+};
+
+//////////////////////////////////////
+/// FlowFieldPathFinder
+//////////////////////////////////////
+
+// NodeFlowFieldVisitor is the function to visit each node in the computed node flow field.
+//
+// Parameters:
+// * node is current quadtree node.
+// * nextNode is the next node that the current node points to.
+//   for the node of the target cell, the nextNode is itself, aka where node == nextNode.
+// * cost is the total cost from current node to the target node.
+using NodeFlowFieldVisitor =
+    std::function<void(const QdNode *node, const QdNode *nextNode, int cost)>;
+
+// CellFlowFieldVisitor is the function to visit each cell in the computed cell level flow field.
+// A gate flow field is a cell-based flow field, and the final grid-map-level flow field is also a
+// cell-based flow field.
+//
+// Parameters:
+// * (x,y) is the current cell.
+// * (xNext,yNext) is the next cell that the current cell points to.
+//   for the target cell, the next cell is itself, aka where xNext == x and yNext == y.
+//   it's okay to walk on staright line between current cell and next cell, no obstacles will
+//   appear unless any terrain changed.
+// * cost is the total cost from current cell to the target cell.
+// Signature:: std::function<void(int x, int y, int xNext, int yNext, int cost)>;
+using CellFlowFieldVisitor = internal::UnpackedCellFlowFieldVisitor;
+
+// FlowField (stateful)
+class FlowFieldPathFinder {
+ public:
+  // FlowFieldPathFinder should be bound to a quadtree map manager.
+  FlowFieldPathFinder(const QuadtreeMapX &mx);
+
+  // ~~~~~~~~~~~~~~ API ~~~~~~~~~~~~~~
+
+  // Resets the current working context of this path finder.
+  // Returns 0 for success.
+  // Returns -1 if there's no such quadtree map was found.
+  //
+  // A path finder always works on a single QuadtreeMap at the same time.
+  // We must call Reset() before changing to another kind of {agent-size, terrains, destination
+  // rectangle and target}.
+  //
+  // For the case: if there are different sized or differen terrain capabilities agents in the
+  // destination rectangle, we should group them by {agent size, terrain types}, and call flow path
+  // finder for each.
+  //
+  // Parameters:
+  // * cell (x2,y2) is the target.
+  // * dest is the destination rectangle, we will fill the flow field results into this region.
+  //   It's better to use a rectangle that covers all the path finding agents.
+  //   This struct will be copied into the path finder (and reset existing one).
+  // * The agentSize is the size of the pathfinding agents.
+  // * The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the
+  //    pathfinding agents can walk.
+  [[nodiscard]] int Reset(int x2, int y2, const Rectangle &dest, int agentSize,
+                          int walkableterrainTypes = 1);
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~ Node Graph Level (Optional) ~~~~~~~~~~~~~~
+
+  // Computes the node flow field.
+  // Returns -1 if the target cell is out of bound.
+  //
+  // In a node flow field, a node points to another field, finally points to the node where the
+  // target cell locates.
+  //
+  // This step is optional, the benefits to use it ahead of ComputeGateFlowField:
+  // 1. faster (but less optimal).
+  // 2. fast checking if the target is reachable for an agent.
+  // 3. optimize the following ComputeGateFlowField(useNodeFlowField=true) call.
+  // Reset() should be called in advance to call this api.
+  [[nodiscard]] int ComputeNodeFlowField();
+
+  // Visits the computed node flow field.
+  // Make sure the ComputeNodeFlowField has been called before calling this function.
+  void VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor);
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~ Gate Graph Level (Required) ~~~~~~~~~~~~~~
+
+  // Computes the gate flow field.
+  // Returns -1 if the target cell is out of bound.
+  // Setting useNodeFlowField to true to use node flow field results of ComputeNodeFlowField().
+  // This makes ComputeGateFlowField() runs faster.
+  //
+  // In a gate flow field, a gate cell points to another gate cell, finally points to the target
+  // cell.
+  //
+  // This step is required.
+  // Reset() should be called in advance to call this api.
+  [[nodiscard]] int ComputeGateFlowField(bool useNodeFlowField = true);
+
+  // Visits the computed gate flow field
+  // Make sure the ComputeGateFlowField has been called before calling this function.
+  void VisitComputedGateFlowField(CellFlowFieldVisitor &visitor);
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~  Grid Map Level  (Required) ~~~~~~~~~~~~~~
+
+  // Computes the final flow field for all cells in the destination rectangle.
+  // Returns -1 if the target cell is out of bound.
+  //
+  // In this flow field:
+  // 1. a cell inside the given dest rectangle points to a neighbor cell to go.
+  // 2. a cell outside the given dest rectangle points to a gate cell to go.
+  //    finally points to the target.
+  // But for both cases, using ComputeStraightLine between them produces the detailed path.
+  //
+  // Reset() should be called in advance to call this api.
+  [[nodiscard]] int ComputeFinalFlowFieldInDestRectangle();
+
+  // Visits the computed cell flow field in the destination rectangle.
+  // Make sure the ComputeFinalFlowFieldInDestRectangle has been called before calling this
+  // function.
+  void VisitComputedCellFlowFieldInDestRectangle(CellFlowFieldVisitor &visitor);
+
+ private:
+  const QuadtreeMapX &mx;
+  internal::FlowFieldPathFinderImpl impl;
 };
 
 }  // namespace qdpf
