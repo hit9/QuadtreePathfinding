@@ -749,6 +749,12 @@ void Visualizer::renderImguiPanelSectionPathFinding() {
 }
 
 void Visualizer::renderImguiPanelSectionPathFindingAStar() {
+  if (ImGui::Button("Set Start  < S >")) {
+    // TODO
+  }
+  if (ImGui::Button("Set Target  < T >")) {
+    // TODO
+  }
   if (ImGui::Button("Compute Node Path")) {
     // TODO
   }
@@ -764,6 +770,12 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar() {
 
 void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
   // TODO
+  if (ImGui::Button("Set Start Rectangle  < S >")) {
+    // TODO Drag a rectangle
+  }
+  if (ImGui::Button("Set Target  < T >")) {
+    // TODO
+  }
   if (ImGui::Button("Compute Node FlowField")) {
     // TODO
   }
