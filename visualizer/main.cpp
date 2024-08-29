@@ -247,7 +247,6 @@ class Visualizer {
   // ~~~~~~ render the panel ~~~~~~~
   void renderImguiPanel();
   void renderImguiPanelSectionCommon();
-  void renderImguiPanelSectionChangingTerrains();
   void renderImguiPanelSectionPathFinding();
   void renderImguiPanelSectionPathFindingAStar();
   void renderImguiPanelSectionPathFindingFlowField();
@@ -517,8 +516,8 @@ int Visualizer::initImgui() {
   auto& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
-  io.Fonts->AddFontFromFileTTF((options.fontsPath + "/Roboto-Medium.ttf").c_str(), 16);
-  largeFont = io.Fonts->AddFontFromFileTTF((options.fontsPath + "/Roboto-Medium.ttf").c_str(), 28);
+  io.Fonts->AddFontFromFileTTF((options.fontsPath + "/Roboto-Medium.ttf").c_str(), 18);
+  largeFont = io.Fonts->AddFontFromFileTTF((options.fontsPath + "/Roboto-Medium.ttf").c_str(), 24);
   // Setup Dear ImGui style
   ImGui::StyleColorsDark();
   // ImGui::StyleColorsLight();
@@ -717,19 +716,13 @@ void Visualizer::renderImguiPanel() {
   ImGui::Spacing();
 
   // Hint
-  if (messageHint.size()) {
-    ImGui::PushStyleColor(ImGuiCol_Text, messageHintColor);
-    ImGui::PushFont(largeFont);
-    ImGui::TextWrapped("HINT: %s", messageHint.c_str());
-    ImGui::PopFont();
-    ImGui::PopStyleColor();
-  }
+  ImGui::PushStyleColor(ImGuiCol_Text, messageHintColor);
+  ImGui::TextWrapped("HINT: %s", messageHint.c_str());
+  ImGui::PopStyleColor();
   ImGui::Spacing();
 
   // Sections.
   renderImguiPanelSectionCommon();
-  ImGui::Spacing();
-  renderImguiPanelSectionChangingTerrains();
   ImGui::Spacing();
   renderImguiPanelSectionAgent();
   ImGui::Spacing();
@@ -748,10 +741,7 @@ void Visualizer::renderImguiPanelSectionCommon() {
     ImGui::Text("Clear the compution results and back to idle. (key: ESC)");
     ImGui::EndTooltip();
   }
-}
-
-void Visualizer::renderImguiPanelSectionChangingTerrains() {
-  ImGui::SeparatorText("Map Terrains");
+  ImGui::SameLine();
 
   // Button: Buildings
   ImGui::PushStyleColor(ImGuiCol_Button, ImRed);
@@ -778,6 +768,8 @@ void Visualizer::renderImguiPanelSectionChangingTerrains() {
     ImGui::Text("Add or Remove water");
     ImGui::EndTooltip();
   }
+
+  ImGui::SameLine();
 
   // Button clear terrains;
   if (ImGui::Button("Clear All Building and Water")) {
