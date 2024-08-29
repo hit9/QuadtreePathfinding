@@ -1,3 +1,5 @@
+// Visualizer for quadtree-pathfinding's astar path finder.
+
 #include <SDL2/SDL.h>
 #include <spdlog/spdlog.h>
 
@@ -21,7 +23,7 @@ enum Terrain {
 };
 
 // Max value of w and h.
-const int N = 5000;
+const int N = 800;
 
 // the value of GRIDS[x][y] is a terrain type integer.
 int GRIDS[N][N];

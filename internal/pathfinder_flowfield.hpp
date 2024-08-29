@@ -70,7 +70,7 @@ class FlowFieldAlgorithm {
   // Test on a vertex, after its processing, whether to stop the whole flowfield processing.
   using StopAfterFunction = std::function<bool(Vertex)>;
 
-  // The n is the upper bound of number of vertices on the graph.
+  // The n is the upper bound of the number of vertices on the graph.
   FlowFieldAlgorithm(int n);
 
   // Compute flowfield on given graph to target t.
@@ -82,7 +82,7 @@ class FlowFieldAlgorithm {
   //
   // Note: the neighborsCollector should use the negative direction of the edges in the original
   // directed graph. But specially speaking, for our case, on the grid map, either the gate graph
-  // or the node graph are both double-directed graph. That's passing in a function visiting the
+  // or the node graph are both bidirectional graph. That is, passing in a function visiting the
   // original direction is just ok.
   void Compute(Vertex t, FlowFieldT& field, NeighboursCollectorT& neighborsCollector,
                NeighbourFilterTesterT neighborTester, StopAfterFunction& stopAfterTester);
@@ -90,6 +90,7 @@ class FlowFieldAlgorithm {
  private:
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
+  // upper bound of the number of vertices on the graph.
   int n;
   // avoid reallocations..
   Vis vis;  // visit array.
@@ -114,13 +115,13 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // rectangle to fill results.
   void Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& dest);
   // Computes the node flow field.
-  // Returns -1 on failure
+  // Returns -1 on failure (unreachable).
   int ComputeNodeFlowField();
   // Computes the gate cell flow field.
-  // Returns -1 on failure
+  // Returns -1 on failure (unreachable).
   int ComputeGateFlowField(bool useNodeFlowField = true);
   // Computes the final cell flow field for destination rectangle.
-  // Returns -1 on failure
+  // Returns -1 on failure (unreachable).
   int ComputeFinalFlowFieldInDestRectangle();
 
   // Visits the computed node flow field.
@@ -183,12 +184,12 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
   void collectGateCellsOnNodeField();
 
-  // DP value container of f for ComputeCellFlowFieldInDestRectangle()
+  // DP value container of f for ComputeFinalFlowFieldInDestRectangle()
   using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
-  // DP value container of from for ComputeCellFlowFieldInDestRectangle()
+  // DP value container of from for ComputeFinalFlowFieldInDestRectangle()
   using Final_From = NestedDefaultedUnorderedMap<int, int, int, inf>;
   // B[x][y] indicates whether (x,y) is a computed gate cell for
-  // ComputeCellFlowFieldInDestRectangle().
+  // ComputeFinalFlowFieldInDestRectangle().
   using Final_B = NestedDefaultedUnorderedMap<int, int, bool, false>;
 
   void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
@@ -206,7 +207,6 @@ FlowFieldAlgorithm<Vertex, NullVertex, Vis>::FlowFieldAlgorithm(int n) : n(n) {
 
 template <typename Vertex, Vertex NullVertex, typename Vis>
 void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& field,
-
                                                           NeighboursCollectorT& neighborsCollector,
                                                           NeighbourFilterTesterT neighborTester,
                                                           StopAfterFunction& stopAfterTester) {

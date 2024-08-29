@@ -54,7 +54,8 @@ Concepts and Mechanisms
 Code Example
 ------------
 
-Checks [simple-example](simple-example/main.cpp).
+- [A* PathFinder](examples/astar)
+- [FlowField PathFinder](examples/flowfield)
 
 Source Files
 ------------
@@ -70,8 +71,8 @@ qdpf.hpp          # Public API
 
 API list can be found at [qdpf.hpp](qdpf.hpp).
 
-Visualizer
-----------
+A* Visualizer
+-------------
 
 Install SDL and build:
 
@@ -93,6 +94,9 @@ Operations:
 2. Press `w` and then repeat the 1st step for adding or removing water areas.
 3. Click the right mouse button to set start and target cells.
    Right click again to show the routes, and again to show the path.
+
+FlowField Visualizer
+--------------------
 
 Problems Unsolved (Plan)
 ------------------------
