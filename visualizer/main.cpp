@@ -29,8 +29,13 @@ using Cell = std::pair<int, int>;  // {x,y}
 struct CommandlineOptions {
   int w = 100, h = 60;
   // number of pixels per grid side.
-  int gridSize = 24;
+  int gridSize = 18;
+  // directory to fonts.
+  std::string fontsPath;
 };
+
+// global options.
+CommandlineOptions options;
 
 struct Agent {
   int size = 10;
@@ -46,7 +51,7 @@ struct Map {
   // width and height (in cell/grids)
   const int w = 32, h = 32;
   // grid size in pixels
-  const int gridSize = 24;
+  const int gridSize = 18;
   // the value of GRIDS[x][y] is a terrain type integer.
   int grids[N][N];
   // CHANGES[x][y] stores the terrain value that cell (x,y) is going to change to.
@@ -207,7 +212,7 @@ class Visualizer {
 
   bool isMouseDown = false;
 
-  std::string messageHint = "status: ";
+  std::string messageHint = "";
   ImVec4 messageHintColor = ImWhite;
 
   bool stop = false;
@@ -218,6 +223,9 @@ class Visualizer {
 
   // ~~~~~~ ui states ~~~~~~~
   bool showClearAllTerrainsConfirm = false;
+
+  // ~~~~~~ imgui ~~~~~~~
+  ImFont* largeFont;
 
   void reset();
   int initSDL();
@@ -280,11 +288,10 @@ class Visualizer {
 
 // Parse options from command line.
 // Returns 0 on success.
-int ParseCommandlineOptions(int argc, char* argv[], CommandlineOptions& options);
+int ParseCommandlineOptions(int argc, char* argv[]);
 
 int main(int argc, char* argv[]) {
-  CommandlineOptions options;
-  if (0 != ParseCommandlineOptions(argc, argv, options)) return -1;
+  if (0 != ParseCommandlineOptions(argc, argv)) return -1;
   Visualizer visualizer(options.w, options.h, options.gridSize);
   if (0 != visualizer.Init()) return -1;
   visualizer.Start();
@@ -510,7 +517,8 @@ int Visualizer::initImgui() {
   auto& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
-  io.FontGlobalScale = 1.25;
+  io.Fonts->AddFontFromFileTTF((options.fontsPath + "/Roboto-Medium.ttf").c_str(), 16);
+  largeFont = io.Fonts->AddFontFromFileTTF((options.fontsPath + "/Roboto-Medium.ttf").c_str(), 28);
   // Setup Dear ImGui style
   ImGui::StyleColorsDark();
   // ImGui::StyleColorsLight();
@@ -697,15 +705,34 @@ void Visualizer::handleInputsAStarSetTarget(SDL_Event& e) {
 
 void Visualizer::renderImguiPanel() {
   ImGui::Begin("Quadtree Pathfinder Visualizer");
-  ImGui::Text("Status: %s", StateToString(state).c_str());
+
+  // Status
+  ImGui::PushStyleColor(ImGuiCol_Text, ImWhite);
+  ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImBlue);
+  ImGui::PushFont(largeFont);
+  ImGui::Selectable(fmt::format("Status: {}", StateToString(state)).c_str(), true);
+  ImGui::PopFont();
+  ImGui::PopStyleColor(2);
+
+  ImGui::Spacing();
 
   // Hint
-  if (messageHint.size()) ImGui::TextColored(messageHintColor, "HINT: %s", messageHint.c_str());
+  if (messageHint.size()) {
+    ImGui::PushStyleColor(ImGuiCol_Text, messageHintColor);
+    ImGui::PushFont(largeFont);
+    ImGui::TextWrapped("HINT: %s", messageHint.c_str());
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
+  }
+  ImGui::Spacing();
 
   // Sections.
   renderImguiPanelSectionCommon();
+  ImGui::Spacing();
   renderImguiPanelSectionChangingTerrains();
+  ImGui::Spacing();
   renderImguiPanelSectionAgent();
+  ImGui::Spacing();
   renderImguiPanelSectionPathFinding();
 
   ImGui::End();
@@ -1059,6 +1086,7 @@ void Visualizer::reset() {
   flowfield.Reset();
   changeTo = Terrain::Building;
   changingTerrainCells.clear();
+  showClearAllTerrainsConfirm = false;
   setMessageHint("Reset done!", ImGreen);
 }
 
@@ -1174,8 +1202,9 @@ void Visualizer::computeAstarNodePath() {
   endAt = std::chrono::high_resolution_clock::now();
 
   setMessageHint(
-      fmt::format("A*: Node path computed! cost {}us",
-                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      fmt::format(
+          "A*: Node path computed! cost {}us ; Next we can click button < Compute Gate Path >.",
+          std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
       ImGreen);
 }
 
@@ -1205,7 +1234,9 @@ void Visualizer::computeAstarGatePath() {
   }
 
   setMessageHint(
-      fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us", useNodePath,
+      fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us ; Next we can click button "
+                  "< Compute Final Path >.",
+                  useNodePath,
                   std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
       ImGreen);
 }
@@ -1238,8 +1269,9 @@ void Visualizer::computeAstarFinalPath() {
   state = State::AStarFinalPathComputed;
   endAt = std::chrono::high_resolution_clock::now();
   setMessageHint(
-      fmt::format("A*: final path computed! cost {}us",
-                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      fmt::format(
+          "A*: final path computed! cost {}us ; Click button < Reset > to clear these results.",
+          std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
       ImGreen);
 }
 
@@ -1280,7 +1312,7 @@ std::string StateToString(State state) {
   }
 }
 
-int ParseCommandlineOptions(int argc, char* argv[], CommandlineOptions& options) {
+int ParseCommandlineOptions(int argc, char* argv[]) {
   argparse::ArgumentParser program("quadtree-pathfinding-visualizer");
   program.add_argument("-w", "--width")
       .help("width of grid map")
@@ -1292,8 +1324,12 @@ int ParseCommandlineOptions(int argc, char* argv[], CommandlineOptions& options)
       .store_into(options.h);
   program.add_argument("-gs", "--grid-cell-size-in-pixels")
       .help("grid cell size in pixels")
-      .default_value(24)
+      .default_value(18)
       .store_into(options.gridSize);
+  program.add_argument("-fonts", "--fonts-dir-path")
+      .help("the relative fonts dir path")
+      .default_value(std::string("./visualizer/fonts"))
+      .store_into(options.fontsPath);
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& e) {
