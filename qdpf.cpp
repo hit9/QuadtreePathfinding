@@ -68,8 +68,8 @@ int FlowFieldPathFinder::ComputeGateFlowField(bool useNodeFlowField) {
   return impl.ComputeGateFlowField(useNodeFlowField);
 }
 
-int FlowFieldPathFinder::ComputeFinalFlowFieldInDestRectangle() {
-  return impl.ComputeFinalFlowFieldInDestRectangle();
+int FlowFieldPathFinder::ComputeFinalFlowFieldInQueryRange() {
+  return impl.ComputeFinalFlowFieldInQueryRange();
 }
 
 void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
@@ -84,9 +84,8 @@ void FlowFieldPathFinder::VisitComputedGateFlowField(CellFlowFieldVisitor &visit
   impl.VisitCellFlowField(impl.GetGateFlowField(), visitor);
 }
 
-void FlowFieldPathFinder::VisitComputedCellFlowFieldInDestRectangle(
-    CellFlowFieldVisitor &visitor) {
-  impl.VisitCellFlowField(impl.GetFinalFlowFieldInDestRectangle(), visitor);
+void FlowFieldPathFinder::VisitComputedCellFlowFieldInQueryRange(CellFlowFieldVisitor &visitor) {
+  impl.VisitCellFlowField(impl.GetFinalFlowFieldInQueryRange(), visitor);
 }
 
 }  // namespace qdpf

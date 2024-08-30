@@ -62,9 +62,9 @@ int main(void) {
 
   // Resets the path finder.
   // Find path to (7,7), agent size is 10, we can only walk on { Land }.
-  // Computes the flow fields for all cells inside rectangle dest.
-  qdpf::Rectangle dest{0, 0, 7, 7};
-  if (-1 == pf.Reset(7, 7, dest, 10, Terrain::Land)) {
+  // Computes the flow fields for all cells inside the query range.
+  qdpf::Rectangle qrange{0, 0, 7, 7};
+  if (-1 == pf.Reset(7, 7, qrange, 10, Terrain::Land)) {
     std::cout << "reset failed!" << std::endl;
     return -1;
   }
@@ -103,7 +103,7 @@ int main(void) {
 
   // Computes the final flow field.
   std::cout << "3rd step: ComputeCellFlowFieldInDestRectangle..." << std::endl;
-  if (-1 == pf.ComputeFinalFlowFieldInDestRectangle()) {
+  if (-1 == pf.ComputeFinalFlowFieldInQueryRange()) {
     std::cout << "ComputeCellFlowFieldInDestRectangle failed!" << std::endl;
     return -1;
   }
@@ -113,7 +113,7 @@ int main(void) {
     std::cout << " next : " << xNext << "," << yNext;
     std::cout << " cost : " << cost << std::endl;
   };
-  pf.VisitComputedCellFlowFieldInDestRectangle(visitor3);
+  pf.VisitComputedCellFlowFieldInQueryRange(visitor3);
 
   // Let's draw a flow field.
   // direction encoding: (dx+1)*3+(dy+1)
@@ -125,7 +125,7 @@ int main(void) {
     int d = (dx + 1) * 3 + (dy + 1);
     if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) direction_fields[x][y] = d;
   };
-  pf.VisitComputedCellFlowFieldInDestRectangle(visitor4);
+  pf.VisitComputedCellFlowFieldInQueryRange(visitor4);
 
   for (int x = 0; x < N; ++x) {
     for (int y = 0; y < N; ++y) {

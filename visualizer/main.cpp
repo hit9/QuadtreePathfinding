@@ -105,8 +105,8 @@ struct FlowFieldContext {
   qdpf::FlowFieldPathFinder* pf = nullptr;
   // target cell.
   int x2 = 0, y2 = 0;
-  // dest rectangle.
-  qdpf::Rectangle dest;
+  // query rectangle.
+  qdpf::Rectangle qrange;
   // optional start cell.
   int x1 = -1, y1 = -1;
   // ~~~~~~ results ~~~~~~
@@ -183,7 +183,7 @@ const int ARROWS_DIRECTIONS[9] = {
 
 // Interaction states.
 enum class State {
-  // Idle => AStarWaitStart | FlowFieldWaitDestLeftTop
+  // Idle => AStarWaitStart | FlowFieldWaitQrangeLeftTop
   Idle = 0,
 
   DrawingBuildings = 1,
@@ -198,13 +198,13 @@ enum class State {
   AStarFinalPathComputed = 27,  // => Idle | AStarWaitStart
 
   // ~~~~ FlowField ~~~~
-  FlowFieldWaitDestLeftTop = 31,      // => FlowFieldWaitDestRightBottom
-  FlowFieldWaitDestRightBottom = 32,  // => FlowFieldWaitTarget
-  FlowFieldWaitTarget = 33,           // => FlowFieldWaitCompution
-  FlowFieldWaitCompution = 34,        // => FlowFieldNodeLevelComputed | FlowFieldGateLevelComputed
-  FlowFieldNodeLevelComputed = 37,    // => FlowFieldGateLevelComputed
-  FlowFieldGateLevelComputed = 38,    // => FlowFieldFinalLevelComputed
-  FlowFieldFinalLevelComputed = 39,   // => Idle | FlowFieldWaitDestRightBottom
+  FlowFieldWaitQrangeLeftTop = 31,      // => FlowFieldWaitQrangeRightBottom
+  FlowFieldWaitQrangeRightBottom = 32,  // => FlowFieldWaitTarget
+  FlowFieldWaitTarget = 33,             // => FlowFieldWaitCompution
+  FlowFieldWaitCompution = 34,       // => FlowFieldNodeLevelComputed | FlowFieldGateLevelComputed
+  FlowFieldNodeLevelComputed = 37,   // => FlowFieldGateLevelComputed
+  FlowFieldGateLevelComputed = 38,   // => FlowFieldFinalLevelComputed
+  FlowFieldFinalLevelComputed = 39,  // => Idle | FlowFieldWaitQrangeRightBottom
 };
 
 std::string StateToString(State state);
@@ -314,7 +314,7 @@ class Visualizer {
   void computeAstarGatePath();
   void computeAstarFinalPath();
   void handleAstarInputBegin();
-  void handleFlowFieldInputDestRectangleBegin();
+  void handleFlowFieldInputQueryRangeBegin();
   // ~~~~~ flowfield ~~~~~~
   void computeNodeFlowField();
   void computeGateFlowField();
@@ -328,8 +328,8 @@ class Visualizer {
   void handleInputsChangeTerrains(SDL_Event& e);
   void handleInputsAStarSetStart(SDL_Event& e);
   void handleInputsAStarSetTarget(SDL_Event& e);
-  void handleInputsFlowFieldSetDestLeftTop(SDL_Event& e);
-  void handleInputsFlowFieldSetDestRightBottom(SDL_Event& e);
+  void handleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e);
+  void handleInputsFlowFieldSetQrangeRightBottom(SDL_Event& e);
   void handleInputsFlowFieldSetTarget(SDL_Event& e);
   // ~~~~~~~~ handlers ~~~~~~~~~~~
   void handleStartDrawBuildings();
@@ -479,7 +479,7 @@ void FlowFieldContext::InitPf(qdpf::QuadtreeMapX* qmx) {
 
 int FlowFieldContext::ResetPf(int agentSize, int capabilities) {
   if (isPfReset) return 0;
-  auto ret = pf->Reset(x2, y2, dest, agentSize, capabilities);
+  auto ret = pf->Reset(x2, y2, qrange, agentSize, capabilities);
   isPfReset = true;
   return ret;
 }
@@ -492,7 +492,7 @@ void FlowFieldContext::Reset() {
   ClearResults();
   x2 = y2 = 0;
   x1 = y1 = -1;
-  dest = {0, 0, 0, 0};
+  qrange = {0, 0, 0, 0};
   isPfReset = false;
 }
 
@@ -805,11 +805,11 @@ void Visualizer::handleInputsDispatchByState(SDL_Event& e) {
     case State::AStarWaitTarget:
       handleInputsAStarSetTarget(e);
       break;
-    case State::FlowFieldWaitDestLeftTop:
-      handleInputsFlowFieldSetDestLeftTop(e);
+    case State::FlowFieldWaitQrangeLeftTop:
+      handleInputsFlowFieldSetQrangeLeftTop(e);
       break;
-    case State::FlowFieldWaitDestRightBottom:
-      handleInputsFlowFieldSetDestRightBottom(e);
+    case State::FlowFieldWaitQrangeRightBottom:
+      handleInputsFlowFieldSetQrangeRightBottom(e);
       break;
     case State::FlowFieldWaitTarget:
       handleInputsFlowFieldSetTarget(e);
@@ -853,20 +853,20 @@ void Visualizer::handleInputsAStarSetTarget(SDL_Event& e) {
   }
 }
 
-void Visualizer::handleInputsFlowFieldSetDestLeftTop(SDL_Event& e) {
+void Visualizer::handleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e) {
   if (e.type == SDL_MOUSEBUTTONDOWN) {
     auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
-    flowfield.dest.x1 = cell.first;
-    flowfield.dest.y1 = cell.second;
-    state = State::FlowFieldWaitDestRightBottom;
+    flowfield.qrange.x1 = cell.first;
+    flowfield.qrange.y1 = cell.second;
+    state = State::FlowFieldWaitQrangeRightBottom;
     setMessageHint("FlowField: waiting to click a right-bottom cell", ImGreen);
   }
 }
-void Visualizer::handleInputsFlowFieldSetDestRightBottom(SDL_Event& e) {
+void Visualizer::handleInputsFlowFieldSetQrangeRightBottom(SDL_Event& e) {
   if (e.type == SDL_MOUSEBUTTONDOWN) {
     auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
-    flowfield.dest.x2 = cell.first;
-    flowfield.dest.y2 = cell.second;
+    flowfield.qrange.x2 = cell.first;
+    flowfield.qrange.y2 = cell.second;
     state = State::FlowFieldWaitTarget;
     setMessageHint("FlowField: waiting to click a target cell", ImGreen);
   }
@@ -1050,7 +1050,7 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar() {
 
 void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
   if (ImGui::Button("Set Start Rectangle and Target")) {
-    handleFlowFieldInputDestRectangleBegin();
+    handleFlowFieldInputQueryRangeBegin();
   }
 
   if (ImGui::IsItemHovered()) {
@@ -1255,44 +1255,44 @@ void Visualizer::renderPathfindingFlowField() {
     renderFillRect(cell, color);
   };
 
-  auto drawDestRectangle = [this]() {
-    // render the dest rect
-    SDL_Rect dest{
-        flowfield.dest.y1 * map.gridSize,
-        flowfield.dest.x1 * map.gridSize,
-        (flowfield.dest.y2 - flowfield.dest.y1 + 1) * map.gridSize,
-        (flowfield.dest.x2 - flowfield.dest.x1 + 1) * map.gridSize,
+  auto drawQrangeRectangle = [this]() {
+    // render the qrange rect
+    SDL_Rect qrange{
+        flowfield.qrange.y1 * map.gridSize,
+        flowfield.qrange.x1 * map.gridSize,
+        (flowfield.qrange.y2 - flowfield.qrange.y1 + 1) * map.gridSize,
+        (flowfield.qrange.x2 - flowfield.qrange.x1 + 1) * map.gridSize,
     };
-    SDL_Rect inner{dest.x + 1, dest.y + 1, dest.w - 2, dest.h - 2};
-    renderDrawRect(dest, Green);
+    SDL_Rect inner{qrange.x + 1, qrange.y + 1, qrange.w - 2, qrange.h - 2};
+    renderDrawRect(qrange, Green);
     renderDrawRect(inner, Green);
   };
 
   switch (state) {
-    case State::FlowFieldWaitDestRightBottom:
-      drawCell(flowfield.dest.x1, flowfield.dest.y1, Green);  // dest.left-top
+    case State::FlowFieldWaitQrangeRightBottom:
+      drawCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
       return;
     case State::FlowFieldWaitTarget:
-      drawDestRectangle();
-      drawCell(flowfield.dest.x1, flowfield.dest.y1, Green);  // dest.left-top
-      drawCell(flowfield.dest.x2, flowfield.dest.y2, Green);  // dest.right-bottom
+      drawQrangeRectangle();
+      drawCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
+      drawCell(flowfield.qrange.x2, flowfield.qrange.y2, Green);  // qrange.right-bottom
       return;
     case State::FlowFieldWaitCompution:
       [[fallthrough]];
     case State::FlowFieldNodeLevelComputed:
       // NOTE the highlighting of the node field are already done in
       // renderHighlightedNodesFlowField
-      drawDestRectangle();
-      drawCell(flowfield.dest.x1, flowfield.dest.y1, Green);  // dest.left-top
-      drawCell(flowfield.dest.x2, flowfield.dest.y2, Green);  // dest.right-bottom
-      drawCell(flowfield.x2, flowfield.y2, Green);            // target
+      drawQrangeRectangle();
+      drawCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
+      drawCell(flowfield.qrange.x2, flowfield.qrange.y2, Green);  // qrange.right-bottom
+      drawCell(flowfield.x2, flowfield.y2, Green);                // target
       return;
     case State::FlowFieldGateLevelComputed:
-      drawDestRectangle();
+      drawQrangeRectangle();
       renderPathFindingFlowFieldGateField();
       return;
     case State::FlowFieldFinalLevelComputed:
-      drawDestRectangle();
+      drawQrangeRectangle();
       drawCell(flowfield.x2, flowfield.y2, Green);  // target
       renderPathFindingFlowFieldFinalField();
       return;
@@ -1318,8 +1318,8 @@ void Visualizer::renderPathFindingFlowFieldFinalField() {
     auto [x, y] = u;
     auto [x1, y1] = v;
     if (u == v) continue;
-    if (x >= flowfield.dest.x1 && x <= flowfield.dest.x2 && y >= flowfield.dest.y1 &&
-        y <= flowfield.dest.y2) {
+    if (x >= flowfield.qrange.x1 && x <= flowfield.qrange.x2 && y >= flowfield.qrange.y1 &&
+        y <= flowfield.qrange.y2) {
       int dx = (x1 - x), dy = (y1 - y);
       int d = (dx + 1) * 3 + (dy + 1);
       if (!(d >= 0 && d <= 8 && d != 4)) continue;
@@ -1615,10 +1615,10 @@ std::string StateToString(State state) {
       return "(A*) Gate Path Computed";
     case State::AStarFinalPathComputed:
       return "(A*) Final Path Computed";
-    case State::FlowFieldWaitDestLeftTop:
-      return "(FlowField) Wait Input Dest Rectangle (left-top)";
-    case State::FlowFieldWaitDestRightBottom:
-      return "(FlowField) Wait Input Dest Rectangle (right-bottom)";
+    case State::FlowFieldWaitQrangeLeftTop:
+      return "(FlowField) Wait Input Query Range (left-top)";
+    case State::FlowFieldWaitQrangeRightBottom:
+      return "(FlowField) Wait Input Query Range (right-bottom)";
     case State::FlowFieldWaitTarget:
       return "(FlowField) Wait Input Target";
     case State::FlowFieldWaitCompution:
@@ -1634,12 +1634,12 @@ std::string StateToString(State state) {
   }
 }
 
-void Visualizer::handleFlowFieldInputDestRectangleBegin() {
+void Visualizer::handleFlowFieldInputQueryRangeBegin() {
   if (pathfinderFlag != PathFinderFlag::FlowField) {
     pathfinderFlag = PathFinderFlag::FlowField;
   }
   if (state != State::Idle) reset();
-  state = State::FlowFieldWaitDestLeftTop;
+  state = State::FlowFieldWaitQrangeLeftTop;
   setMessageHint("FlowField: waiting to click a left-top cell", ImGreen);
 }
 
@@ -1745,7 +1745,7 @@ void Visualizer::computeFinalFlowField() {
   if (flowfield.finalFlowField.size()) flowfield.finalFlowField.clear();
 
   startAt = std::chrono::high_resolution_clock::now();
-  int ret = flowfield.pf->ComputeFinalFlowFieldInDestRectangle();
+  int ret = flowfield.pf->ComputeFinalFlowFieldInQueryRange();
   endAt = std::chrono::high_resolution_clock::now();
   state = State::FlowFieldFinalLevelComputed;
 
@@ -1757,7 +1757,7 @@ void Visualizer::computeFinalFlowField() {
   qdpf::CellFlowFieldVisitor visitor = [this](int x, int y, int xNext, int yNext, int cost) {
     flowfield.finalFlowField.push_back({{x, y}, {xNext, yNext}, cost});
   };
-  flowfield.pf->VisitComputedCellFlowFieldInDestRectangle(visitor);
+  flowfield.pf->VisitComputedCellFlowFieldInQueryRange(visitor);
 
   std::stable_sort(flowfield.finalFlowField.begin(), flowfield.finalFlowField.end(),
                    [](const FlowFieldItem<Cell>& a, const FlowFieldItem<Cell>& b) {

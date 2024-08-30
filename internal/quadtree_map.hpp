@@ -75,6 +75,8 @@ class QuadtreeMap {
 
   // ~~~~~~~~~~~~~ Basic methods ~~~~~~~~~~~~~~~~~
   int N() const { return n; }
+  int W() const { return w; }
+  int H() const { return h; }
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
   int Distance(int x1, int y1, int x2, int y2) const;

@@ -4,23 +4,25 @@
 #include "pathfinder_flowfield.hpp"
 
 #include <cassert>
+#include <cstdlib>
 
 namespace qdpf {
 namespace internal {
 
+// ffa1 is the flowfield pathfinder to work on the node graph.
+// ffa2 is the flowfield pathfinder to work on the gate graph.
+// In the constructor, we just initialized some lambda function for further reusing.
 FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FFA2(n)) {
-  // nodesInDestCollector is used to collect all nodes locating (overlaping) in the dest rectangle.
-  nodesInDestCollector = [this](const QdNode *node) {
+  // nodesOverlappingQueryRangeCollector: is to collect nodes overlapping with the query range.
+  nodesOverlappingQueryRangeCollector = [this](const QdNode *node) {
     // we care about only leaf nodes with no obstacles
-    if (node->isLeaf && node->objects.empty()) nodesInDest.insert(node);
+    if (node->isLeaf && node->objects.empty()) nodesOverlappingQueryRange.insert(node);
   };
-  // gatesInDestCollector is used to collect all gate cells locating in the dest rectangle, for a
-  // single node.
-  gatesInDestCollector = [this](const Gate *gate) {
-    auto [x, y] = this->m->UnpackXY(gate->a);
-    if (x >= this->dest.x1 && x <= this->dest.x2 && y >= this->dest.y1 && y <= this->dest.y2) {
-      gatesInDest.insert(gate->a);
-    }
+
+  // gatesInNodesOverlappingQueryRangeCollector: is to collect gates inside a single node within
+  // nodesOverlappingQueryRange.
+  gatesInNodesOverlappingQueryRangeCollector = [this](const Gate *gate) {
+    gatesInNodesOverlappingQueryRange.insert(gate->a);
   };
 
   // ffa1NeighborsCollector is for computing node flow field, it's used to visit every neighbour
@@ -37,18 +39,19 @@ FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FF
   };
 }
 
-void FlowFieldPathFinderImpl::Reset(const QuadtreeMap *m, int x2, int y2, const Rectangle &dest) {
+void FlowFieldPathFinderImpl::Reset(const QuadtreeMap *m, int x2, int y2,
+                                    const Rectangle &qrange) {
   // debug mode, checks m, it's nullptr if mapx didn't find one.
   assert(m != nullptr);
 
   // resets the attributes.
   this->m = m;
   this->x2 = x2, this->y2 = y2;
-  this->dest = dest;  // copy updated
+  this->qrange = qrange;  // copy updated
   tNode = nullptr;
 
-  // the given rectangle dest is invalid.
-  if (!(dest.x1 <= dest.x2 && dest.y1 <= dest.y2)) return;
+  // the given qrange is invalid.
+  if (!(qrange.x1 <= qrange.x2 && qrange.y1 <= qrange.y2)) return;
 
   t = m->PackXY(x2, y2);
   tNode = m->FindNode(x2, y2);
@@ -60,54 +63,62 @@ void FlowFieldPathFinderImpl::Reset(const QuadtreeMap *m, int x2, int y2, const 
   gateFlowField.Clear();
   finalFlowField.Clear();
 
-  // find all nodes in the dest range.
-  nodesInDest.clear();
-  m->NodesInRange(dest, nodesInDestCollector);
+  // find all nodes overlapping with qrange.
+  nodesOverlappingQueryRange.clear();
+  m->NodesInRange(qrange, nodesOverlappingQueryRangeCollector);
 
-  // find all gates in the dest range.
-  gatesInDest.clear();
-  for (auto node : nodesInDest) {  // node is const QdNode*
-    m->ForEachGateInNode(node, gatesInDestCollector);
+  // find all gates inside nodesOverlappingQueryRange.
+  gatesInNodesOverlappingQueryRange.clear();
+  for (auto node : nodesOverlappingQueryRange) {  // node is const QdNode*
+    m->ForEachGateInNode(node, gatesInNodesOverlappingQueryRangeCollector);
   }
 
   gateCellsOnNodeFields.clear();
 
   // Rebuild the tmp graph.
   PathFinderHelper::Reset(this->m);
+
   // Add the target cell to the gate graph
   bool tIsGate = m->IsGateCell(tNode, t);
+
   if (!tIsGate) {
     AddCellToNodeOnTmpGraph(t, tNode);
     // t is a virtual gate cell now.
-    // we should check if it is inside the dest rectangle,
-    // and add it to gatesInDest if it is.
-    if (x2 >= dest.x1 && x2 <= dest.x2 && y2 >= dest.y1 && y2 <= dest.y2) {
-      gatesInDest.insert(t);
+    // we should check if it is inside the qrange,
+    // and add it to gatesInNodesOverlappingQueryRange if it is.
+    if (x2 >= qrange.x1 && x2 <= qrange.x2 && y2 >= qrange.y1 && y2 <= qrange.y2) {
+      gatesInNodesOverlappingQueryRange.insert(t);
     }
   }
 
   // Special case:
-  // if the target node overlaps the dest rectangle, we should connects the overlaping cells to
+  // if the target node overlaps the query range, we should connects the overlapping cells to
   // the target, since the best path is a straight line then.
   Rectangle tNodeRectangle{tNode->x1, tNode->y1, tNode->x2, tNode->y2};
   Rectangle overlap;
-  auto hasOverlap = GetOverlap(tNodeRectangle, dest, overlap);
+
+  auto hasOverlap = GetOverlap(tNodeRectangle, qrange, overlap);
+
   if (hasOverlap) {
     for (int x = overlap.x1; x <= overlap.x2; ++x) {
       for (int y = overlap.y1; y <= overlap.y2; ++y) {
         int u = m->PackXY(x, y);
-        // detail notice is: u should not be a gate cell,
+        // detail notice is: we should skip u if it's a gate cell on the map's graph,
         // since we already connect all gate cells with t.
         if (u != t && m->IsGateCell(tNode, u)) {
           ConnectCellsOnTmpGraph(u, t);
           // We should consider u as a new tmp "gate" cell.
-          gatesInDest.insert(u);
+          //  we should add it to overlapping gates collection.
+          gatesInNodesOverlappingQueryRange.insert(u);
         }
       }
     }
   }
 }
 
+// Computes node flow field.
+// 1. Perform flowfield algorithm on the node graph.
+// 2. Stops earlier if all nodes overlapping the query range are checked.
 int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
   // unreachable
   if (tNode == nullptr) return -1;
@@ -117,11 +128,17 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
   // ensures that we can call it for multiple times
   if (nodeFlowField.costs.Size()) nodeFlowField.Clear();
 
-  // stops earlier if all nodes inside the dest rectangle are checked.
-  int numNodesInDestChecked = 0;
-  FFA1::StopAfterFunction stopf = [&numNodesInDestChecked, this](QdNode *node) {
-    if (nodesInDest.find(node) != nodesInDest.end()) ++numNodesInDestChecked;
-    return numNodesInDestChecked > nodesInDest.size();
+  // stops earlier if all nodes overlapping with the query range are checked.
+
+  // n counts the number of nodes marked by dijkstra, for nodes inside nodesOverlappingQueryRange.
+  int n = 0;
+
+  // stopf is a function to stop the dijkstra algorithm from execution after given vertex (the
+  // node) is marked.
+  FFA1::StopAfterFunction stopf = [&n, this](QdNode *node) {
+    if (nodesOverlappingQueryRange.find(node) != nodesOverlappingQueryRange.end()) ++n;
+    // nodesOverlappingQueryRange's size will always > 0.
+    return n >= nodesOverlappingQueryRange.size();
   };
 
   // Compute flowfield on the node graph.
@@ -134,13 +151,14 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
 void FlowFieldPathFinderImpl::collectGateCellsOnNodeField() {
   gateCellsOnNodeFields.insert(t);
 
-  // gateVisitor collects the gate between node and nextNode.
+  // gateVisitor collects the gate between current node and nextNode.
   QdNode *node = nullptr, *nextNode = nullptr;
 
+  // gateVisitor is to collect gates inside current node.
   GateVisitor gateVisitor = [this, &node, &nextNode](const Gate *gate) {
     // tNode has no next.
     if (node == tNode || node == nullptr || nextNode == nullptr) return;
-    // collect only the gates between node and next node.
+    // collect only the gates between current node and next node.
     if (gate->bNode == nextNode) {
       gateCellsOnNodeFields.insert(gate->a);
       gateCellsOnNodeFields.insert(gate->b);
@@ -155,22 +173,30 @@ void FlowFieldPathFinderImpl::collectGateCellsOnNodeField() {
   }
 }
 
+// Computes gate flow field.
+// 1. Perform flowfield algorithm on the gate graph.
+// 2. Stops earlier if all gate inside the nodes overlapping the query range are checked.
+// 3. If there's a previous ComputeNodeFlowField() call, use only the gates on the node field.
 int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
   if (tNode == nullptr) return -1;
   if (m->IsObstacle(x2, y2)) return -1;
 
   // ensures that we can call it for multiple times
   if (gateFlowField.costs.Size()) gateFlowField.Clear();
+
   if (useNodeFlowField) {
     if (gateCellsOnNodeFields.size()) gateCellsOnNodeFields.clear();
     collectGateCellsOnNodeField();
   }
 
-  // stops earlier if all gates inside the dest rectangle are checked.
-  int numGatesInDestChecked = 0;
-  FFA2::StopAfterFunction stopf = [this, &numGatesInDestChecked](int u) {
-    if (gatesInDest.find(u) != gatesInDest.end()) ++numGatesInDestChecked;
-    return numGatesInDestChecked > gatesInDest.size();
+  // stops earlier if all gates inside the query range are checked.
+
+  // n counts the number of gates marked by dijkstra, for gates inside gatesOverlappingQueryRange.
+  int n = 0;
+
+  FFA2::StopAfterFunction stopf = [this, &n](int u) {
+    if (gatesInNodesOverlappingQueryRange.find(u) != gatesInNodesOverlappingQueryRange.end()) ++n;
+    return n >= gatesInNodesOverlappingQueryRange.size();
   };
 
   // if useNodeFlowField is true, we visit only the gate cells on the node field.
@@ -186,98 +212,92 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
 
 // Computes the final flow field via dynamic programming.
 // Time Complexity O(dest.w * dest.h);
+//
+// DP in brief:
+//
 // 1. Suppose the cost to target for cell (x,y) is f[x][y].
-// 2. For each node in dest rectangle (excepts the target's node):
+// 2. For each node overlapping with the query range:
+//
 //     1. scan from left to right, up to bottom:
 //      // directions: left-up, up, left, right-up
 //      f[x][y] <= min(f[x][y], f[x-1][y-1], f[x-1][y], f[x][y-1], f[x-1][y+1]) + cost
+//
 //     2. scan from right to left, bottom to up:
 //      // directions: right-bottom, bottom, right, left-bottom
 //      f[x][y] <= min(f[x][y], f[x+1][y+1], f[x+1][y], f[x][y+1], f[x+1][y-1]) + cost
+//
 // This DP process is a bit faster than performing a Dijkstra on the dest rectangle.
-// O(M*N) vs O(M*N*logMN), since the optimal path will always comes from a cell on the
+// O(M*N) vs O(M*N*logMN), since the optimal path will always come from a cell on the
 // node's borders. The optimal path should be a straight line, but there's no better
 // algorithm than O(M*N).
-int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInDestRectangle() {
+int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
   if (tNode == nullptr) return -1;
   if (m->IsObstacle(x2, y2)) return -1;
 
   // ensures that we can call it for multiple times
   if (finalFlowField.costs.Size()) finalFlowField.Clear();
 
-  // width and height of rectangle.
-  int w = dest.y2 - dest.y1 + 1, h = dest.x2 - dest.x1 + 1;
-
   // f[x][y] is the cost from the cell (x,y) to the target.
-  // for a gate cell on the gateFlowField, it's the cost value.
-  // for a non-gate cell but inside the rectangle dest, it will be derived via DP.
+  // all cells is initialized to inf.
+  // for a cell on the gateFlowField, it's initialized to the cost value.
+  // for an other cell inside the query range, it will be finally derived via DP.
   Final_F f;
 
-  // from[x][y] stores which gate cell the min value comes from.
-  // for a gate cell on the gateFlowField, it's itself.
-  // for a non-gate cell in the rectangle dest, it will be derived via DP,
-  // and it will finally point to a neighbour cell with a min cost.
+  // from[x][y] stores which neighbour cell the min value comes from.
+  // for a cell on the gateFlowField, it points to a neighbour cell on the direction to its next.
+  // for an other cell inside qrange, it will finally point to a neighbour cell via DP.
   Final_From from;
 
-  // b[x][y] indicates whether the (x,y) is a already computed gate cell.
-  Final_B b;
-
-  // initialize f, from and finalFlowField from computed gate flow field.
+  // initialize f from computed gate flow field.
   for (auto [v, cost] : gateFlowField.costs.GetUnderlyingUnorderedMap()) {
     auto next = gateFlowField.nexts[v];
     auto [x, y] = m->UnpackXY(v);
-    b[x][y] = true;
     f[x][y] = cost;
-    from[x][y] = v;
-    // copy existing gate field into finalFlowField
-    finalFlowField.costs[v] = cost;
-    finalFlowField.nexts[v] = next;
+    // force it points to a neighbour on the direction to next.
+    auto [x1, y1] = m->UnpackXY(next);
+    int x2, y2;
+    findNeighbourCellByNext(x, y, x1, y1, x2, y2);
+    from[x][y] = m->PackXY(x2, y2);
   }
 
   // cost unit on HV(horizonal and vertical) and diagonal directions.
   int c1 = m->Distance(0, 0, 0, 1), c2 = m->Distance(0, 0, 1, 1);
 
-  // computes dp for each node.
-  // because every node is empty (without obstacles inside it),
-  // so the dp works there.
-  for (auto node : nodesInDest) {
-    // Excludes the tNode, since all cells within the overlaping area are already computed via
-    // Dijkstra in the previous ComputeGateFlowField() call.
-    if (node != tNode) {
-      computeFinalFlowFieldDP1(node, f, from, b, c1, c2);
-      computeFinalFlowFieldDP2(node, f, from, b, c1, c2);
-    }
+  // computes dp for each node, from node borders to inner.
+  // why dp works: every node is empty (without obstacles inside it).
+  for (auto node : nodesOverlappingQueryRange) {
+    computeFinalFlowFieldDP1(node, f, from, c1, c2);
+    computeFinalFlowFieldDP2(node, f, from, c1, c2);
   }
 
-  // computes the flow field in the rectangle dest.
-  for (int x = dest.x1; x <= dest.x2; ++x) {
-    for (int y = dest.y1; y <= dest.y2; ++y) {
+  // computes the flow field in the query range.
+  // note: we only collect the results for cells inside the qrange.
+  for (int x = qrange.x1; x <= qrange.x2; ++x) {
+    for (int y = qrange.y1; y <= qrange.y2; ++y) {
+      // (x1,y1) is the next cell to go.
       auto [x1, y1] = m->UnpackXY(from[x][y]);
+      // f is inf: unreachable
       if (f[x][y] == inf || from[x][y] == inf) continue;
+      // from is inf: ? gate cells?
       int v = m->PackXY(x, y);
-      if (!b[x][y]) {
-        // don't override existing gate cell's flow field informations.
-        // we just need to set the non-gate cells inside the dest rectangle.
-        finalFlowField.costs[v] = f[x][y];
-        finalFlowField.nexts[v] = from[x][y];
-      }
+      finalFlowField.costs[v] = f[x][y];
+      finalFlowField.nexts[v] = from[x][y];
     }
   }
 
   return 0;
 }
 
-// DP 1 of ComputeCellFlowFieldInDestRectangle inside a single leaf node.
+// DP 1 of ComputeFinalFlowFieldInQueryRange inside a single leaf node.
 // From left-top corner to right-bottom corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final_F &f,
-                                                       Final_From &from, Final_B &b, int c1,
-                                                       int c2) {
+                                                       Final_From &from, int c1, int c2) {
   int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
   for (int x = x1; x <= x2; ++x) {
     for (int y = y1; y <= y2; ++y) {
-      if (b[x][y]) continue;
       int xfrom = -1, yfrom = -1;
+
       if (x > 0 && y > 0 && f[x][y] > f[x - 1][y - 1] + c2) {  // left-up
         f[x][y] = f[x - 1][y - 1] + c2;
         xfrom = x - 1, yfrom = y - 1;
@@ -299,17 +319,16 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
   }
 }
 
-// DP 2 of ComputeCellFlowFieldInDestRectangle  inside a single leaf node.
+// DP 2 of ComputeFinalFlowFieldInQueryRange  inside a single leaf node.
 // From right-bottom corner to left-top corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final_F &f,
-                                                       Final_From &from, Final_B &b, int c1,
-                                                       int c2) {
+                                                       Final_From &from, int c1, int c2) {
   int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
   for (int x = x2; x >= x1; --x) {
     for (int y = y2; y >= y1; --y) {
-      if (b[x][y]) continue;
       int xfrom = -1, yfrom = -1;
+
       if (x < x2 && y < y2 && f[x][y] > f[x + 1][y + 1] + c2) {  // right-bottom
         f[x][y] = f[x + 1][y + 1] + c2;
         xfrom = x + 1, yfrom = y + 1;
@@ -328,6 +347,47 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final
       }
       if (xfrom != -1) from[x][y] = m->PackXY(xfrom, yfrom);
     }
+  }
+}
+
+// (x,y) is a cell on the gateFlowField.
+// (x1,y1) is the next cell that (x,y) points to.
+// (x2,y2) is the result to compute, a neighbour cell of (x,y) on the direction to (x1,y1).
+//
+//  (x,y)
+//     \
+//      * (x2,y2)
+//       \
+//      (x1,y1)
+//
+void FlowFieldPathFinderImpl::findNeighbourCellByNext(int x, int y, int x1, int y1, int &x2,
+                                                      int &y2) {
+  int dx = x1 - x, dy = y1 - y;
+
+  if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) {
+    // fast check: (x1,y1) is the neighbour.
+    x2 = x1;
+    y2 = y1;
+    return;
+  }
+
+  // for case: dx = 0 and dy not inside [-1,1]
+  if (dx == 0) {
+    x2 = x;
+    y2 = y + ((dy > 0) ? 1 : -1);
+  }
+
+  // for case: dx != 0
+
+  // slope
+  double k = static_cast<double>(dy) / dx;
+
+  if (abs(dx) >= abs(dy)) {
+    x2 = x + ((dx > 0) ? 1 : -1);
+    y2 = y + k * (x2 - x);
+  } else {
+    y2 = y + ((dy > 0) ? 1 : -1);
+    x2 = x + (y2 - y) / k;
   }
 }
 
