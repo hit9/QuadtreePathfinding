@@ -65,6 +65,7 @@ int AStarPathFinderImpl::ComputeNodeRoutes() {
     nodePath.push_back({sNode, 0});
     return 0;
   }
+  if (nodePath.size()) nodePath.clear();
   // collector for path result.
   A1::PathCollector collector = [this](QdNode *node, int cost) {
     nodePath.push_back({node, cost});
