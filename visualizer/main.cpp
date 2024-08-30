@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_render.h>
+#include <SDL_ttf.h>
 #include <fmt/format.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -95,7 +96,8 @@ struct AStarContext {
 
 template <typename V>
 struct FlowFieldItem {
-  V current, next;
+  V current;
+  V next;
   int cost;
 };
 
@@ -143,6 +145,40 @@ struct Camera {
 
   // Update should be called after lots of MoveXX calls
   void Update();
+};
+
+struct ArrowFont {
+  TTF_Font* font = nullptr;
+  SDL_Texture* texture;
+  // width and offset of each arrwo
+  int w[8];
+  int offset[8];
+  // font height
+  int h;
+};
+
+// char in arrows font.
+// 0 A →
+// 1 B ←
+// 2 C ↑
+// 3 D ↓
+// 4 E ↖
+// 5 F ↙
+// 6 G ↗
+// 7 H ↘
+const char ARROWS_CHAR[9] = "ABCDEFGH";
+
+// (dx+1)*3+(dy+1) => index in ARROWS_CHAR
+const int ARROWS_DIRECTIONS[9] = {
+    4,   // 0  ↖,
+    2,   // 1   ↑
+    6,   // 2   ↗
+    1,   // 3   ←
+    -1,  // NA
+    0,   // 5   →
+    5,   // 6   ↙
+    3,   // 7   ↓
+    7,   // 8   ↘,
 };
 
 // Interaction states.
@@ -234,9 +270,16 @@ class Visualizer {
   // ~~~~~~ imgui ~~~~~~~
   ImFont* largeFont;
 
+  // ~~~~~~ misc ~~~~~~~
+  ArrowFont arrows;
+
   void reset();
   int initSDL();
   int initImgui();
+  int initArrowsFont();
+  void destroyArrowsFont();
+  void destroyImgui();
+  void destroySDL();
 
   // ~~~~~~ render the world ~~~~~~~
   void renderWorld();
@@ -252,6 +295,7 @@ class Visualizer {
   void renderDrawRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderFillRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color);
+  void renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst);
   void setMessageHint(std::string_view message, const ImVec4& color);
   // ~~~~~~ render the panel ~~~~~~~
   void renderImguiPanel();
@@ -261,7 +305,8 @@ class Visualizer {
   void renderImguiPanelSectionPathFindingFlowField();
   void renderImguiPanelSectionAgent();
   // ~~~~ camera ~~~~~
-  bool cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap);
+  bool cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
+                        bool marginToCameraCoordinates = true);
   // ~~~~ astar ~~~~~~~
   void computeAstarNodePath();
   void computeAstarGatePath();
@@ -478,7 +523,15 @@ Visualizer::~Visualizer() {
 
 int Visualizer::Init() {
   if (0 != initSDL()) return -1;
-  if (0 != initImgui()) return -1;
+  if (0 != initImgui()) {
+    destroySDL();
+    return -1;
+  }
+  if (0 != initArrowsFont()) {
+    destroyImgui();
+    destroySDL();
+    return -1;
+  }
   spdlog::info("Visualizer Init done.");
 
   // Build the map.
@@ -495,10 +548,20 @@ int Visualizer::initSDL() {
     spdlog::error("Error: {}", SDL_GetError());
     return -1;
   }
+
+  // Init ttf font
+  if (TTF_Init() == -1) {
+    spdlog::error("SDL_ttf Error: {}", SDL_GetError());
+    SDL_Quit();
+    return -1;
+  }
+
   // Get display bounds
   SDL_Rect displayBounds;
   if (SDL_GetDisplayBounds(0, &displayBounds) != 0) {
-    printf("Failed to get display bounds: %s\n", SDL_GetError());
+    spdlog::error("Failed to get display bounds: {}", SDL_GetError());
+    TTF_Quit();
+    SDL_Quit();
     return 1;
   }
 
@@ -511,6 +574,7 @@ int Visualizer::initSDL() {
                        SDL_WINDOWPOS_CENTERED, w, h, SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
   if (window == nullptr) {
     spdlog::error("Create window error: {}", SDL_GetError());
+    TTF_Quit();
     SDL_Quit();
     return -3;
   }
@@ -521,6 +585,7 @@ int Visualizer::initSDL() {
   if (renderer == nullptr) {
     spdlog::error("Create renderer error: {}", SDL_GetError());
     SDL_DestroyWindow(window);
+    TTF_Quit();
     SDL_Quit();
     return -1;
   }
@@ -544,15 +609,72 @@ int Visualizer::initImgui() {
   return 0;
 }
 
+int Visualizer::initArrowsFont() {
+  // Open font arrows.
+  std::string arrowsFontPath = options.fontsPath + "/Arrows.ttf";
+  arrows.font = TTF_OpenFont(arrowsFontPath.c_str(), 18);
+  if (arrows.font == nullptr) {
+    spdlog::error("Cannot open Arrows.ttf: {} {}", arrowsFontPath, SDL_GetError());
+    return -1;
+  }
+
+  // Creates surface for arrows font.
+  SDL_Surface* ts = TTF_RenderUTF8_Solid(arrows.font, ARROWS_CHAR, {0, 0, 0, 255});
+  if (!ts) {
+    spdlog::error("SDL_Surface: {}", TTF_GetError());
+    TTF_CloseFont(arrows.font);
+    return -1;
+  }
+
+  // Create arrows font texture.
+  arrows.texture = SDL_CreateTextureFromSurface(renderer, ts);
+  if (arrows.texture == nullptr) {
+    spdlog::error("Create arrows font texture: {}", SDL_GetError());
+    SDL_FreeSurface(ts);
+    TTF_CloseFont(arrows.font);
+    return -1;
+  }
+
+  // Computes the font height, weight and offset for each char.
+  int offset = 0;
+  for (int i = 0; i < 8; i++) {
+    int minx, maxx, miny, maxy, advance;
+    TTF_GlyphMetrics(arrows.font, ARROWS_CHAR[i], &minx, &maxx, &miny, &maxy, &advance);
+    arrows.w[i] = advance;
+    arrows.offset[i] = offset;
+    offset += advance;
+  }
+  arrows.h = TTF_FontHeight(arrows.font);
+
+  SDL_FreeSurface(ts);
+  return 0;
+}
+
 void Visualizer::Destroy() {
+  destroyArrowsFont();
+  destroyImgui();
+  destroySDL();
+}
+
+void Visualizer::destroyArrowsFont() {
+  TTF_CloseFont(arrows.font);
+  SDL_DestroyTexture(arrows.texture);
+}
+
+void Visualizer::destroySDL() {
+  // deinit SDL.
+  if (renderer) SDL_DestroyRenderer(renderer);
+  if (window) SDL_DestroyWindow(window);
+  if (arrows.font != nullptr) TTF_CloseFont(arrows.font);
+  TTF_Quit();
+  SDL_Quit();
+}
+
+void Visualizer::destroyImgui() {
   // deinit ImGui.
   ImGui_ImplSDLRenderer2_Shutdown();
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
-  // deinit SDL.
-  if (renderer) SDL_DestroyRenderer(renderer);
-  if (window) SDL_DestroyWindow(window);
-  SDL_Quit();
 }
 
 void Visualizer::Start() {
@@ -1047,7 +1169,6 @@ void Visualizer::renderHighlightedNodes() {
     default:
       break;  // avoiding warning
   }
-  // TODO:  flow field
 }
 
 void Visualizer::renderHighlightedNodesAstar() {
@@ -1166,7 +1287,32 @@ void Visualizer::renderPathfindingFlowField() {
         drawCell(gate.first, gate.second, Green);
       }
       return;
+    case State::FlowFieldFinalLevelComputed:
+      drawDestRectangle();
+      drawCell(flowfield.x2, flowfield.y2, Green);  // target
+      for (int i = 0; i < flowfield.finalFlowField.size(); ++i) {
+        auto& [u, v, cost] = flowfield.finalFlowField[i];
+        auto [x, y] = u;
+        auto [x1, y1] = v;
+        if (u == v) continue;
+        if (x >= flowfield.dest.x1 && x <= flowfield.dest.x2 && y >= flowfield.dest.y1 &&
+            y <= flowfield.dest.y2) {
+          int dx = (x1 - x), dy = (y1 - y);
+          int d = (dx + 1) * 3 + (dy + 1);
+          if (!(d >= 0 && d <= 8 && d != 4)) continue;
+          int k = ARROWS_DIRECTIONS[d];
+          int w = arrows.w[k], h = arrows.h, offset = arrows.offset[k];
+          w = std::min(w, map.gridSize);
+          h = std::min(h, map.gridSize);
+          SDL_Rect dst = {y * map.gridSize + std::max(0, map.gridSize / 2 - w / 2),
+                          x * map.gridSize + std::max(0, map.gridSize / 2 - h / 2), w, h};
+          SDL_Rect src = {offset, 0, w, h};
+          renderCopy(arrows.texture, src, dst);
+        }
+      }
+      return;
     default:
+
       return;  // do nothing
   }
 }
@@ -1197,9 +1343,21 @@ void Visualizer::renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color&
   SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 }
 
+void Visualizer::renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst) {
+  SDL_Rect dstOverlap;
+  if (!cropRectByCamera(dst, dstOverlap, false)) return;
+  // find the crop region in src
+  SDL_Rect srcOverlap = {src.x + dstOverlap.x - dst.x, src.y + dstOverlap.y - dst.y, dstOverlap.w,
+                         dstOverlap.h};
+  dstOverlap.x -= camera->x;
+  dstOverlap.y -= camera->y;
+  SDL_RenderCopy(renderer, texture, &srcOverlap, &dstOverlap);
+}
+
 // Crop given rect by camera, and converts to the coordinates relative to the camera's left-top
 // corner. The results are stored into overlap. Returns false if no overlaping.
-bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap) {
+bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
+                                  bool marginToCameraCoordinates) {
   qdpf::Rectangle c{camera->x, camera->y, camera->x + camera->w - 1, camera->y + camera->h - 1};
   qdpf::Rectangle a{rect.x, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1};
   qdpf::Rectangle d;
@@ -1207,8 +1365,10 @@ bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap) {
   if (!b) return false;
   overlap.x = d.x1, overlap.y = d.y1;
   overlap.w = d.x2 - d.x1 + 1, overlap.h = d.y2 - d.y1 + 1;
-  overlap.x -= camera->x;
-  overlap.y -= camera->y;
+  if (marginToCameraCoordinates) {
+    overlap.x -= camera->x;
+    overlap.y -= camera->y;
+  }
   return true;
 }
 
@@ -1313,7 +1473,7 @@ void Visualizer::handleAstarInputBegin() {
 }
 
 void Visualizer::computeAstarNodePath() {
-  if (state != State::AStarWaitCompution && state != State::AStarNodePathComputed) {
+  if (state != State::AStarWaitCompution) {
     setMessageHint("invalid state", ImRed);
     return;
   }
@@ -1345,8 +1505,7 @@ void Visualizer::computeAstarNodePath() {
 }
 
 void Visualizer::computeAstarGatePath() {
-  if (state != State::AStarWaitCompution && state != State::AStarNodePathComputed &&
-      state != State::AStarGatePathComputed) {
+  if (state != State::AStarWaitCompution && state != State::AStarNodePathComputed) {
     setMessageHint("invalid state", ImRed);
     return;
   }
@@ -1380,7 +1539,7 @@ void Visualizer::computeAstarGatePath() {
 }
 
 void Visualizer::computeAstarFinalPath() {
-  if (state != State::AStarGatePathComputed && state != State::AStarNodePathComputed) {
+  if (state != State::AStarGatePathComputed) {
     setMessageHint("invalid state", ImRed);
     return;
   }
@@ -1467,7 +1626,7 @@ void Visualizer::handleFlowFieldInputDestRectangleBegin() {
 }
 
 void Visualizer::computeNodeFlowField() {
-  if (state != State::FlowFieldWaitCompution && state != State::FlowFieldNodeLevelComputed) {
+  if (state != State::FlowFieldWaitCompution) {
     setMessageHint("invalid state", ImRed);
     return;
   }
@@ -1496,11 +1655,12 @@ void Visualizer::computeNodeFlowField() {
   };
   flowfield.pf->VisitComputedNodeFlowField(visitor);
 
-  std::sort(flowfield.nodeFlowField.begin(), flowfield.nodeFlowField.end(),
-            [](const FlowFieldItem<const qdpf::QdNode*>& a,
-               const FlowFieldItem<const qdpf::QdNode*>& b) {
-              return (a.current->x1 < b.current->x1) || (a.current->y1 < b.current->y1);
-            });
+  // sort to draw from left-top to right-bottom.
+  auto cmp = [](const FlowFieldItem<const qdpf::QdNode*>& a,
+                const FlowFieldItem<const qdpf::QdNode*>& b) {
+    return ((a.current->x1) < (b.current->x1)) || ((a.current->y1) < (b.current->y1));
+  };
+  std::stable_sort(flowfield.nodeFlowField.begin(), flowfield.nodeFlowField.end(), cmp);
 
   setMessageHint(
       fmt::format("FlowField: Node flowfield computed! cost {}us ; Next we can click button < "
@@ -1510,8 +1670,7 @@ void Visualizer::computeNodeFlowField() {
 }
 
 void Visualizer::computeGateFlowField() {
-  if (state != State::FlowFieldWaitCompution && state != State::FlowFieldNodeLevelComputed &&
-      state != State::FlowFieldGateLevelComputed) {
+  if (state != State::FlowFieldWaitCompution && state != State::FlowFieldNodeLevelComputed) {
     setMessageHint("invalid state", ImRed);
     return;
   }
@@ -1542,10 +1701,11 @@ void Visualizer::computeGateFlowField() {
   };
   flowfield.pf->VisitComputedGateFlowField(visitor);
 
-  std::sort(flowfield.gateFlowField.begin(), flowfield.gateFlowField.end(),
-            [](const FlowFieldItem<Cell>& a, const FlowFieldItem<Cell>& b) {
-              return a.current < b.current;
-            });
+  // sort to draw from left-top to right-bottom
+  std::stable_sort(flowfield.gateFlowField.begin(), flowfield.gateFlowField.end(),
+                   [](const FlowFieldItem<Cell>& a, const FlowFieldItem<Cell>& b) {
+                     return a.current < b.current;
+                   });
 
   setMessageHint(
       fmt::format("Flowfield:: Gate flow field computed! useNodeFlowField: {}  cost {}us ; Next "
@@ -1557,7 +1717,39 @@ void Visualizer::computeGateFlowField() {
 }
 
 void Visualizer::computeFinalFlowField() {
-  // TODO
+  if (state != State::FlowFieldGateLevelComputed) {
+    setMessageHint("invalid state", ImRed);
+    return;
+  }
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+
+  if (flowfield.finalFlowField.size()) flowfield.finalFlowField.clear();
+
+  startAt = std::chrono::high_resolution_clock::now();
+  int ret = flowfield.pf->ComputeFinalFlowFieldInDestRectangle();
+  endAt = std::chrono::high_resolution_clock::now();
+  state = State::FlowFieldFinalLevelComputed;
+
+  if (-1 == ret) {
+    setMessageHint("FlowField: unreachable!", ImRed);
+    return;
+  }
+
+  qdpf::CellFlowFieldVisitor visitor = [this](int x, int y, int xNext, int yNext, int cost) {
+    flowfield.finalFlowField.push_back({{x, y}, {xNext, yNext}, cost});
+  };
+  flowfield.pf->VisitComputedCellFlowFieldInDestRectangle(visitor);
+
+  std::stable_sort(flowfield.finalFlowField.begin(), flowfield.finalFlowField.end(),
+                   [](const FlowFieldItem<Cell>& a, const FlowFieldItem<Cell>& b) {
+                     return a.current < b.current;
+                   });
+
+  setMessageHint(
+      fmt::format("Flowfield:: Final flow field computed!  cost {}us  ",
+                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      ImGreen);
 }
 
 int ParseCommandlineOptions(int argc, char* argv[]) {
