@@ -1,16 +1,17 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_render.h>
 #include <fmt/format.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <argparse/argparse.hpp>
 #include <chrono>
 #include <qdpf.hpp>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 enum Terrain {
@@ -93,7 +94,10 @@ struct AStarContext {
 };
 
 template <typename V>
-using FlowField = std::unordered_map<V, std::pair<V, int>>;  // V => {Next, cost}
+struct FlowFieldItem {
+  V current, next;
+  int cost;
+};
 
 struct FlowFieldContext {
   qdpf::FlowFieldPathFinder* pf = nullptr;
@@ -104,9 +108,11 @@ struct FlowFieldContext {
   // optional start cell.
   int x1 = -1, y1 = -1;
   // ~~~~~~ results ~~~~~~
-  FlowField<qdpf::QdNode*> nodeFlowField;
-  FlowField<int> gateFlowField;
-  FlowField<int> finalFlowField;
+  std::vector<FlowFieldItem<const qdpf::QdNode*>> nodeFlowField;
+  std::vector<FlowFieldItem<Cell>> gateFlowField;
+  std::vector<FlowFieldItem<Cell>> finalFlowField;
+
+  bool isPfReset = false;
 
   ~FlowFieldContext();
   void InitPf(qdpf::QuadtreeMapX* qmx);
@@ -158,7 +164,8 @@ enum class State {
   // ~~~~ FlowField ~~~~
   FlowFieldWaitDestLeftTop = 31,      // => FlowFieldWaitDestRightBottom
   FlowFieldWaitDestRightBottom = 32,  // => FlowFieldWaitTarget
-  FlowFieldWaitTarget = 33,           // => FlowFieldNodeLevelComputed
+  FlowFieldWaitTarget = 33,           // => FlowFieldWaitCompution
+  FlowFieldWaitCompution = 34,        // => FlowFieldNodeLevelComputed | FlowFieldGateLevelComputed
   FlowFieldNodeLevelComputed = 37,    // => FlowFieldGateLevelComputed
   FlowFieldGateLevelComputed = 38,    // => FlowFieldFinalLevelComputed
   FlowFieldFinalLevelComputed = 39,   // => Idle | FlowFieldWaitDestRightBottom
@@ -238,11 +245,13 @@ class Visualizer {
   void renderGates();
   void renderHighlightedNodes();
   void renderHighlightedNodesAstar();
+  void renderHighlightedNodesFlowField();
   void renderPathfindingDispatch();
   void renderPathfindingAStar();
   void renderPathfindingFlowField();
   void renderDrawRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderFillRect(const SDL_Rect& rect, const SDL_Color& color);
+  void renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color);
   void setMessageHint(std::string_view message, const ImVec4& color);
   // ~~~~~~ render the panel ~~~~~~~
   void renderImguiPanel();
@@ -258,6 +267,7 @@ class Visualizer {
   void computeAstarGatePath();
   void computeAstarFinalPath();
   void handleAstarInputBegin();
+  void handleFlowFieldInputDestRectangleBegin();
   // ~~~~~ flowfield ~~~~~~
   void computeNodeFlowField();
   void computeGateFlowField();
@@ -271,6 +281,9 @@ class Visualizer {
   void handleInputsChangeTerrains(SDL_Event& e);
   void handleInputsAStarSetStart(SDL_Event& e);
   void handleInputsAStarSetTarget(SDL_Event& e);
+  void handleInputsFlowFieldSetDestLeftTop(SDL_Event& e);
+  void handleInputsFlowFieldSetDestRightBottom(SDL_Event& e);
+  void handleInputsFlowFieldSetTarget(SDL_Event& e);
   // ~~~~~~~~ handlers ~~~~~~~~~~~
   void handleStartDrawBuildings();
   void handleStartDrawWater();
@@ -418,7 +431,10 @@ void FlowFieldContext::InitPf(qdpf::QuadtreeMapX* qmx) {
 }
 
 int FlowFieldContext::ResetPf(int agentSize, int capabilities) {
-  return pf->Reset(x2, y2, dest, agentSize, capabilities);
+  if (isPfReset) return 0;
+  auto ret = pf->Reset(x2, y2, dest, agentSize, capabilities);
+  isPfReset = true;
+  return ret;
 }
 
 void FlowFieldContext::ClearResults() {
@@ -430,6 +446,7 @@ void FlowFieldContext::Reset() {
   x2 = y2 = 0;
   x1 = y1 = -1;
   dest = {0, 0, 0, 0};
+  isPfReset = false;
 }
 
 Camera::Camera(int w, int h, int mpw, int mph) : w(w), h(h), mpw(mpw), mph(mph) {}
@@ -592,14 +609,9 @@ void Visualizer::handleInputs() {
     handleInputsShortcuts(e);
     handleInputsForCrameMovementsByKeyBoard(e);
 
-    // ImGui didn't handle this mouse event, turn it to SDL.
-    if (!io.WantCaptureMouse) {
+    // ImGui didn't handle this event, turn it to SDL.
+    if (!io.WantCaptureMouse && !io.WantCaptureKeyboard) {
       handleInputsForCrameMovementsByMouse(e);
-      handleInputsDispatchByState(e);
-    }
-
-    // ImGui didn't handle this keyboard event, turn it to SDL.
-    if (!io.WantCaptureKeyboard) {
       handleInputsDispatchByState(e);
     }
   }
@@ -663,6 +675,15 @@ void Visualizer::handleInputsDispatchByState(SDL_Event& e) {
     case State::AStarWaitTarget:
       handleInputsAStarSetTarget(e);
       break;
+    case State::FlowFieldWaitDestLeftTop:
+      handleInputsFlowFieldSetDestLeftTop(e);
+      break;
+    case State::FlowFieldWaitDestRightBottom:
+      handleInputsFlowFieldSetDestRightBottom(e);
+      break;
+    case State::FlowFieldWaitTarget:
+      handleInputsFlowFieldSetTarget(e);
+      break;
     default:
       break;  // avoid warning.
   }
@@ -699,6 +720,35 @@ void Visualizer::handleInputsAStarSetTarget(SDL_Event& e) {
     astar.y2 = cell.second;
     state = State::AStarWaitCompution;
     setMessageHint("A*: waiting to click a compution button", ImGreen);
+  }
+}
+
+void Visualizer::handleInputsFlowFieldSetDestLeftTop(SDL_Event& e) {
+  if (e.type == SDL_MOUSEBUTTONDOWN) {
+    auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+    flowfield.dest.x1 = cell.first;
+    flowfield.dest.y1 = cell.second;
+    state = State::FlowFieldWaitDestRightBottom;
+    setMessageHint("FlowField: waiting to click a right-bottom cell", ImGreen);
+  }
+}
+void Visualizer::handleInputsFlowFieldSetDestRightBottom(SDL_Event& e) {
+  if (e.type == SDL_MOUSEBUTTONDOWN) {
+    auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+    flowfield.dest.x2 = cell.first;
+    flowfield.dest.y2 = cell.second;
+    state = State::FlowFieldWaitTarget;
+    setMessageHint("FlowField: waiting to click a target cell", ImGreen);
+  }
+}
+
+void Visualizer::handleInputsFlowFieldSetTarget(SDL_Event& e) {
+  if (e.type == SDL_MOUSEBUTTONDOWN) {
+    auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+    flowfield.x2 = cell.first;
+    flowfield.y2 = cell.second;
+    state = State::FlowFieldWaitCompution;
+    setMessageHint("FlowField: waiting to click a compution button", ImGreen);
   }
 }
 
@@ -869,23 +919,34 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar() {
 }
 
 void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
-  // TODO
-  if (ImGui::Button("Set Start Rectangle  < S >")) {
-    // TODO Drag a rectangle
+  if (ImGui::Button("Set Start Rectangle and Target")) {
+    handleFlowFieldInputDestRectangleBegin();
   }
-  if (ImGui::Button("Set Target  < T >")) {
-    // TODO
+
+  if (ImGui::IsItemHovered()) {
+    ImGui::BeginTooltip();
+    ImGui::Text(
+        "Click the left-top and right-bottom corners of the start rectangle, and then click a "
+        "target");
+    ImGui::EndTooltip();
   }
+
+  ImGui::SameLine();
+
   if (ImGui::Button("Compute Node FlowField")) {
-    // TODO
+    computeNodeFlowField();
   }
+
   ImGui::SameLine();
+
   if (ImGui::Button("Compute Gate FlowField")) {
-    // TODO
+    computeGateFlowField();
   }
+
   ImGui::SameLine();
+
   if (ImGui::Button("Compute Final FlowField")) {
-    // TODO
+    computeFinalFlowField();
   }
 }
 
@@ -975,6 +1036,14 @@ void Visualizer::renderHighlightedNodes() {
     case State::AStarFinalPathComputed:
       renderHighlightedNodesAstar();
       break;
+    case State::FlowFieldNodeLevelComputed:
+      renderHighlightedNodesFlowField();
+      [[fallthrough]];
+    case State::FlowFieldGateLevelComputed:
+      [[fallthrough]];
+    case State::FlowFieldFinalLevelComputed:
+      renderHighlightedNodesFlowField();
+      break;
     default:
       break;  // avoiding warning
   }
@@ -983,6 +1052,20 @@ void Visualizer::renderHighlightedNodes() {
 
 void Visualizer::renderHighlightedNodesAstar() {
   for (auto node : astar.nodePath) {
+    int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
+    int h = (x2 - x1 + 1) * map.gridSize;
+    int w = (y2 - y1 + 1) * map.gridSize;
+    int x = y1 * map.gridSize;
+    int y = x1 * map.gridSize;
+    SDL_Rect rect = {x, y, w, h};
+    SDL_Rect inner = {x + 1, y + 1, w - 2, h - 2};
+    renderFillRect(inner, LightOrange);
+  }
+}
+
+void Visualizer::renderHighlightedNodesFlowField() {
+  for (auto [node, nextNode, cost] : flowfield.nodeFlowField) {
+    // highlight node with background orange
     int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
     int h = (x2 - x1 + 1) * map.gridSize;
     int w = (y2 - y1 + 1) * map.gridSize;
@@ -1038,8 +1121,51 @@ void Visualizer::renderPathfindingAStar() {
 }
 
 void Visualizer::renderPathfindingFlowField() {
-  // TODO
+  auto drawCell = [this](int x, int y, const SDL_Color& color) {
+    SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
+    renderFillRect(cell, color);
+  };
+
+  auto drawDestRectangle = [this]() {
+    // render the dest rect
+    SDL_Rect dest{
+        flowfield.dest.y1 * map.gridSize,
+        flowfield.dest.x1 * map.gridSize,
+        (flowfield.dest.y2 - flowfield.dest.y1 + 1) * map.gridSize,
+        (flowfield.dest.x2 - flowfield.dest.x1 + 1) * map.gridSize,
+    };
+    SDL_Rect inner{dest.x + 1, dest.y + 1, dest.w - 2, dest.h - 2};
+    renderDrawRect(dest, Green);
+    renderDrawRect(inner, Green);
+  };
+
   switch (state) {
+    case State::FlowFieldWaitDestRightBottom:
+      drawCell(flowfield.dest.x1, flowfield.dest.y1, Green);  // dest.left-top
+      return;
+    case State::FlowFieldWaitTarget:
+      drawDestRectangle();
+      drawCell(flowfield.dest.x1, flowfield.dest.y1, Green);  // dest.left-top
+      drawCell(flowfield.dest.x2, flowfield.dest.y2, Green);  // dest.right-bottom
+      return;
+    case State::FlowFieldWaitCompution:
+      [[fallthrough]];
+    case State::FlowFieldNodeLevelComputed:
+      // NOTE the highlighting of the node field are already done in
+      // renderHighlightedNodesFlowField
+      drawDestRectangle();
+      drawCell(flowfield.dest.x1, flowfield.dest.y1, Green);  // dest.left-top
+      drawCell(flowfield.dest.x2, flowfield.dest.y2, Green);  // dest.right-bottom
+      drawCell(flowfield.x2, flowfield.y2, Green);            // target
+      return;
+    case State::FlowFieldGateLevelComputed:
+      drawDestRectangle();
+      // draw gate cells on the flowfield.
+      for (int i = 0; i < flowfield.gateFlowField.size(); ++i) {
+        auto& [gate, nextNext, cost] = flowfield.gateFlowField[i];
+        drawCell(gate.first, gate.second, Green);
+      }
+      return;
     default:
       return;  // do nothing
   }
@@ -1059,6 +1185,16 @@ void Visualizer::renderFillRect(const SDL_Rect& rect, const SDL_Color& color) {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     SDL_RenderFillRect(renderer, &overlap);
   }
+}
+
+void Visualizer::renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color) {
+  // TODO: how to crop?
+  x1 -= camera->x;
+  x2 -= camera->x;
+  y1 -= camera->y;
+  y2 -= camera->y;
+  SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+  SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 }
 
 // Crop given rect by camera, and converts to the coordinates relative to the camera's left-top
@@ -1168,6 +1304,9 @@ Cell Visualizer::getCellAtPixelPosition(int x, int y) const {
 }
 
 void Visualizer::handleAstarInputBegin() {
+  if (pathfinderFlag != PathFinderFlag::AStar) {
+    pathfinderFlag = PathFinderFlag::AStar;
+  }
   if (state != State::Idle) reset();
   state = State::AStarWaitStart;
   setMessageHint("A*: waiting to click a start cell", ImGreen);
@@ -1183,9 +1322,11 @@ void Visualizer::computeAstarNodePath() {
     return;
   }
   std::chrono::high_resolution_clock::time_point startAt, endAt;
-  startAt = std::chrono::high_resolution_clock::now();
 
+  startAt = std::chrono::high_resolution_clock::now();
   int cost = astar.pf->ComputeNodeRoutes();
+  endAt = std::chrono::high_resolution_clock::now();
+
   state = State::AStarNodePathComputed;
   if (cost == -1) {
     setMessageHint("A*: unreachable!", ImRed);
@@ -1195,8 +1336,6 @@ void Visualizer::computeAstarNodePath() {
   if (astar.nodePath.size()) astar.nodePath.clear();
   qdpf::NodeVisitor visitor = [this](const qdpf::QdNode* node) { astar.nodePath.push_back(node); };
   if (astar.pf->NodePathSize()) astar.pf->VisitComputedNodeRoutes(visitor);
-
-  endAt = std::chrono::high_resolution_clock::now();
 
   setMessageHint(
       fmt::format(
@@ -1217,14 +1356,16 @@ void Visualizer::computeAstarGatePath() {
   }
 
   std::chrono::high_resolution_clock::time_point startAt, endAt;
-  startAt = std::chrono::high_resolution_clock::now();
 
   if (astar.gatePath.size()) astar.gatePath.clear();
   bool useNodePath = astar.pf->NodePathSize() > 0;
   qdpf::CellCollector collector = [this](int x, int y) { astar.gatePath.push_back({x, y}); };
+
+  startAt = std::chrono::high_resolution_clock::now();
   int cost = astar.pf->ComputeGateRoutes(collector, useNodePath);
-  state = State::AStarGatePathComputed;
   endAt = std::chrono::high_resolution_clock::now();
+
+  state = State::AStarGatePathComputed;
   if (cost == -1) {
     setMessageHint("A*: unreachable!", ImRed);
     return;
@@ -1247,9 +1388,10 @@ void Visualizer::computeAstarFinalPath() {
     setMessageHint("A*: empty gate route cells!", ImRed);
     return;
   }
-  std::chrono::high_resolution_clock::time_point startAt, endAt;
-  startAt = std::chrono::high_resolution_clock::now();
   if (astar.finalPath.size()) astar.finalPath.clear();
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+
   qdpf::CellCollector collector = [this](int x, int y) {
     if (astar.finalPath.size()) {
       auto [x2, y2] = astar.finalPath.back();
@@ -1257,6 +1399,9 @@ void Visualizer::computeAstarFinalPath() {
     }
     astar.finalPath.push_back({x, y});
   };
+
+  startAt = std::chrono::high_resolution_clock::now();
+
   auto [x, y] = astar.gatePath[0];
   for (int i = 1; i < astar.gatePath.size(); i++) {
     auto [x2, y2] = astar.gatePath[i];
@@ -1265,6 +1410,7 @@ void Visualizer::computeAstarFinalPath() {
   }
   state = State::AStarFinalPathComputed;
   endAt = std::chrono::high_resolution_clock::now();
+
   setMessageHint(
       fmt::format(
           "A*: final path computed! cost {}us ; Click button < Reset > to clear these results.",
@@ -1298,6 +1444,8 @@ std::string StateToString(State state) {
       return "(FlowField) Wait Input Dest Rectangle (right-bottom)";
     case State::FlowFieldWaitTarget:
       return "(FlowField) Wait Input Target";
+    case State::FlowFieldWaitCompution:
+      return "(FlowField) Wait Compution";
     case State::FlowFieldNodeLevelComputed:
       return "(FlowField) Node Flow Field Computed";
     case State::FlowFieldGateLevelComputed:
@@ -1307,6 +1455,109 @@ std::string StateToString(State state) {
     default:
       return "Unknown";
   }
+}
+
+void Visualizer::handleFlowFieldInputDestRectangleBegin() {
+  if (pathfinderFlag != PathFinderFlag::FlowField) {
+    pathfinderFlag = PathFinderFlag::FlowField;
+  }
+  if (state != State::Idle) reset();
+  state = State::FlowFieldWaitDestLeftTop;
+  setMessageHint("FlowField: waiting to click a left-top cell", ImGreen);
+}
+
+void Visualizer::computeNodeFlowField() {
+  if (state != State::FlowFieldWaitCompution && state != State::FlowFieldNodeLevelComputed) {
+    setMessageHint("invalid state", ImRed);
+    return;
+  }
+  if (0 != flowfield.ResetPf(agent.size, agent.capability)) {
+    setMessageHint("internal error: flowfield reset failure", ImRed);
+    return;
+  }
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+
+  startAt = std::chrono::high_resolution_clock::now();
+  int ret = flowfield.pf->ComputeNodeFlowField();
+  endAt = std::chrono::high_resolution_clock::now();
+
+  state = State::FlowFieldNodeLevelComputed;
+  if (ret == -1) {
+    setMessageHint("FlowField: unreachable!", ImRed);
+    return;
+  }
+
+  if (flowfield.nodeFlowField.size()) flowfield.nodeFlowField.clear();
+
+  qdpf::NodeFlowFieldVisitor visitor = [this](const qdpf::QdNode* node,
+                                              const qdpf::QdNode* nextNode, int cost) {
+    if (node != nullptr) flowfield.nodeFlowField.push_back({node, nextNode, cost});
+  };
+  flowfield.pf->VisitComputedNodeFlowField(visitor);
+
+  std::sort(flowfield.nodeFlowField.begin(), flowfield.nodeFlowField.end(),
+            [](const FlowFieldItem<const qdpf::QdNode*>& a,
+               const FlowFieldItem<const qdpf::QdNode*>& b) {
+              return (a.current->x1 < b.current->x1) || (a.current->y1 < b.current->y1);
+            });
+
+  setMessageHint(
+      fmt::format("FlowField: Node flowfield computed! cost {}us ; Next we can click button < "
+                  "Compute Gate Flow Field  >.",
+                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      ImGreen);
+}
+
+void Visualizer::computeGateFlowField() {
+  if (state != State::FlowFieldWaitCompution && state != State::FlowFieldNodeLevelComputed &&
+      state != State::FlowFieldGateLevelComputed) {
+    setMessageHint("invalid state", ImRed);
+    return;
+  }
+
+  if (0 != flowfield.ResetPf(agent.size, agent.capability)) {
+    setMessageHint("internal error: flowfield reset failure", ImRed);
+    return;
+  }
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+
+  if (flowfield.gateFlowField.size()) flowfield.gateFlowField.clear();
+  bool useNodeFlowField = flowfield.nodeFlowField.size() > 0;
+
+  startAt = std::chrono::high_resolution_clock::now();
+  int ret = flowfield.pf->ComputeGateFlowField(useNodeFlowField);
+  endAt = std::chrono::high_resolution_clock::now();
+
+  state = State::FlowFieldGateLevelComputed;
+
+  if (-1 == ret) {
+    setMessageHint("FlowField: unreachable!", ImRed);
+    return;
+  }
+
+  qdpf::CellFlowFieldVisitor visitor = [this](int x, int y, int xNext, int yNext, int cost) {
+    flowfield.gateFlowField.push_back({{x, y}, {xNext, yNext}, cost});
+  };
+  flowfield.pf->VisitComputedGateFlowField(visitor);
+
+  std::sort(flowfield.gateFlowField.begin(), flowfield.gateFlowField.end(),
+            [](const FlowFieldItem<Cell>& a, const FlowFieldItem<Cell>& b) {
+              return a.current < b.current;
+            });
+
+  setMessageHint(
+      fmt::format("Flowfield:: Gate flow field computed! useNodeFlowField: {}  cost {}us ; Next "
+                  "we can click button "
+                  "< Compute Final Flow Field >.",
+                  useNodeFlowField,
+                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      ImGreen);
+}
+
+void Visualizer::computeFinalFlowField() {
+  // TODO
 }
 
 int ParseCommandlineOptions(int argc, char* argv[]) {
