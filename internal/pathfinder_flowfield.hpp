@@ -278,9 +278,9 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   while (q.size()) {
     u = q.top().second;
     q.pop();
-    if (stopAfterTester != nullptr && stopAfterTester(u)) break;
     if (vis[u]) continue;
     vis[u] = true;
+    if (stopAfterTester != nullptr && stopAfterTester(u)) break;
     neighborsCollector(u, expand);
   }
 }
