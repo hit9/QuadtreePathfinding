@@ -400,7 +400,7 @@ void FlowFieldPathFinderImpl::findNeighbourCellByNext(int x, int y, int x1, int 
   // for case: dx != 0
 
   // slope
-  double k = static_cast<double>(dy) / dx;
+  float k = static_cast<float>(dy) / dx;
 
   if (abs(dx) >= abs(dy)) {
     x2 = x + ((dx > 0) ? 1 : -1);
