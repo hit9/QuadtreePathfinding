@@ -657,8 +657,14 @@ void Visualizer::Destroy() {
 }
 
 void Visualizer::destroyArrowsFont() {
-  TTF_CloseFont(arrows.font);
-  SDL_DestroyTexture(arrows.texture);
+  if (arrows.font != nullptr) {
+    TTF_CloseFont(arrows.font);
+    arrows.font = nullptr;
+  }
+  if (arrows.texture != nullptr) {
+    SDL_DestroyTexture(arrows.texture);
+    arrows.texture = nullptr;
+  }
 }
 
 void Visualizer::destroySDL() {
