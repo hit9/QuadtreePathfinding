@@ -105,7 +105,7 @@ void FlowFieldPathFinderImpl::Reset(const QuadtreeMap *m, int x2, int y2,
         int u = m->PackXY(x, y);
         // detail notice is: we should skip u if it's a gate cell on the map's graph,
         // since we already connect all gate cells with t.
-        if (u != t && m->IsGateCell(tNode, u)) {
+        if (u != t && !m->IsGateCell(tNode, u)) {
           ConnectCellsOnTmpGraph(u, t);
           // We should consider u as a new tmp "gate" cell.
           //  we should add it to overlapping gates collection.
@@ -151,12 +151,18 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
 void FlowFieldPathFinderImpl::collectGateCellsOnNodeField() {
   gateCellsOnNodeFields.insert(t);
 
+  // We have to add all non-gate neighbours of t on the tmp graph.
+  NeighbourVertexVisitor<int> tmpNeighbourVisitor = [this](int v, int cost) {
+    if (!m->IsGateCell(tNode, v)) gateCellsOnNodeFields.insert(v);
+  };
+  tmp.ForEachNeighbours(t, tmpNeighbourVisitor);
+
   // gateVisitor collects the gate between current node and nextNode.
   QdNode *node = nullptr, *nextNode = nullptr;
 
   // gateVisitor is to collect gates inside current node.
   GateVisitor gateVisitor = [this, &node, &nextNode](const Gate *gate) {
-    // tNode has no next.
+    // tNode has no next
     if (node == tNode || node == nullptr || nextNode == nullptr) return;
     // collect only the gates between current node and next node.
     if (gate->bNode == nextNode) {

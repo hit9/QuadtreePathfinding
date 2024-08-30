@@ -22,7 +22,7 @@ using NeighbourVertexVisitor = std::function<void(Vertex v, int cost)>;
 
 // IDirectedGraph is the interface of a directed graph.
 // The parameter Vertex is the type of vertex (e.g. int).
-// It's a pure virtual class so that the subclasses should implement all the virtual methods.
+// The subclasses should implement all the virtual methods.
 template <typename Vertex>
 class IDirectedGraph {
  public:
