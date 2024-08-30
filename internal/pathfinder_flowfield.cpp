@@ -6,6 +6,8 @@
 #include <cassert>
 #include <cstdlib>
 
+#include "base.hpp"
+
 namespace qdpf {
 namespace internal {
 
@@ -130,10 +132,11 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
 
   // stops earlier if all nodes overlapping with the query range are checked.
 
-  // n counts the number of nodes marked by dijkstra, for nodes inside nodesOverlappingQueryRange.
+  // n counts the number of nodes marked by flowfield algorithm, for nodes inside
+  // nodesOverlappingQueryRange.
   int n = 0;
 
-  // stopf is a function to stop the dijkstra algorithm from execution after given vertex (the
+  // stopf is a function to stop the flowfield algorithm from execution after given vertex (the
   // node) is marked.
   FFA1::StopAfterFunction stopf = [&n, this](QdNode *node) {
     if (nodesOverlappingQueryRange.find(node) != nodesOverlappingQueryRange.end()) ++n;
@@ -197,7 +200,8 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
 
   // stops earlier if all gates inside the query range are checked.
 
-  // n counts the number of gates marked by dijkstra, for gates inside gatesOverlappingQueryRange.
+  // n counts the number of gates marked by flowfield algorithm, for gates inside
+  // gatesOverlappingQueryRange.
   int n = 0;
 
   FFA2::StopAfterFunction stopf = [this, &n](int u) {
@@ -397,24 +401,14 @@ void FlowFieldPathFinderImpl::findNeighbourCellByNext(int x, int y, int x1, int 
     return;
   }
 
-  // for case: dx = 0 and dy not inside [-1,1]
-  if (dx == 0) {
-    x2 = x;
-    y2 = y + ((dy > 0) ? 1 : -1);
-  }
-
-  // for case: dx != 0
-
-  // slope
-  float k = static_cast<float>(dy) / dx;
-
-  if (abs(dx) >= abs(dy)) {
-    x2 = x + ((dx > 0) ? 1 : -1);
-    y2 = y + k * (x2 - x);
-  } else {
-    y2 = y + ((dy > 0) ? 1 : -1);
-    x2 = x + (y2 - y) / k;
-  }
+  // We draw a straight line from (x,y) to (x1,y1)
+  // but we just stop the draw until the second cell, that is the neighbour.
+  CellCollector collector = [&x2, &y2, x, y](int x3, int y3) {
+    if (x3 == x && y3 == y) return;
+    x2 = x3;
+    y2 = y3;
+  };
+  ComputeStraightLine(x, y, x1, y1, collector, 2);
 }
 
 void FlowFieldPathFinderImpl::VisitCellFlowField(const CellFlowField &cellFlowField,

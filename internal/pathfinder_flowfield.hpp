@@ -170,14 +170,14 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // ~~~~~ for earlier quit ~~~~~~~
   // nodes overlapping with the query range.
   // this node collection is to stop the ffa1 pathfinder's compution earlier once
-  // all the related nodes are marked via dijkstra.
+  // all the related nodes are marked via flowfield algorithm.
   std::unordered_set<const QdNode*> nodesOverlappingQueryRange;
 
   // this gate collection includes two parts:
   // 1. gate cells inside the nodes within nodesOverlappingQueryRange.
   // 2. virtual gate cells inside the tmp graph.
   // Its purpose is also to stop the ffa2 pathfinder's compution earlier once all the
-  // related gates are marked via dijkstra.
+  // related gates are marked via flowfield algorithm.
   std::unordered_set<int> gatesInNodesOverlappingQueryRange;
 
   // to reduce the number of gates that participating the ComputeGateFlowField():
@@ -199,7 +199,7 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   QdNodeVisitor nodesOverlappingQueryRangeCollector = nullptr;
   // lambda to collect gate cells inside a node within nodesOverlappingQueryRange.
   GateVisitor gatesInNodesOverlappingQueryRangeCollector = nullptr;
-  // neighbor queriers for dijkstra.
+  // neighbor queriers for the flowfield algorithm.
   FFA1::NeighboursCollectorT ffa1NeighborsCollector = nullptr;
   FFA2::NeighboursCollectorT ffa2NeighborsCollector = nullptr;
 

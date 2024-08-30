@@ -31,7 +31,9 @@ int CountBits(unsigned int n);
 // You can override it with a custom implementation.
 // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 // Ref: https://members.chello.at/easyfilter/bresenham.html
-void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector);
+// the parameter limit is to limit the steps: -1 for no limitation.
+// e.g. the first step is always (x1,y1), to obtain the next cell, pass limit = 2.
+void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector, int limit = -1);
 
 // AABB overlap testing.
 // Checks if rectangle a and b overlaps.
