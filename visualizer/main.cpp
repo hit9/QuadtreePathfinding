@@ -292,6 +292,8 @@ class Visualizer {
   void renderPathfindingDispatch();
   void renderPathfindingAStar();
   void renderPathfindingFlowField();
+  void renderPathFindingFlowFieldGateField();
+  void renderPathFindingFlowFieldFinalField();
   void renderDrawRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderFillRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color);
@@ -1287,39 +1289,49 @@ void Visualizer::renderPathfindingFlowField() {
       return;
     case State::FlowFieldGateLevelComputed:
       drawDestRectangle();
-      // draw gate cells on the flowfield.
-      for (int i = 0; i < flowfield.gateFlowField.size(); ++i) {
-        auto& [gate, nextNext, cost] = flowfield.gateFlowField[i];
-        drawCell(gate.first, gate.second, Green);
-      }
+      renderPathFindingFlowFieldGateField();
       return;
     case State::FlowFieldFinalLevelComputed:
       drawDestRectangle();
       drawCell(flowfield.x2, flowfield.y2, Green);  // target
-      for (int i = 0; i < flowfield.finalFlowField.size(); ++i) {
-        auto& [u, v, cost] = flowfield.finalFlowField[i];
-        auto [x, y] = u;
-        auto [x1, y1] = v;
-        if (u == v) continue;
-        if (x >= flowfield.dest.x1 && x <= flowfield.dest.x2 && y >= flowfield.dest.y1 &&
-            y <= flowfield.dest.y2) {
-          int dx = (x1 - x), dy = (y1 - y);
-          int d = (dx + 1) * 3 + (dy + 1);
-          if (!(d >= 0 && d <= 8 && d != 4)) continue;
-          int k = ARROWS_DIRECTIONS[d];
-          int w = arrows.w[k], h = arrows.h, offset = arrows.offset[k];
-          w = std::min(w, map.gridSize);
-          h = std::min(h, map.gridSize);
-          SDL_Rect dst = {y * map.gridSize + std::max(0, map.gridSize / 2 - w / 2),
-                          x * map.gridSize + std::max(0, map.gridSize / 2 - h / 2), w, h};
-          SDL_Rect src = {offset, 0, w, h};
-          renderCopy(arrows.texture, src, dst);
-        }
-      }
+      renderPathFindingFlowFieldFinalField();
       return;
     default:
 
       return;  // do nothing
+  }
+}
+
+void Visualizer::renderPathFindingFlowFieldGateField() {
+  // draw gate cells on the flowfield.
+  for (int i = 0; i < flowfield.gateFlowField.size(); ++i) {
+    auto& [gate, nextNext, cost] = flowfield.gateFlowField[i];
+    auto [x, y] = gate;
+    SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
+    renderFillRect(cell, Green);
+  }
+}
+
+void Visualizer::renderPathFindingFlowFieldFinalField() {
+  for (int i = 0; i < flowfield.finalFlowField.size(); ++i) {
+    auto& [u, v, cost] = flowfield.finalFlowField[i];
+    auto [x, y] = u;
+    auto [x1, y1] = v;
+    if (u == v) continue;
+    if (x >= flowfield.dest.x1 && x <= flowfield.dest.x2 && y >= flowfield.dest.y1 &&
+        y <= flowfield.dest.y2) {
+      int dx = (x1 - x), dy = (y1 - y);
+      int d = (dx + 1) * 3 + (dy + 1);
+      if (!(d >= 0 && d <= 8 && d != 4)) continue;
+      int k = ARROWS_DIRECTIONS[d];
+      int w = arrows.w[k], h = arrows.h, offset = arrows.offset[k];
+      w = std::min(w, map.gridSize);
+      h = std::min(h, map.gridSize);
+      SDL_Rect dst = {y * map.gridSize + std::max(0, map.gridSize / 2 - w / 2),
+                      x * map.gridSize + std::max(0, map.gridSize / 2 - h / 2), w, h};
+      SDL_Rect src = {offset, 0, w, h};
+      renderCopy(arrows.texture, src, dst);
+    }
   }
 }
 
