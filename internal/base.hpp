@@ -67,6 +67,7 @@ class DefaultedUnorderedMap {
   void Clear() { m.clear(); }
   // Returns a const reference to underlying map.
   const UnderlyingUnorderedMap &GetUnderlyingUnorderedMap() const { return m; }
+  std::size_t Size() const { return m.size(); }
 
  private:
   V defaultValue = DefaultValue;
