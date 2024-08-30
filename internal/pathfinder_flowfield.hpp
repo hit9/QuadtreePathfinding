@@ -211,10 +211,15 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
   // DP value container of from for ComputeFinalFlowFieldInQueryRange()
   using Final_From = NestedDefaultedUnorderedMap<int, int, int, inf>;
+  // B[x][y] is the container indicates that whether cell (x,y) is on the computed gate flow field.
+  // which is a helper typing for ComputeFinalFlowFieldInQueryRange().
+  using Final_B = NestedDefaultedUnorderedMap<int, int, bool, false>;
 
   void findNeighbourCellByNext(int x, int y, int x1, int y1, int& x2, int& y2);
-  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
-  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, int c1, int c2);
+  void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
+                                int c1, int c2);
+  void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
+                                int c1, int c2);
 };
 
 // ~~~~~~~~~~~~~~~ Implements FlowField Algorithm ~~~~~~~~~~~

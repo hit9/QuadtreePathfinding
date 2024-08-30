@@ -248,16 +248,28 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
   // for an other cell inside qrange, it will finally point to a neighbour cell via DP.
   Final_From from;
 
+  // b[x][y] indicates whether the (x,y) is on the computed gate flow field.
+  Final_B b;
+
   // initialize f from computed gate flow field.
   for (auto [v, cost] : gateFlowField.costs.GetUnderlyingUnorderedMap()) {
     auto next = gateFlowField.nexts[v];
+
     auto [x, y] = m->UnpackXY(v);
-    f[x][y] = cost;
-    // force it points to a neighbour on the direction to next.
     auto [x1, y1] = m->UnpackXY(next);
-    int x2, y2;
-    findNeighbourCellByNext(x, y, x1, y1, x2, y2);
-    from[x][y] = m->PackXY(x2, y2);
+
+    f[x][y] = cost;
+
+    // force it points to a neighbour on the direction to next,
+    // if the (x,y) is inside the query range.
+    if (x >= qrange.x1 && x <= qrange.x2 && y >= qrange.y1 && y <= qrange.y2) {
+      int x2, y2;
+      findNeighbourCellByNext(x, y, x1, y1, x2, y2);
+      from[x][y] = m->PackXY(x2, y2);
+    }
+
+    // don't recompute the cells from gate flowfield.
+    b[x][y] = true;
   }
 
   // cost unit on HV(horizonal and vertical) and diagonal directions.
@@ -266,8 +278,8 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
   // computes dp for each node, from node borders to inner.
   // why dp works: every node is empty (without obstacles inside it).
   for (auto node : nodesOverlappingQueryRange) {
-    computeFinalFlowFieldDP1(node, f, from, c1, c2);
-    computeFinalFlowFieldDP2(node, f, from, c1, c2);
+    computeFinalFlowFieldDP1(node, f, from, b, c1, c2);
+    computeFinalFlowFieldDP2(node, f, from, b, c1, c2);
   }
 
   // computes the flow field in the query range.
@@ -278,7 +290,7 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
       auto [x1, y1] = m->UnpackXY(from[x][y]);
       // f is inf: unreachable
       if (f[x][y] == inf || from[x][y] == inf) continue;
-      // from is inf: ? gate cells?
+
       int v = m->PackXY(x, y);
       finalFlowField.costs[v] = f[x][y];
       finalFlowField.nexts[v] = from[x][y];
@@ -292,10 +304,14 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
 // From left-top corner to right-bottom corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final_F &f,
-                                                       Final_From &from, int c1, int c2) {
+                                                       Final_From &from, Final_B &b, int c1,
+                                                       int c2) {
   int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
   for (int x = x1; x <= x2; ++x) {
     for (int y = y1; y <= y2; ++y) {
+      // skipping the cells that already computed in the gate flow field.
+      if (b[x][y]) continue;
+
       int xfrom = -1, yfrom = -1;
 
       if (x > 0 && y > 0 && f[x][y] > f[x - 1][y - 1] + c2) {  // left-up
@@ -323,10 +339,14 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
 // From right-bottom corner to left-top corner.
 // c1 and c2 is the unit cost for HV and diagonal directions.
 void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final_F &f,
-                                                       Final_From &from, int c1, int c2) {
+                                                       Final_From &from, Final_B &b, int c1,
+                                                       int c2) {
   int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
   for (int x = x2; x >= x1; --x) {
     for (int y = y2; y >= y1; --y) {
+      // skipping the cells that already computed in the gate flow field.
+      if (b[x][y]) continue;
+
       int xfrom = -1, yfrom = -1;
 
       if (x < x2 && y < y2 && f[x][y] > f[x + 1][y + 1] + c2) {  // right-bottom
