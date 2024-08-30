@@ -114,11 +114,14 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
   // the target is an obstacle, unreachable
   if (m->IsObstacle(x2, y2)) return -1;
 
+  // ensures that we can call it for multiple times
+  if (nodeFlowField.costs.Size()) nodeFlowField.Clear();
+
   // stops earlier if all nodes inside the dest rectangle are checked.
   int numNodesInDestChecked = 0;
   FFA1::StopAfterFunction stopf = [&numNodesInDestChecked, this](QdNode *node) {
     if (nodesInDest.find(node) != nodesInDest.end()) ++numNodesInDestChecked;
-    return numNodesInDestChecked >= nodesInDest.size();
+    return numNodesInDestChecked > nodesInDest.size();
   };
 
   // Compute flowfield on the node graph.
@@ -156,13 +159,18 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
   if (tNode == nullptr) return -1;
   if (m->IsObstacle(x2, y2)) return -1;
 
-  if (useNodeFlowField) collectGateCellsOnNodeField();
+  // ensures that we can call it for multiple times
+  if (gateFlowField.costs.Size()) gateFlowField.Clear();
+  if (useNodeFlowField) {
+    if (gateCellsOnNodeFields.size()) gateCellsOnNodeFields.clear();
+    collectGateCellsOnNodeField();
+  }
 
   // stops earlier if all gates inside the dest rectangle are checked.
   int numGatesInDestChecked = 0;
   FFA2::StopAfterFunction stopf = [this, &numGatesInDestChecked](int u) {
     if (gatesInDest.find(u) != gatesInDest.end()) ++numGatesInDestChecked;
-    return numGatesInDestChecked >= gatesInDest.size();
+    return numGatesInDestChecked > gatesInDest.size();
   };
 
   // if useNodeFlowField is true, we visit only the gate cells on the node field.
@@ -193,6 +201,9 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
 int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInDestRectangle() {
   if (tNode == nullptr) return -1;
   if (m->IsObstacle(x2, y2)) return -1;
+
+  // ensures that we can call it for multiple times
+  if (finalFlowField.costs.Size()) finalFlowField.Clear();
 
   // width and height of rectangle.
   int w = dest.y2 - dest.y1 + 1, h = dest.x2 - dest.x1 + 1;
