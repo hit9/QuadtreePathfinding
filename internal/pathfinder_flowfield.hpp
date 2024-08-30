@@ -56,7 +56,7 @@ using UnpackedCellFlowFieldVisitor =
 //////////////////////////////////////
 
 // flow field algorithm:
-// 1. Compute the cost field by reverse-traversing from the target, using the dijkstra algorithm.
+// 1. Compute the cost field by reverse-traversing from the target, using the astar algorithm.
 // 2. Compute the flow field by comparing each vertex with its neighours vertices.
 
 template <typename Vertex, Vertex NullVertex,
@@ -69,6 +69,9 @@ class FlowFieldAlgorithm {
 
   // Test on a vertex, after its processing, whether to stop the whole flowfield processing.
   using StopAfterFunction = std::function<bool(Vertex)>;
+
+  // The heuristic function for astar, it's optional.
+  using HeuristicFunction = std::function<int(Vertex u)>;
 
   // The n is the upper bound of the number of vertices on the graph.
   FlowFieldAlgorithm(int n);
@@ -87,6 +90,8 @@ class FlowFieldAlgorithm {
   void Compute(Vertex t, FlowFieldT& field, NeighboursCollectorT& neighborsCollector,
                NeighbourFilterTesterT neighborTester, StopAfterFunction& stopAfterTester);
 
+  void SetHeuristicFunction(HeuristicFunction f) { heuristic = f; }
+
  private:
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
@@ -94,6 +99,8 @@ class FlowFieldAlgorithm {
   int n;
   // avoid reallocations..
   Vis vis;  // visit array.
+
+  HeuristicFunction heuristic = nullptr;
 };
 
 //////////////////////////////////////
@@ -162,6 +169,7 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
   // final compution results ared limited within this rectangle.
   Rectangle qrange;
+  int qrangeCenterX, qrangeCenterY;
   // target.
   int x2, y2;
   int t;
@@ -234,7 +242,7 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
                                                           NeighboursCollectorT& neighborsCollector,
                                                           NeighbourFilterTesterT neighborTester,
                                                           StopAfterFunction& stopAfterTester) {
-  // dijkstra
+  // astar
   vis.Clear();
   vis.Resize(n);
 
@@ -254,10 +262,13 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
     if (neighborTester != nullptr && !neighborTester(v)) return;
     int fu = field.costs[u];  // readonly
     int fv = field.costs[v];  // readonly
-    if (fv > fu + c) {
-      fv = fu + c;
-      q.push({fv, v});
-      field.costs[v] = fv;
+    auto g = fu + c;          // existing real cost
+    auto cost = g;            // future estimation cost
+    if (heuristic != nullptr) cost += heuristic(v);
+    if (fv > g) {
+      fv = g;
+      q.push({cost, v});
+      field.costs[v] = g;  // real cost
       // v comes from u, that is.
       // In inversing view, u is the next way to go.
       field.nexts[v] = u;
@@ -267,9 +278,9 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   while (q.size()) {
     u = q.top().second;
     q.pop();
+    if (stopAfterTester != nullptr && stopAfterTester(u)) break;
     if (vis[u]) continue;
     vis[u] = true;
-    if (stopAfterTester != nullptr && stopAfterTester(u)) break;
     neighborsCollector(u, expand);
   }
 }

@@ -39,6 +39,24 @@ FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FF
   ffa2NeighborsCollector = [this](int u, NeighbourVertexVisitor<int> &visitor) {
     ForEachNeighbourGateWithST(u, visitor);
   };
+
+  // Heuristic function for node level astar.
+  // node's center to qrange's center.
+  FFA1::HeuristicFunction ffa1Heuristic = [this](QdNode *node) {
+    // node's center
+    int nodeCenterX = node->x1 + (node->x2 - node->x1) / 2;
+    int nodeCenterY = node->y1 + (node->y2 - node->y1) / 2;
+    return m->Distance(nodeCenterX, nodeCenterY, qrangeCenterX, qrangeCenterY);
+  };
+  ffa1.SetHeuristicFunction(ffa1Heuristic);
+
+  // Heuristic function for gate level astar.
+  // gate cell to qrange's center.
+  FFA2::HeuristicFunction ffa2Heuristic = [this](int u) {
+    auto [x, y] = m->UnpackXY(u);
+    return m->Distance(x, y, qrangeCenterX, qrangeCenterY);
+  };
+  ffa2.SetHeuristicFunction(ffa2Heuristic);
 }
 
 void FlowFieldPathFinderImpl::Reset(const QuadtreeMap *m, int x2, int y2,
@@ -54,6 +72,9 @@ void FlowFieldPathFinderImpl::Reset(const QuadtreeMap *m, int x2, int y2,
 
   // the given qrange is invalid.
   if (!(qrange.x1 <= qrange.x2 && qrange.y1 <= qrange.y2)) return;
+
+  this->qrangeCenterX = (qrange.x1 + (qrange.x2 - qrange.x1) / 2);
+  this->qrangeCenterY = (qrange.y1 + (qrange.y2 - qrange.y1) / 2);
 
   t = m->PackXY(x2, y2);
   tNode = m->FindNode(x2, y2);
