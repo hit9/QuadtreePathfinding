@@ -84,7 +84,7 @@ using DistanceCalculator = internal::DistanceCalculator;
 // Euclidean distance calculator with a given cost unit.
 template <int CostUnit>
 int EuclideanDistance(int x1, int y1, int x2, int y2) {
-  return std::floor(std::hypot(x1 - x2, y1 - y2) * CostUnit);
+  return std::round(std::hypot(x1 - x2, y1 - y2) * CostUnit);
 }
 
 // StepFunction is the type of a function to specific a dynamic gate picking step.
@@ -147,7 +147,7 @@ class QuadtreeMapX {
   // * distance is a function that calculates the distance between two given cells.
   //    there's a builtin helper function template EuclideanDistance<CostUnit> to use
   //    for euclidean distance.
-  //    If you prefer a float nunmber, it's better to scale it larger (i.e. for 1000 times) and
+  //    If you prefer a float nunmber, it's better to scale the CostUnit larger (i.e. 1000 ) and
   //    then scale it back when reading the path finding cost result.
   // * settings is the list of agent sizes along with terrain types to support.
   //    If you pass n settings, we will create n quadtree maps.

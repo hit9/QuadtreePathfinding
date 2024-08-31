@@ -270,16 +270,19 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
 
   // f[x][y] is the cost from the cell (x,y) to the target.
   // all cells is initialized to inf.
-  // for a cell on the gateFlowField, it's initialized to the cost value.
-  // for an other cell inside the query range, it will be finally derived via DP.
+  // for a cell on the gateFlowField (and not a gate cell pointing into the node's inner), it's
+  // initialized to the cost value. for an other cell inside the query range, it will be finally
+  // derived via DP.
   Final_F f;
 
   // from[x][y] stores which neighbour cell the min value comes from.
-  // for a cell on the gateFlowField, it points to a neighbour cell on the direction to its next.
-  // for an other cell inside qrange, it will finally point to a neighbour cell via DP.
+  // for a cell on the gateFlowField (and not a gate cell pointing into the node's inner), it
+  // points to a neighbour cell on the direction to its next. for an other cell inside qrange, it
+  // will finally point to a neighbour cell via DP.
   Final_From from;
 
   // b[x][y] indicates whether the (x,y) is on the computed gate flow field.
+  // for gate cell (x,y) pointing to its own node's inner, b[x][y] is false.
   Final_B b;
 
   // initialize f from computed gate flow field.
@@ -289,18 +292,20 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
     auto [x, y] = m->UnpackXY(v);
     auto [x1, y1] = m->UnpackXY(next);
 
-    f[x][y] = cost;
-
     // force it points to a neighbour on the direction to next,
-    // if the (x,y) is inside the query range.
-    if (x >= qrange.x1 && x <= qrange.x2 && y >= qrange.y1 && y <= qrange.y2) {
-      int x2, y2;
-      findNeighbourCellByNext(x, y, x1, y1, x2, y2);
-      from[x][y] = m->PackXY(x2, y2);
+    // (x2,y2) is the next neighbour cell this (x,y) will point to.
+    int x2, y2;
+    findNeighbourCellByNext(x, y, x1, y1, x2, y2);
+
+    QdNode *node1 = m->FindNode(x, y), *node2 = m->FindNode(x2, y2);
+    if (node1 == node2 && m->IsGateCell(node1, v)) {
+      continue;
     }
 
     // don't recompute the cells from gate flowfield.
     b[x][y] = true;
+    f[x][y] = cost;
+    from[x][y] = m->PackXY(x2, y2);
   }
 
   // cost unit on HV(horizonal and vertical) and diagonal directions.
