@@ -147,6 +147,8 @@ class QuadtreeMapX {
   // * distance is a function that calculates the distance between two given cells.
   //    there's a builtin helper function template EuclideanDistance<CostUnit> to use
   //    for euclidean distance.
+  //    If you prefer a float nunmber, it's better to scale it larger (i.e. for 1000 times) and
+  //    then scale it back when reading the path finding cost result.
   // * settings is the list of agent sizes along with terrain types to support.
   //    If you pass n settings, we will create n quadtree maps.
   // * step is the number of interval cells when picking gate cells in a quadtree map.

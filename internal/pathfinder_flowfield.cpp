@@ -345,19 +345,19 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
 
       int xfrom = -1, yfrom = -1;
 
-      if (x > 0 && y > 0 && f[x][y] > f[x - 1][y - 1] + c2) {  // left-up
+      if (x > x1 && y > y1 && f[x][y] > f[x - 1][y - 1] + c2) {  // left-up
         f[x][y] = f[x - 1][y - 1] + c2;
         xfrom = x - 1, yfrom = y - 1;
       }
-      if (x > 0 && f[x][y] > f[x - 1][y] + c1) {  // up
+      if (x > x1 && f[x][y] > f[x - 1][y] + c1) {  // up
         f[x][y] = f[x - 1][y] + c1;
         xfrom = x - 1, yfrom = y;
       }
-      if (y > 0 && f[x][y] > f[x][y - 1] + c1) {  // left
+      if (y > y1 && f[x][y] > f[x][y - 1] + c1) {  // left
         f[x][y] = f[x][y - 1] + c1;
         xfrom = x, yfrom = y - 1;
       }
-      if (x > 0 && y < y1 && f[x][y] > f[x - 1][y + 1] + c2) {  // right-up
+      if (x > x1 && y < y2 && f[x][y] > f[x - 1][y + 1] + c2) {  // right-up
         f[x][y] = f[x - 1][y + 1] + c2;
         xfrom = x - 1, yfrom = y + 1;
       }
@@ -392,7 +392,7 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final
         f[x][y] = f[x][y + 1] + c1;
         xfrom = x, yfrom = y + 1;
       }
-      if (x < x2 && y > 0 && f[x][y] > f[x + 1][y - 1] + c2) {  // left-bottom
+      if (x < x2 && y > y1 && f[x][y] > f[x + 1][y - 1] + c2) {  // left-bottom
         f[x][y] = f[x + 1][y - 1] + c2;
         xfrom = x + 1, yfrom = y - 1;
       }
