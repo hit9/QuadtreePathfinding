@@ -35,6 +35,8 @@ struct CommandlineOptions {
   int gridSize = 18;
   // directory to fonts.
   std::string fontsPath;
+  // step to pick gates, -1 for using stepf.
+  int step = -1;
 };
 
 // global options.
@@ -62,10 +64,8 @@ struct Map {
   int changes[N][N];
   // step to pick gate cells.
   int step = -1;
-  // use the step function.
-  bool useStepFunction = true;
 
-  Map(int w, int h, int gridSize, int step = -1, bool useStepFunction = false);
+  Map(int w, int h, int gridSize, int step = -1);
   ~Map();
   void Reset();
   void BuildMapX();  // call only once.
@@ -236,7 +236,7 @@ class Visualizer {
  public:
   // w, h: the size of the grid map.
   // gridSize: the size of one grid.
-  Visualizer(int w, int h, int gridSize);
+  Visualizer(int w, int h, int gridSize, int step = -1);
   int Init();
   void Start();
   void Destroy();
@@ -361,7 +361,7 @@ int ParseCommandlineOptions(int argc, char* argv[]);
 
 int main(int argc, char* argv[]) {
   if (0 != ParseCommandlineOptions(argc, argv)) return -1;
-  Visualizer visualizer(options.w, options.h, options.gridSize);
+  Visualizer visualizer(options.w, options.h, options.gridSize, options.step);
   if (0 != visualizer.Init()) return -1;
   visualizer.Start();
   visualizer.Destroy();
@@ -375,8 +375,7 @@ void Agent::Reset() {
   capability = Terrain::Land;
 }
 
-Map::Map(int w, int h, int gridSize, int step, bool useStepFunction)
-    : w(w), h(h), gridSize(gridSize), step(step), useStepFunction(useStepFunction) {
+Map::Map(int w, int h, int gridSize, int step) : w(w), h(h), gridSize(gridSize), step(step) {
   Reset();
 }
 
@@ -415,8 +414,6 @@ void Map::Reset() {
         grids[x][y] = Terrain::Land;
     }
   }
-  step = -1;
-  useStepFunction = true;
 }
 
 void Map::BuildMapX() {
@@ -534,7 +531,7 @@ void Camera::Update() {
   dx = dy = 0;
 }
 
-Visualizer::Visualizer(int w, int h, int gridSize) : map(Map(w, h, gridSize)) {}
+Visualizer::Visualizer(int w, int h, int gridSize, int step) : map(Map(w, h, gridSize, step)) {}
 
 Visualizer::~Visualizer() {
   delete camera;
@@ -1877,6 +1874,10 @@ int ParseCommandlineOptions(int argc, char* argv[]) {
       .help("grid cell size in pixels")
       .default_value(18)
       .store_into(options.gridSize);
+  program.add_argument("-step")
+      .help("the step to pick gates")
+      .default_value(-1)
+      .store_into(options.step);
   program.add_argument("-fonts", "--fonts-dir-path")
       .help("the relative fonts dir path")
       .default_value(std::string("./visualizer/fonts"))
