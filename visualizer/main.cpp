@@ -13,6 +13,7 @@
 #include <qdpf.hpp>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 enum Terrain {
@@ -24,7 +25,7 @@ enum Terrain {
 // Max value of w and h.
 const int N = 800;
 
-const int COST_UNIT = 10;
+const int COST_UNIT = 100;
 
 using Cell = std::pair<int, int>;  // {x,y}
 
@@ -40,7 +41,7 @@ struct CommandlineOptions {
 CommandlineOptions options;
 
 struct Agent {
-  int size = 10;
+  int size = COST_UNIT;
   // the terrain capability for current agent.
   int capability = Terrain::Land;
 
@@ -107,14 +108,17 @@ struct FlowFieldContext {
   int x2 = 0, y2 = 0;
   // query rectangle.
   qdpf::Rectangle qrange;
-  // optional start cell.
-  int x1 = -1, y1 = -1;
   // ~~~~~~ results ~~~~~~
   std::vector<FlowFieldItem<const qdpf::QdNode*>> nodeFlowField;
   std::vector<FlowFieldItem<Cell>> gateFlowField;
   std::vector<FlowFieldItem<Cell>> finalFlowField;
+  std::unordered_map<Cell, Cell, qdpf::internal::PairHasher<int, int>> finalFlowNextMap;
 
   bool isPfReset = false;
+
+  // ~~~~~ optional test path ~~~~~~
+  int x1 = -1, y1 = -1;  // start
+  std::vector<Cell> testPath;
 
   ~FlowFieldContext();
   void InitPf(qdpf::QuadtreeMapX* qmx);
@@ -240,6 +244,7 @@ class Visualizer {
 
  private:
   State state = State::Idle;
+
   SDL_Window* window = nullptr;
   SDL_Renderer* renderer = nullptr;
   Camera* camera = nullptr;
@@ -298,6 +303,8 @@ class Visualizer {
   void renderFillRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color);
   void renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst);
+  void renderFillCell(int x, int y, const SDL_Color& color);
+  void renderFillAgent(int x, int y);
   void setMessageHint(std::string_view message, const ImVec4& color);
   // ~~~~~~ render the panel ~~~~~~~
   void renderImguiPanel();
@@ -319,6 +326,7 @@ class Visualizer {
   void computeNodeFlowField();
   void computeGateFlowField();
   void computeFinalFlowField();
+  void handlePlayFlowFieldTestPath();
   // ~~~~ interaction ~~~~~~~
   void handleInputs();
   void handleInputsShortcuts(SDL_Event& e);
@@ -331,7 +339,9 @@ class Visualizer {
   void handleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e);
   void handleInputsFlowFieldSetQrangeRightBottom(SDL_Event& e);
   void handleInputsFlowFieldSetTarget(SDL_Event& e);
+  void handleInputsFlowFieldSetTestStart(SDL_Event& e);
   // ~~~~~~~~ handlers ~~~~~~~~~~~
+  void handleLogics();
   void handleStartDrawBuildings();
   void handleStartDrawWater();
   void pushTerrainChanges(const Cell&);
@@ -361,7 +371,7 @@ int main(int argc, char* argv[]) {
 // ~~~~~~~~~~~~~~~~~~~~ Implements ~~~~~~~~~~~~~~~~~~~~~~
 
 void Agent::Reset() {
-  size = 10;
+  size = COST_UNIT;
   capability = Terrain::Land;
 }
 
@@ -492,6 +502,8 @@ int FlowFieldContext::ResetPf(int agentSize, int capabilities) {
 
 void FlowFieldContext::ClearResults() {
   nodeFlowField.clear(), gateFlowField.clear(), finalFlowField.clear();
+  finalFlowNextMap.clear();
+  testPath.clear();
 }
 
 void FlowFieldContext::Reset() {
@@ -699,8 +711,12 @@ void Visualizer::Start() {
     // quit on -1
     handleInputs();
     if (stop) break;
+
     // update camera.
     if (camera != nullptr) camera->Update();
+
+    handleLogics();
+
     // starting a new imgui frame
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
@@ -822,6 +838,10 @@ void Visualizer::handleInputsDispatchByState(SDL_Event& e) {
     case State::FlowFieldWaitTarget:
       handleInputsFlowFieldSetTarget(e);
       break;
+    case State::FlowFieldFinalLevelComputed:
+      // reset test path's star:
+      handleInputsFlowFieldSetTestStart(e);
+      break;
     default:
       break;  // avoid warning.
   }
@@ -887,6 +907,23 @@ void Visualizer::handleInputsFlowFieldSetTarget(SDL_Event& e) {
     flowfield.y2 = cell.second;
     state = State::FlowFieldWaitCompution;
     setMessageHint("FlowField: waiting to click a compution button", ImGreen);
+  }
+}
+
+void Visualizer::handleInputsFlowFieldSetTestStart(SDL_Event& e) {
+  if (e.type == SDL_MOUSEBUTTONDOWN) {
+    auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+    auto [x, y] = cell;
+    if (flowfield.finalFlowNextMap.find({x, y}) == flowfield.finalFlowNextMap.end()) {
+      setMessageHint("FlowField: test path start invalid", ImRed);
+      flowfield.x1 = -1;
+      flowfield.y1 = -1;
+      return;
+    }
+    flowfield.x1 = x;
+    flowfield.y1 = y;
+    flowfield.testPath.clear();
+    setMessageHint("FlowField: playing a test path ...", ImGreen);
   }
 }
 
@@ -1001,13 +1038,11 @@ void Visualizer::renderImguiPanelSectionAgent() {
 
   ImGui::Text("Size: ");
   ImGui::SameLine();
-  if (ImGui::RadioButton("10x10", agent.size == 1 * COST_UNIT)) handleChangeAgentSize(COST_UNIT);
+  if (ImGui::RadioButton("1x1", agent.size == 1 * COST_UNIT)) handleChangeAgentSize(COST_UNIT);
   ImGui::SameLine();
-  if (ImGui::RadioButton("20x20", agent.size == 2 * COST_UNIT))
-    handleChangeAgentSize(2 * COST_UNIT);
+  if (ImGui::RadioButton("2x2", agent.size == 2 * COST_UNIT)) handleChangeAgentSize(2 * COST_UNIT);
   ImGui::SameLine();
-  if (ImGui::RadioButton("30x30", agent.size == 3 * COST_UNIT))
-    handleChangeAgentSize(3 * COST_UNIT);
+  if (ImGui::RadioButton("3x3", agent.size == 3 * COST_UNIT)) handleChangeAgentSize(3 * COST_UNIT);
 
   ImGui::Text("Capability: ");
   ImGui::SameLine();
@@ -1215,41 +1250,29 @@ void Visualizer::renderHighlightedNodesFlowField() {
 }
 
 void Visualizer::renderPathfindingAStar() {
-  auto drawCell = [this](int x, int y) {
-    SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
-    renderFillRect(cell, Green);
-  };
-
   int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
-
-  auto drawAgent = [this, agentSizeInPixels](int x, int y) {
-    SDL_Rect outer{y * map.gridSize, x * map.gridSize, agentSizeInPixels, agentSizeInPixels};
-    SDL_Rect inner{outer.x + 1, outer.y + 1, outer.w - 2, outer.h - 2};
-    renderDrawRect(outer, Black);
-    renderFillRect(inner, Green);
-  };
 
   switch (state) {
     case State::AStarWaitTarget:
-      drawCell(astar.x1, astar.y1);  // start
+      renderFillCell(astar.x1, astar.y1, Green);  // start
       break;
     case State::AStarWaitCompution:
       [[fallthrough]];
     case State::AStarNodePathComputed:
-      drawCell(astar.x1, astar.y1);  // start
-      drawCell(astar.x2, astar.y2);  // target
+      renderFillCell(astar.x1, astar.y1, Green);  // start
+      renderFillCell(astar.x2, astar.y2, Green);  // target
       // NOTE: nodepath already render in renderHighlightedNodesAstar.
       break;
     case State::AStarGatePathComputed:
       // draw gate route cells.
       // start and target are included in gate path.
       for (const auto [x, y] : astar.gatePath) {
-        drawCell(x, y);
+        renderFillCell(x, y, Green);
       }
       break;
     case State::AStarFinalPathComputed:  //
       for (const auto [x, y] : astar.finalPath) {
-        drawAgent(x, y);
+        renderFillAgent(x, y);
       }
       break;
     default:
@@ -1258,11 +1281,6 @@ void Visualizer::renderPathfindingAStar() {
 }
 
 void Visualizer::renderPathfindingFlowField() {
-  auto drawCell = [this](int x, int y, const SDL_Color& color) {
-    SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
-    renderFillRect(cell, color);
-  };
-
   auto drawQrangeRectangle = [this]() {
     // render the qrange rect
     SDL_Rect qrange{
@@ -1278,12 +1296,12 @@ void Visualizer::renderPathfindingFlowField() {
 
   switch (state) {
     case State::FlowFieldWaitQrangeRightBottom:
-      drawCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
+      renderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
       return;
     case State::FlowFieldWaitTarget:
       drawQrangeRectangle();
-      drawCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
-      drawCell(flowfield.qrange.x2, flowfield.qrange.y2, Green);  // qrange.right-bottom
+      renderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
+      renderFillCell(flowfield.qrange.x2, flowfield.qrange.y2, Green);  // qrange.right-bottom
       return;
     case State::FlowFieldWaitCompution:
       [[fallthrough]];
@@ -1291,9 +1309,9 @@ void Visualizer::renderPathfindingFlowField() {
       // NOTE the highlighting of the node field are already done in
       // renderHighlightedNodesFlowField
       drawQrangeRectangle();
-      drawCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
-      drawCell(flowfield.qrange.x2, flowfield.qrange.y2, Green);  // qrange.right-bottom
-      drawCell(flowfield.x2, flowfield.y2, Green);                // target
+      renderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green);  // qrange.left-top
+      renderFillCell(flowfield.qrange.x2, flowfield.qrange.y2, Green);  // qrange.right-bottom
+      renderFillCell(flowfield.x2, flowfield.y2, Green);                // target
       return;
     case State::FlowFieldGateLevelComputed:
       drawQrangeRectangle();
@@ -1301,7 +1319,7 @@ void Visualizer::renderPathfindingFlowField() {
       return;
     case State::FlowFieldFinalLevelComputed:
       drawQrangeRectangle();
-      drawCell(flowfield.x2, flowfield.y2, Green);  // target
+      renderFillCell(flowfield.x2, flowfield.y2, Green);  // target
       renderPathFindingFlowFieldFinalField();
       return;
     default:
@@ -1321,6 +1339,11 @@ void Visualizer::renderPathFindingFlowFieldGateField() {
 }
 
 void Visualizer::renderPathFindingFlowFieldFinalField() {
+  if (flowfield.testPath.size()) {
+    for (auto [x, y] : flowfield.testPath) {
+      renderFillAgent(x, y);
+    }
+  }
   for (int i = 0; i < flowfield.finalFlowField.size(); ++i) {
     auto& [u, v, cost] = flowfield.finalFlowField[i];
     auto [x, y] = u;
@@ -1380,6 +1403,19 @@ void Visualizer::renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL
   SDL_RenderCopy(renderer, texture, &srcOverlap, &dstOverlap);
 }
 
+void Visualizer::renderFillCell(int x, int y, const SDL_Color& color) {
+  SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
+  renderFillRect(cell, color);
+}
+
+void Visualizer::renderFillAgent(int x, int y) {
+  int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
+  SDL_Rect outer{y * map.gridSize, x * map.gridSize, agentSizeInPixels, agentSizeInPixels};
+  SDL_Rect inner{outer.x + 1, outer.y + 1, outer.w - 2, outer.h - 2};
+  renderDrawRect(outer, Black);
+  renderFillRect(inner, Green);
+}
+
 // Crop given rect by camera, and converts to the coordinates relative to the camera's left-top
 // corner. The results are stored into overlap. Returns false if no overlaping.
 bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
@@ -1415,12 +1451,14 @@ void Visualizer::setMessageHint(std::string_view message, const ImVec4& color) {
 }
 
 void Visualizer::handleStartDrawBuildings() {
+  reset();
   state = State::DrawingBuildings;
   changeTo = Terrain::Building;
   setMessageHint("click or drag mouse to draw buildings!", ImGreen);
 }
 
 void Visualizer::handleStartDrawWater() {
+  reset();
   state = State::DrawingWaters;
   changeTo = Terrain::Water;
   setMessageHint("click or drag mouse to draw water!", ImGreen);
@@ -1751,6 +1789,7 @@ void Visualizer::computeFinalFlowField() {
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
   if (flowfield.finalFlowField.size()) flowfield.finalFlowField.clear();
+  if (flowfield.finalFlowNextMap.size()) flowfield.finalFlowNextMap.clear();
 
   startAt = std::chrono::high_resolution_clock::now();
   int ret = flowfield.pf->ComputeFinalFlowFieldInQueryRange();
@@ -1764,7 +1803,9 @@ void Visualizer::computeFinalFlowField() {
 
   qdpf::CellFlowFieldVisitor visitor = [this](int x, int y, int xNext, int yNext, int cost) {
     flowfield.finalFlowField.push_back({{x, y}, {xNext, yNext}, cost});
+    flowfield.finalFlowNextMap[{x, y}] = {xNext, yNext};
   };
+
   flowfield.pf->VisitComputedCellFlowFieldInQueryRange(visitor);
 
   std::stable_sort(flowfield.finalFlowField.begin(), flowfield.finalFlowField.end(),
@@ -1776,6 +1817,50 @@ void Visualizer::computeFinalFlowField() {
       fmt::format("Flowfield:: Final flow field computed!  cost {}us  ",
                   std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
       ImGreen);
+}
+
+void Visualizer::handleLogics() {
+  switch (state) {
+    case State::FlowFieldFinalLevelComputed:
+      handlePlayFlowFieldTestPath();
+      break;
+    default:
+      break;
+  }
+}
+
+void Visualizer::handlePlayFlowFieldTestPath() {
+  // (x1,y1) is the start
+  int x1 = flowfield.x1, y1 = flowfield.y1;
+  if (x1 == -1 || y1 == -1) return;
+
+  // (x2,y2) is thet target
+  int x2 = flowfield.x2, y2 = flowfield.y2;
+
+  auto& p = flowfield.testPath;
+
+  if (p.empty()) {
+    p.push_back({x1, y1});
+    return;
+  }
+
+  // get current position
+  auto [x3, y3] = p.back();
+
+  if (x3 == x2 && y3 == y2) {
+    // arrived the target.
+    // back to start;
+    p.clear();
+    p.push_back({x1, y1});
+    return;
+  }
+
+  // Is inside the rect?
+  if ((x3 >= flowfield.qrange.x1 && x3 <= flowfield.qrange.x2 && y3 >= flowfield.qrange.y1 &&
+       y3 <= flowfield.qrange.y2)) {
+    // get next from the final flow field.
+    p.push_back(flowfield.finalFlowNextMap[{x3, y3}]);
+  }
 }
 
 int ParseCommandlineOptions(int argc, char* argv[]) {
