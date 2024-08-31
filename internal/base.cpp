@@ -54,5 +54,17 @@ bool GetOverlap(const Rectangle &a, const Rectangle &b, Rectangle &c) {
   return true;
 }
 
+const std::size_t __FNV_BASE = 14695981039346656037ULL;
+const std::size_t __FNV_PRIME = 1099511628211ULL;
+
+std::size_t HashCombine(std::size_t a, std::size_t b) {
+  std::size_t h = __FNV_BASE;
+  h ^= a;
+  h *= __FNV_PRIME;
+  h ^= b;
+  h *= __FNV_PRIME;
+  return h;
+}
+
 }  // namespace internal
 }  // namespace qdpf

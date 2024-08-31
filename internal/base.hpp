@@ -43,6 +43,19 @@ bool IsOverlap(const Rectangle &a, const Rectangle &b);
 // Returns true if the overlap exist.
 bool GetOverlap(const Rectangle &a, const Rectangle &b, Rectangle &c);
 
+// Combine hash a and b into one via FNV hash.
+std::size_t HashCombine(std::size_t a, std::size_t b);
+
+template <typename A, typename B>
+class PairHasher {
+ public:
+  std::size_t operator()(const std::pair<A, B> &x) const {
+    auto a = std::hash<A>{}(x.first);
+    auto b = std::hash<B>{}(x.second);
+    return HashCombine(a, b);
+  }
+};
+
 // ~~~~~~~~~~~ Util Containers ~~~~~~~~~~~~
 
 // A simple simple unordered_map with default value.
