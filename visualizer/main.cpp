@@ -386,6 +386,8 @@ void Map::Reset() {
   qdpf::Rectangle center{2 * h / 5, 2 * w / 5, h * 3 / 5, w * 3 / 5};
   qdpf::Rectangle wall1{center.x2 + 4, center.y1, center.x2 + 4, center.y2 + 4};
   qdpf::Rectangle wall2{center.x1, center.y2 + 4, center.x2 + 4, center.y2 + 4};
+  qdpf::Rectangle wall3{center.x1 - 4, center.y1 - 4, center.x1 - 4, center.y2};
+  qdpf::Rectangle wall4{center.x1 - 4, center.y1 - 4, center.x2, center.y1 - 4};
 
   for (int x = 0; x < h; ++x) {
     for (int y = 0; y < w; ++y) {
@@ -394,6 +396,10 @@ void Map::Reset() {
       else if (x >= wall1.x1 && x <= wall1.x2 && y >= wall1.y1 && y <= wall1.y2)
         grids[x][y] = Terrain::Building;
       else if (x >= wall2.x1 && x <= wall2.x2 && y >= wall2.y1 && y <= wall2.y2)
+        grids[x][y] = Terrain::Building;
+      else if (x >= wall3.x1 && x <= wall3.x2 && y >= wall3.y1 && y <= wall3.y2)
+        grids[x][y] = Terrain::Building;
+      else if (x >= wall4.x1 && x <= wall4.x2 && y >= wall4.y1 && y <= wall4.y2)
         grids[x][y] = Terrain::Building;
       else
         grids[x][y] = Terrain::Land;
@@ -536,11 +542,13 @@ int Visualizer::Init() {
   }
   spdlog::info("Visualizer Init done.");
 
+  spdlog::info("Building map (may take some time...)");
   // Build the map.
   map.BuildMapX();
   // Build the pfs;
   astar.InitPf(map.qmx);
   flowfield.InitPf(map.qmx);
+  spdlog::info("Building map done");
   return 0;
 }
 
