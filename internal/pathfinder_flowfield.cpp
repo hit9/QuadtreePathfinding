@@ -298,8 +298,13 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
     findNeighbourCellByNext(x, y, x1, y1, x2, y2);
 
     QdNode *node1 = m->FindNode(x, y), *node2 = m->FindNode(x2, y2);
-    if (node1 == node2 && m->IsGateCell(node1, v)) {
-      continue;
+
+    // for cell inside a tNode, we expect it pointing to inner.
+    if (node1 == tNode) {
+      if (node2 != tNode) continue;
+    } else {
+      // for other cells not inside tNode (the most cases), we expect it pointing to outer.
+      if (node1 == node2 && m->IsGateCell(node1, v)) continue;
     }
 
     // don't recompute the cells from gate flowfield.
@@ -314,6 +319,8 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
   // computes dp for each node, from node borders to inner.
   // why dp works: every node is empty (without obstacles inside it).
   for (auto node : nodesOverlappingQueryRange) {
+    // cells inside both in tNode and the qrange are already computed in the ComputeGateFlowField.
+    if (node == tNode) continue;
     computeFinalFlowFieldDP1(node, f, from, b, c1, c2);
     computeFinalFlowFieldDP2(node, f, from, b, c1, c2);
   }
