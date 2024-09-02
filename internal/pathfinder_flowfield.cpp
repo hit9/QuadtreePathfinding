@@ -323,12 +323,12 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
     // for a cell A (x,y) on the gate flow field:
     if (node1 != tNode) {
       // If A is not inside tNode, and its next neighbour B is also inside node1, we should skip A:
-      // 1. Non-gate cell B is computed via DP, which is different with A. That may result in
-      //    cyclic flows, A pointing B and B pointing A.
+      // 1. B's result is computed via DP, which is different with A. That may result in cyclic
+      //    flows: A pointing B and B pointing A.
       // 2. Since A is pointing another gate C inside its node (on the gateFlowField), and A's node
       //    is not tNode, then C should point some cell outside. We can use C to derived A's result
       //    via DP instead.
-      if (node1 == node2 && m->IsGateCell(node1, v)) continue;
+      if (node1 == node2) continue;
     } else {  // node1 == tNode
       // If A's node is tNode, in the similar consideration, we should use it only if B is also
       // inside tNode.
