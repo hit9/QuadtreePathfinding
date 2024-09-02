@@ -147,7 +147,6 @@ void FlowFieldContext::ClearResults() {
 void FlowFieldContext::Reset() {
   ClearResults();
   x2 = y2 = 0;
-  x1 = y1 = -1;
   qrange = {0, 0, 0, 0};
   isPfReset = false;
 }

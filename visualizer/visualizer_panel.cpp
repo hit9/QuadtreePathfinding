@@ -191,9 +191,13 @@ void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
     computeGateFlowField();
   }
 
-  ImGui::SameLine();
-
   if (ImGui::Button("Compute Final FlowField")) {
     computeFinalFlowField();
+  }
+
+  ImGui::SameLine();
+
+  if (ImGui::Button("Clear Tests Path")) {
+    flowfield.testPaths.clear();
   }
 }

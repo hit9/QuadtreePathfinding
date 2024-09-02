@@ -137,7 +137,6 @@ struct FlowFieldContext {
   bool isPfReset = false;
 
   // ~~~~~ optional test path ~~~~~~
-  int x1 = -1, y1 = -1;  // start
   std::vector<std::vector<Cell>> testPaths;
 
   ~FlowFieldContext();
