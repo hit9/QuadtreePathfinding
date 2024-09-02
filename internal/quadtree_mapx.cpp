@@ -85,7 +85,9 @@ void QuadtreeMapXImpl::Build() {
     for (int y = 0; y < w; ++y) Update(x, y);
   }
   Compute();
-  // TODO dirties shrink to fit
+
+  // on the first build, dirties may ever been very large and we should shrink the memory.
+  for (auto& [_, vec] : dirties) vec.shrink_to_fit();
 }
 
 // build a clearance field for each terrainTypes integer.
