@@ -22,6 +22,9 @@
 // 11. A PathFinder always works on a single QuadtreeMap the same time. A pathfinding request is
 //     reduced into a progress without the agent-size and terrain factors.
 
+// Changes:
+// 2024/09/02 v0.3.0: Add flowfield supports.
+
 // Coordinates
 // ~~~~~~~~~~~
 //    0      w
