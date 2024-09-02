@@ -1,7 +1,7 @@
 quadtree-pathfinding
 ====================
 
-May unstable before version 1.0.0!
+May unstable before version 1.0.0! Still in dev!
 
 Hierarchical path finding on quadtree for equal-weighted 2D grid map.
 
@@ -91,7 +91,6 @@ Problems Unsolved (Plan)
 ------------------------
 
 1. Dynamical weighted A*.
-2. How to implement flow-field pathfinding on quadtree?
 
 
 License
