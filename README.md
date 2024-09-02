@@ -1,7 +1,7 @@
 quadtree-pathfinding
 ====================
 
-May unstable before version 1.0.0!
+May unstable before version 1.0.0! Still in dev!
 
 Hierarchical path finding on quadtree for equal-weighted 2D grid map.
 
@@ -24,11 +24,10 @@ Colors:
 * Purple: Gate cells
 * Yellow: Quadtree nodes on path.
 
-| <!-- -->                                                          |
-| ------------------------------------------------------------------|
-| agent-size=20, capability= Land  ![](misc/quadtree-pathfinding1.gif)                  |
-| agent-size=20, capability= Land \| Water ![](misc/quadtree-pathfinding2.gif)                  |
-| agent-size=20, lager map ![](misc/quadtree-pathfinding3.gif)    |
+| <!-- -->                                                          |  <!-- -->                                                                         |
+| ------------------------------------------------------------------| ------------------------------------------------------------------|
+| agent-size=2, capability= Land  ![](misc/quadtree-pathfinding1.gif) |  agent-size=2, capability= Land \| Water ![](misc/quadtree-pathfinding2.gif)                  |
+| agent-size=2, lager map ![](misc/quadtree-pathfinding3.gif)    | agent-size=2, flowfield ![](misc/quadtree-pathfinding4.gif)  |
 
 
 Concepts and Mechanisms
@@ -71,8 +70,8 @@ qdpf.hpp          # Public API
 
 API list can be found at [qdpf.hpp](qdpf.hpp).
 
-A* Visualizer
--------------
+Visualizer
+----------
 
 Install SDL and build:
 
@@ -85,24 +84,13 @@ make -C visualizer build
 Run the visualizer:
 
 ```bash
-./visualizer/build/quadtree-pathfinding-visualizer -w 100 -h 60 -s 1
+./visualizer/build/quadtree-pathfinding-visualizer -w 100 -h 60 -step 1
 ```
-
-Operations:
-
-1. Click the left mouse button to add or remove wall buildings, drag the left-mouse for batch.
-2. Press `w` and then repeat the 1st step for adding or removing water areas.
-3. Click the right mouse button to set start and target cells.
-   Right click again to show the routes, and again to show the path.
-
-FlowField Visualizer
---------------------
 
 Problems Unsolved (Plan)
 ------------------------
 
 1. Dynamical weighted A*.
-2. How to implement flow-field pathfinding on quadtree?
 
 
 License

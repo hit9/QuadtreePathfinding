@@ -56,7 +56,7 @@ using UnpackedCellFlowFieldVisitor =
 //////////////////////////////////////
 
 // flow field algorithm:
-// 1. Compute the cost field by reverse-traversing from the target, using the dijkstra algorithm.
+// 1. Compute the cost field by reverse-traversing from the target, using the astar algorithm.
 // 2. Compute the flow field by comparing each vertex with its neighours vertices.
 
 template <typename Vertex, Vertex NullVertex,
@@ -69,6 +69,9 @@ class FlowFieldAlgorithm {
 
   // Test on a vertex, after its processing, whether to stop the whole flowfield processing.
   using StopAfterFunction = std::function<bool(Vertex)>;
+
+  // The heuristic function for astar, it's optional.
+  using HeuristicFunction = std::function<int(Vertex u)>;
 
   // The n is the upper bound of the number of vertices on the graph.
   FlowFieldAlgorithm(int n);
@@ -87,6 +90,8 @@ class FlowFieldAlgorithm {
   void Compute(Vertex t, FlowFieldT& field, NeighboursCollectorT& neighborsCollector,
                NeighbourFilterTesterT neighborTester, StopAfterFunction& stopAfterTester);
 
+  void SetHeuristicFunction(HeuristicFunction f) { heuristic = f; }
+
  private:
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
@@ -94,6 +99,8 @@ class FlowFieldAlgorithm {
   int n;
   // avoid reallocations..
   Vis vis;  // visit array.
+
+  HeuristicFunction heuristic = nullptr;
 };
 
 //////////////////////////////////////
@@ -102,41 +109,50 @@ class FlowFieldAlgorithm {
 
 // FlowField pathfinder.
 // how to:
-// 1. Resets current map to use and destination rectangle to fill the field, and the target cell.
+// 1. Resets current map to use, the query range, and the target cell.
 // 2. Compute the flow field on the node graph level (optional).
 // 3. Compute the flow field on the gate graph level.
-// 4. Compute the detailed flow field for each cell in the destination flow field.
+// 4. Compute the detailed flow field for each cell in the query range.
 class FlowFieldPathFinderImpl : public PathFinderHelper {
  public:
   // n is the max number of vertex in the graphs.
   FlowFieldPathFinderImpl(int n);
 
-  // Resets current working context: the the map instance, target (x2,y2) and flow field dest
-  // rectangle to fill results.
-  void Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& dest);
+  // Resets current working context:
+  // * the the map instance
+  // * target (x2,y2)
+  // * the query range rectangle to fill results.
+  void Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& qrange);
+
   // Computes the node flow field.
   // Returns -1 on failure (unreachable).
   int ComputeNodeFlowField();
+
   // Computes the gate cell flow field.
   // Returns -1 on failure (unreachable).
   int ComputeGateFlowField(bool useNodeFlowField = true);
-  // Computes the final cell flow field for destination rectangle.
+
+  // Computes the final cell flow field for the query range.
   // Returns -1 on failure (unreachable).
-  int ComputeFinalFlowFieldInDestRectangle();
+  int ComputeFinalFlowFieldInQueryRange();
 
   // Visits the computed node flow field.
   const NodeFlowField& GetNodeFlowField() const { return nodeFlowField; }
+
   // Visits the computed gate flow field.
   const CellFlowField& GetGateFlowField() const { return gateFlowField; }
-  // Visits the computed detailed flow field for the destination rectangle.
+
+  // Visits the computed detailed flow field for the query range.
   // The final flow field.
-  const CellFlowField& GetFinalFlowFieldInDestRectangle() const { return finalFlowField; }
+  const CellFlowField& GetFinalFlowFieldInQueryRange() const { return finalFlowField; }
+
   // Helps to visit the cell flow field via (x,y,nextX,nextY,cost)
   void VisitCellFlowField(const CellFlowField& cellFlowField,
                           UnpackedCellFlowFieldVisitor& visitor) const;
 
  private:
   // ~~~~~~~  algorithm handlers ~~~~~~~~
+
   // for computing node flow field.
   using FFA1 = FlowFieldAlgorithm<QdNode*, nullptr>;
   FFA1 ffa1;
@@ -147,22 +163,35 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
   // ~~~~~~~ stateful values for current round compution.~~~~~~~~
   // ~~~~~~~ they should be cleared on every Reset call ~~~~~~
+
   // the quadtree map current working on
   const QuadtreeMap* m = nullptr;
-  // compution results ared limited within this rectangle.
-  Rectangle dest;
+
+  // final compution results ared limited within this rectangle.
+  Rectangle qrange;
+  int qrangeCenterX, qrangeCenterY;
   // target.
   int x2, y2;
   int t;
   QdNode* tNode = nullptr;
-  // ~~~~~ for earlier quit ~~~~~~~
-  // nodes inside the dest rectangle.
-  std::unordered_set<const QdNode*> nodesInDest;
-  // gate cells inside the dest rectangle
-  std::unordered_set<int> gatesInDest;
 
-  // ~~~~~ for reducing the number of gates that participating the ComputeGateFlowField(). ~~~~~~~
-  // the gate cells on the node field if ComputeNodeFlowField is called successfully.
+  // ~~~~~ for earlier quit ~~~~~~~
+  // nodes overlapping with the query range.
+  // this node collection is to stop the ffa1 pathfinder's compution earlier once
+  // all the related nodes are marked via flowfield algorithm.
+  std::unordered_set<QdNode*> nodesOverlappingQueryRange;
+
+  // this gate collection includes two parts:
+  // 1. gate cells inside the nodes within nodesOverlappingQueryRange.
+  // 2. virtual gate cells inside the tmp graph.
+  // Its purpose is also to stop the ffa2 pathfinder's compution earlier once all the
+  // related gates are marked via flowfield algorithm.
+  std::unordered_set<int> gatesInNodesOverlappingQueryRange;
+
+  // to reduce the number of gates that participating the ComputeGateFlowField():
+  // we collect the gate cells on the computed node fields, only gate inside this collection will
+  // participate the further ComputeGateFlowField() if there was a previous successful
+  // ComputeNodeFlowField() call.
   std::unordered_set<int> gateCellsOnNodeFields;
 
   // ~~~~~~~~~~ computed results ~~~~~~~~~~~~~
@@ -174,24 +203,28 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   CellFlowField finalFlowField;
 
   // ~~~~~~~~ compution lambdas (optimization for reuses) ~~~~~~~~~
-  // lambda to collects quadtree nodes inside given dest rectangle.
-  QdNodeVisitor nodesInDestCollector = nullptr;
-  // lambda to collects gate cells inside given dest rectangle.
-  GateVisitor gatesInDestCollector = nullptr;
-
+  // lambda to collect quadtree nodes overlapping with the qrange.
+  QdNodeVisitor nodesOverlappingQueryRangeCollector = nullptr;
+  // lambda to collect gate cells inside a node within nodesOverlappingQueryRange.
+  GateVisitor gatesInNodesOverlappingQueryRangeCollector = nullptr;
+  // neighbor queriers for the flowfield algorithm.
   FFA1::NeighboursCollectorT ffa1NeighborsCollector = nullptr;
   FFA2::NeighboursCollectorT ffa2NeighborsCollector = nullptr;
 
-  void collectGateCellsOnNodeField();
+  // ~~~~~~~~ internal functions ~~~~~~~~~~~
 
-  // DP value container of f for ComputeFinalFlowFieldInDestRectangle()
+  void collectGateCellsOnNodeField();
+  void shrinkNodeFlowField();
+
+  // DP value container of f for ComputeFinalFlowFieldInQueryRange()
   using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
-  // DP value container of from for ComputeFinalFlowFieldInDestRectangle()
+  // DP value container of from for ComputeFinalFlowFieldInQueryRange()
   using Final_From = NestedDefaultedUnorderedMap<int, int, int, inf>;
-  // B[x][y] indicates whether (x,y) is a computed gate cell for
-  // ComputeFinalFlowFieldInDestRectangle().
+  // B[x][y] is the container indicates that whether cell (x,y) is on the computed gate flow field.
+  // which is a helper typing for ComputeFinalFlowFieldInQueryRange().
   using Final_B = NestedDefaultedUnorderedMap<int, int, bool, false>;
 
+  void findNeighbourCellByNext(int x, int y, int x1, int y1, int& x2, int& y2);
   void computeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
                                 int c1, int c2);
   void computeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
@@ -210,7 +243,7 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
                                                           NeighboursCollectorT& neighborsCollector,
                                                           NeighbourFilterTesterT neighborTester,
                                                           StopAfterFunction& stopAfterTester) {
-  // dijkstra
+  // astar
   vis.Clear();
   vis.Resize(n);
 
@@ -228,12 +261,15 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &field, this](Vertex v,
                                                                                       int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
-    int fu = field.costs[u];
-    int fv = field.costs[v];
-    if (fv > fu + c) {
-      fv = fu + c;
-      q.push({fv, v});
-      field.costs[v] = fv;
+    int fu = field.costs[u];  // readonly
+    int fv = field.costs[v];  // readonly
+    auto g = fu + c;          // existing real cost
+    auto cost = g;            // future estimation cost
+    if (heuristic != nullptr) cost += heuristic(v);
+    if (fv > g) {
+      fv = g;
+      q.push({cost, v});
+      field.costs[v] = g;  // real cost
       // v comes from u, that is.
       // In inversing view, u is the next way to go.
       field.nexts[v] = u;

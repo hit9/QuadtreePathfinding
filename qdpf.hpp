@@ -22,6 +22,9 @@
 // 11. A PathFinder always works on a single QuadtreeMap the same time. A pathfinding request is
 //     reduced into a progress without the agent-size and terrain factors.
 
+// Changes:
+// 2024/09/02 v0.3.0: Add flowfield supports.
+
 // Coordinates
 // ~~~~~~~~~~~
 //    0      w
@@ -84,7 +87,7 @@ using DistanceCalculator = internal::DistanceCalculator;
 // Euclidean distance calculator with a given cost unit.
 template <int CostUnit>
 int EuclideanDistance(int x1, int y1, int x2, int y2) {
-  return std::floor(std::hypot(x1 - x2, y1 - y2) * CostUnit);
+  return std::round(std::hypot(x1 - x2, y1 - y2) * CostUnit);
 }
 
 // StepFunction is the type of a function to specific a dynamic gate picking step.
@@ -147,6 +150,8 @@ class QuadtreeMapX {
   // * distance is a function that calculates the distance between two given cells.
   //    there's a builtin helper function template EuclideanDistance<CostUnit> to use
   //    for euclidean distance.
+  //    If you prefer a float nunmber, it's better to scale the CostUnit larger (i.e. 1000 ) and
+  //    then scale it back when reading the path finding cost result.
   // * settings is the list of agent sizes along with terrain types to support.
   //    If you pass n settings, we will create n quadtree maps.
   // * step is the number of interval cells when picking gate cells in a quadtree map.
@@ -268,9 +273,10 @@ class AStarPathFinder {
 // NodeFlowFieldVisitor is the function to visit each node in the computed node flow field.
 //
 // Parameters:
-// * node is current quadtree node.
+// * node is current quadtree node, it won't be nullptr.
 // * nextNode is the next node that the current node points to.
 //   for the node of the target cell, the nextNode is itself, aka where node == nextNode.
+//   it won't be nullptr.
 // * cost is the total cost from current node to the target node.
 using NodeFlowFieldVisitor =
     std::function<void(const QdNode *node, const QdNode *nextNode, int cost)>;
@@ -311,28 +317,28 @@ class FlowFieldPathFinder {
   //
   // Parameters:
   // * cell (x2,y2) is the target.
-  // * dest is the destination rectangle, we will fill the flow field results into this region.
-  //   It's better to use a rectangle that covers all the path finding agents.
-  //   This struct will be copied into the path finder (and reset existing one).
+  // * qrange is the query rectangle range, we will fill the flow field results into this region.
+  //   It's better to use a larger rectangle than a rectangle that extactly covers all the path
+  //   finding agents. This struct will be copied into the path finder (and reset existing one).
   // * The agentSize is the size of the pathfinding agents.
   // * The walkableTerrainTypes is the bitwise OR sum of all terrain type values that the
   //    pathfinding agents can walk.
-  [[nodiscard]] int Reset(int x2, int y2, const Rectangle &dest, int agentSize,
+  [[nodiscard]] int Reset(int x2, int y2, const Rectangle &qrange, int agentSize,
                           int walkableterrainTypes = 1);
 
   // ~~~~~~~~~~~~~~~~~~~~~~~ Node Graph Level (Optional) ~~~~~~~~~~~~~~
 
   // Computes the node flow field.
   // Returns -1 if the target cell is out of bound.
+  // Reset() should be called in advance to call this api.
   //
-  // In a node flow field, a node points to another field, finally points to the node where the
+  // In a node flow field, a node points to another node, finally points to the node where the
   // target cell locates.
   //
   // This step is optional, the benefits to use it ahead of ComputeGateFlowField:
   // 1. faster (but less optimal).
   // 2. fast checking if the target is reachable for an agent.
   // 3. optimize the following ComputeGateFlowField(useNodeFlowField=true) call.
-  // Reset() should be called in advance to call this api.
   [[nodiscard]] int ComputeNodeFlowField();
 
   // Visits the computed node flow field.
@@ -343,14 +349,20 @@ class FlowFieldPathFinder {
 
   // Computes the gate flow field.
   // Returns -1 if the target cell is out of bound.
+  // Reset() should be called in advance to call this api.
+  //
   // Setting useNodeFlowField to true to use node flow field results of ComputeNodeFlowField().
   // This makes ComputeGateFlowField() runs faster.
   //
   // In a gate flow field, a gate cell points to another gate cell, finally points to the target
   // cell.
   //
+  // It's ok to only use ComputeGateFlowField, without calling the
+  // ComputeFinalFlowFieldInQueryRange(), there is no obstacles between current gate and the next
+  // gate it pointing to, we can fill the detailed path via qdpf::ComputeStraightLine() in the
+  // agent-moving stage,
+  //
   // This step is required.
-  // Reset() should be called in advance to call this api.
   [[nodiscard]] int ComputeGateFlowField(bool useNodeFlowField = true);
 
   // Visits the computed gate flow field
@@ -359,22 +371,18 @@ class FlowFieldPathFinder {
 
   // ~~~~~~~~~~~~~~~~~~~~~~~  Grid Map Level  (Required) ~~~~~~~~~~~~~~
 
-  // Computes the final flow field for all cells in the destination rectangle.
+  // Computes the final flow field for all cells in the query range.
   // Returns -1 if the target cell is out of bound.
+  // Reset() should be called in advance to call this api.
   //
   // In this flow field:
-  // 1. a cell inside the given dest rectangle points to a neighbor cell to go.
-  // 2. a cell outside the given dest rectangle points to a gate cell to go.
-  //    finally points to the target.
-  // But for both cases, using ComputeStraightLine between them produces the detailed path.
-  //
-  // Reset() should be called in advance to call this api.
-  [[nodiscard]] int ComputeFinalFlowFieldInDestRectangle();
+  // 1. It only contains the results of cells inside the query range.
+  // 2. A cell points to a neighbor cell to go.
+  [[nodiscard]] int ComputeFinalFlowFieldInQueryRange();
 
-  // Visits the computed cell flow field in the destination rectangle.
-  // Make sure the ComputeFinalFlowFieldInDestRectangle has been called before calling this
-  // function.
-  void VisitComputedCellFlowFieldInDestRectangle(CellFlowFieldVisitor &visitor);
+  // Visits the computed cell flow field in the query range.
+  // Make sure the ComputeFinalFlowField has been called before calling this function.
+  void VisitComputedCellFlowFieldInQueryRange(CellFlowFieldVisitor &visitor);
 
  private:
   const QuadtreeMapX &mx;

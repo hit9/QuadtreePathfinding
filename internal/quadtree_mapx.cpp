@@ -43,8 +43,8 @@ QuadtreeMapXImpl::~QuadtreeMapXImpl() {
   for (auto [_, tf] : tfs) delete tf;
   tfs.clear();
 
-  // clear dirtyCells.
-  dirtyCells.clear();
+  // clear dirties.
+  dirties.clear();
 }
 
 const QuadtreeMap* QuadtreeMapXImpl::Get(int agentSize, int walkableTerrainTypes) const {
@@ -85,6 +85,9 @@ void QuadtreeMapXImpl::Build() {
     for (int y = 0; y < w; ++y) Update(x, y);
   }
   Compute();
+
+  // on the first build, dirties may ever been very large and we should shrink the memory.
+  for (auto& [_, vec] : dirties) vec.shrink_to_fit();
 }
 
 // build a clearance field for each terrainTypes integer.
@@ -129,7 +132,7 @@ void QuadtreeMapXImpl::buildClearanceFieldForTerrainTypes(int agentSizeBound, in
   // so we make a listener to collect them, and they will be applied to quadtree map's Updates in
   // the later Compute() call.
   tf->SetUpdatedCellVisistor(
-      [this, terrainTypes](int x, int y) { dirtyCells[terrainTypes].push_back({x, y}); });
+      [this, terrainTypes](int x, int y) { dirties[terrainTypes].push_back({x, y}); });
   // build on an empty map.
   tf->Build();
 }
@@ -175,13 +178,13 @@ void QuadtreeMapXImpl::Compute() {
 
   // Update all cells in related quadtree maps.
   // Of which the clearance value is recomputed, we should maintain the gate cells etc.
-  for (auto& [terrainTypes, vec] : dirtyCells) {
+  for (auto& [terrainTypes, vec] : dirties) {
     for (auto m : maps1[terrainTypes]) {
       for (auto [x, y] : vec) m->Update(x, y);
     }
   }
 
-  dirtyCells.clear();
+  dirties.clear();
 }
 
 }  // namespace internal

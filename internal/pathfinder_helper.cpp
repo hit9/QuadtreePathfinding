@@ -29,8 +29,8 @@ void PathFinderHelper::AddCellToNodeOnTmpGraph(int u, QdNode *node) {
 
 void PathFinderHelper::ForEachNeighbourGateWithST(int u,
                                                   NeighbourVertexVisitor<int> &visitor) const {
-  m->GetGateGraph().ForEachNeighbours(u, visitor);
   tmp.ForEachNeighbours(u, visitor);
+  m->GetGateGraph().ForEachNeighbours(u, visitor);
 }
 
 }  // namespace internal

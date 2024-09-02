@@ -31,7 +31,15 @@ int CountBits(unsigned int n);
 // You can override it with a custom implementation.
 // Ref: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
 // Ref: https://members.chello.at/easyfilter/bresenham.html
-void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector);
+// the parameter limit is to limit the steps: -1 for no limitation.
+// e.g. the first step is always (x1,y1), to obtain the next cell, pass limit = 2.
+void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector, int limit = -1);
+
+// Is (x,y) is inside rectangle rect?
+bool IsInsideRectangle(int x, int y, const Rectangle &rect);
+
+// Is (x,y) is inside rectangle (x1,y1),(x2,y2)?
+bool IsInsideRectangle(int x, int y, int x1, int y1, int x2, int y2);
 
 // AABB overlap testing.
 // Checks if rectangle a and b overlaps.
@@ -40,6 +48,20 @@ bool IsOverlap(const Rectangle &a, const Rectangle &b);
 // Gets overlap of a and b into c.
 // Returns true if the overlap exist.
 bool GetOverlap(const Rectangle &a, const Rectangle &b, Rectangle &c);
+
+// Combine hash a and b into one via FNV hash.
+std::size_t HashCombine(std::size_t a, std::size_t b);
+
+// PairHasher is the hashing implementation for std::pair<A, B> using the FNV hash.
+template <typename A, typename B>
+class PairHasher {
+ public:
+  std::size_t operator()(const std::pair<A, B> &x) const {
+    auto a = std::hash<A>{}(x.first);
+    auto b = std::hash<B>{}(x.second);
+    return HashCombine(a, b);
+  }
+};
 
 // ~~~~~~~~~~~ Util Containers ~~~~~~~~~~~~
 
@@ -67,6 +89,8 @@ class DefaultedUnorderedMap {
   void Clear() { m.clear(); }
   // Returns a const reference to underlying map.
   const UnderlyingUnorderedMap &GetUnderlyingUnorderedMap() const { return m; }
+  // Returns the size of the map.
+  std::size_t Size() const { return m.size(); }
 
  private:
   V defaultValue = DefaultValue;
