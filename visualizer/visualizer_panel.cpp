@@ -106,6 +106,16 @@ void Visualizer::renderImguiPanelSectionCommon() {
       ImGui::EndPopup();
     }
   }
+
+  if (!hideTerrainRenderings) {
+    if (ImGui::Button("Hide Terrains")) {
+      hideTerrainRenderings = true;
+    }
+  } else {
+    if (ImGui::Button("Show Terrains")) {
+      hideTerrainRenderings = false;
+    }
+  }
 }
 
 void Visualizer::renderImguiPanelSectionAgent() {
@@ -199,5 +209,15 @@ void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
 
   if (ImGui::Button("Clear Tests Path")) {
     flowfield.testPaths.clear();
+  }
+
+  if (!renderFlowFieldGateNextLines) {
+    if (ImGui::Button("Debug: Show Gate Connection to Next")) {
+      renderFlowFieldGateNextLines = true;
+    }
+  } else {
+    if (ImGui::Button("Debug: Hide Gate Connection to Next")) {
+      renderFlowFieldGateNextLines = false;
+    }
   }
 }
