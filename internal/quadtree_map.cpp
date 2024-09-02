@@ -140,8 +140,7 @@ void QuadtreeMap::ForEachNeighbourNodes(QdNode *node,
 }
 
 void QuadtreeMap::NodesInRange(const Rectangle &rect, QdNodeVisitor &visitor) const {
-  QdTree::VisitorT visitor1 = [&visitor](QdNode *node) { visitor(node); };
-  tree.QueryLeafNodesInRange(rect.x1, rect.y1, rect.x2, rect.y2, visitor1);
+  tree.QueryLeafNodesInRange(rect.x1, rect.y1, rect.x2, rect.y2, visitor);
 }
 
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Graphs Maintaining ~~~~~~~~~~~~~~~~~

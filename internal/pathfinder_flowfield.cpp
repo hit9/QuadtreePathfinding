@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <queue>
 
 #include "base.hpp"
 
@@ -16,7 +17,7 @@ namespace internal {
 // In the constructor, we just initialized some lambda function for further reusing.
 FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FFA2(n)) {
   // nodesOverlappingQueryRangeCollector is to collect nodes overlapping with the query range.
-  nodesOverlappingQueryRangeCollector = [this](const QdNode *node) {
+  nodesOverlappingQueryRangeCollector = [this](QdNode *node) {
     // we care about only leaf nodes with no obstacles
     if (node->isLeaf && node->objects.empty()) nodesOverlappingQueryRange.insert(node);
   };
@@ -167,7 +168,33 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
 
   // Compute flowfield on the node graph.
   ffa1.Compute(tNode, nodeFlowField, ffa1NeighborsCollector, nullptr, stopf);
+
+  shrinkNodeFlowField();
   return 0;
+}
+
+// Shrink the computed node flowfield.
+// We traverse from the nodesOverlappingQueryRange, and picks all the nodes on the visited path,
+// and remove all the unrelated nodes.
+// This is to reduce number of nodes that will participate the further ComputeGateFlowField().
+void FlowFieldPathFinderImpl::shrinkNodeFlowField() {
+  NodeFlowField f;
+
+  std::queue<QdNode *> q;
+  for (auto node : nodesOverlappingQueryRange) q.push(node);
+
+  while (q.size()) {
+    auto node = q.front();
+    q.pop();
+    if (f.costs.Exist(node)) continue;
+
+    f.costs[node] = nodeFlowField.costs[node];
+    f.nexts[node] = nodeFlowField.nexts[node];
+
+    q.push(nodeFlowField.nexts[node]);
+  }
+
+  std::swap(f, nodeFlowField);
 }
 
 // collects the gate cells on the node flow field if ComputeNodeFlowField is successfully called

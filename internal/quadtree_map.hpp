@@ -34,7 +34,7 @@ using QdTree = quadtree::Quadtree<bool>;
 // QdNode is the type alias of a quadtree node.
 using QdNode = quadtree::Node<bool>;
 // QdNodeVisitor is the type of the function that visits quadtree nodes of the path finder.
-using QdNodeVisitor = std::function<void(const QdNode *node)>;
+using QdNodeVisitor = std::function<void(QdNode *node)>;
 
 // Gate between two adjacent quadtree nodes from cell a in aNode to cell b in bNode.
 //  +-------+--------+

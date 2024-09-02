@@ -179,7 +179,7 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // nodes overlapping with the query range.
   // this node collection is to stop the ffa1 pathfinder's compution earlier once
   // all the related nodes are marked via flowfield algorithm.
-  std::unordered_set<const QdNode*> nodesOverlappingQueryRange;
+  std::unordered_set<QdNode*> nodesOverlappingQueryRange;
 
   // this gate collection includes two parts:
   // 1. gate cells inside the nodes within nodesOverlappingQueryRange.
@@ -214,6 +214,7 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // ~~~~~~~~ internal functions ~~~~~~~~~~~
 
   void collectGateCellsOnNodeField();
+  void shrinkNodeFlowField();
 
   // DP value container of f for ComputeFinalFlowFieldInQueryRange()
   using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
