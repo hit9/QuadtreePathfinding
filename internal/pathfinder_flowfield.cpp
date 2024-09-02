@@ -15,19 +15,19 @@ namespace internal {
 // ffa2 is the flowfield pathfinder to work on the gate graph.
 // In the constructor, we just initialized some lambda function for further reusing.
 FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FFA2(n)) {
-  // nodesOverlappingQueryRangeCollector: is to collect nodes overlapping with the query range.
+  // nodesOverlappingQueryRangeCollector is to collect nodes overlapping with the query range.
   nodesOverlappingQueryRangeCollector = [this](const QdNode *node) {
     // we care about only leaf nodes with no obstacles
     if (node->isLeaf && node->objects.empty()) nodesOverlappingQueryRange.insert(node);
   };
 
-  // gatesInNodesOverlappingQueryRangeCollector: is to collect gates inside a single node within
+  // gatesInNodesOverlappingQueryRangeCollector is to collect gates inside a single node within the
   // nodesOverlappingQueryRange.
   gatesInNodesOverlappingQueryRangeCollector = [this](const Gate *gate) {
     gatesInNodesOverlappingQueryRange.insert(gate->a);
   };
 
-  // ffa1NeighborsCollector is for computing node flow field, it's used to visit every neighbour
+  // ffa1NeighborsCollector is to compute node flow field, it's used to visit every neighbour
   // vertex for given node.
   ffa1NeighborsCollector = [this](QdNode *u, NeighbourVertexVisitor<QdNode *> &visitor) {
     m->ForEachNeighbourNodes(u, visitor);
@@ -265,24 +265,14 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
   if (tNode == nullptr) return -1;
   if (m->IsObstacle(x2, y2)) return -1;
 
-  // ensures that we can call it for multiple times
+  // ensures the finalFlowField is empty
   if (finalFlowField.costs.Size()) finalFlowField.Clear();
 
-  // f[x][y] is the cost from the cell (x,y) to the target.
-  // all cells is initialized to inf.
-  // for a cell on the gateFlowField (and not a gate cell pointing into the node's inner), it's
-  // initialized to the cost value. for an other cell inside the query range, it will be finally
-  // derived via DP.
+  // f[x][y] is the cost from the cell (x,y) to the target, all cells are initialized to inf.
   Final_F f;
-
-  // from[x][y] stores which neighbour cell the min value comes from.
-  // for a cell on the gateFlowField (and not a gate cell pointing into the node's inner), it
-  // points to a neighbour cell on the direction to its next. for an other cell inside qrange, it
-  // will finally point to a neighbour cell via DP.
+  // from[x][y] stores which neighbour cell where the min value comes from.
   Final_From from;
-
-  // b[x][y] indicates whether the (x,y) is on the computed gate flow field.
-  // for gate cell (x,y) pointing to its own node's inner, b[x][y] is false.
+  // b[x][y] indicates whether the (x,y)'s f and from values should be derived via DP.
   Final_B b;
 
   // initialize f from computed gate flow field.
@@ -292,22 +282,32 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
     auto [x, y] = m->UnpackXY(v);
     auto [x1, y1] = m->UnpackXY(next);
 
-    // force it points to a neighbour on the direction to next,
-    // (x2,y2) is the next neighbour cell this (x,y) will point to.
+    // for a gate cell or virtual gate cell on the gateFlowField.
+    // force it pointing to a neighbour cell on the direction to its next.
+    // (x2,y2) is the neighbour cell to be computed.
     int x2, y2;
     findNeighbourCellByNext(x, y, x1, y1, x2, y2);
 
-    QdNode *node1 = m->FindNode(x, y), *node2 = m->FindNode(x2, y2);
+    // find out the node of (x,y), O(log (Tree Depth))
+    QdNode *node1 = m->FindNode(x, y);
+    // find out the node of (x2,y2), O(log (Tree Depth))
+    QdNode *node2 = m->FindNode(x2, y2);
 
-    // for cell inside a tNode, we expect it pointing to inner.
-    if (node1 == tNode) {
+    // for a cell A (x,y) on the gate flow field:
+    if (node1 != tNode) {
+      // If A is not inside tNode, and its next neighbour B is also inside node1, we should skip A:
+      // 1. Non-gate cell B is computed via DP, which is different with A. That may result in
+      //    cyclic flows, A pointing B and B pointing A.
+      // 2. Since A is pointing another gate C inside its node (on the gateFlowField), and A's node
+      //    is not tNode, then C should point some cell outside. We can use C to derived A's result
+      //    via DP instead.
       if (node2 != tNode) continue;
     } else {
-      // for other cells not inside tNode (the most cases), we expect it pointing to outer.
+      // If A's node is tNode, in the similar consideration, we should use it only if B is also
+      // inside tNode.
       if (node1 == node2 && m->IsGateCell(node1, v)) continue;
     }
 
-    // don't recompute the cells from gate flowfield.
     b[x][y] = true;
     f[x][y] = cost;
     from[x][y] = m->PackXY(x2, y2);

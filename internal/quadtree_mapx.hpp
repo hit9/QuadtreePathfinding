@@ -74,8 +74,8 @@ class QuadtreeMapXImpl {
 
   // records the dirty cells where the clearance value changed.
   // they are cleared after Compute().
-  // dirtyCells[terrainTypes] => {(x,y), ...}
-  std::unordered_map<int, std::vector<std::pair<int, int>>> dirtyCells;
+  // dirties[terrainTypes] => {(x,y), ...}
+  std::unordered_map<int, std::vector<std::pair<int, int>>> dirties;
 
   void buildClearanceFields();
   void buildClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
