@@ -29,7 +29,8 @@ target_link_libraries(qdpf true_clearance_field)
 target_include_directories(qdpf PUBLIC "../3rd-party" "..")
 
 # ----- quadtree-pathfinding-visualizer ------
-add_executable(quadtree-pathfinding-visualizer main.cpp)
+file(GLOB VISUALIZER_SOURCES *.cpp)
+add_executable(quadtree-pathfinding-visualizer ${VISUALIZER_SOURCES})
 target_include_directories(quadtree-pathfinding-visualizer PUBLIC ".."
     "./3rd-party")
 
