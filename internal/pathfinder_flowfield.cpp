@@ -301,11 +301,11 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
       // 2. Since A is pointing another gate C inside its node (on the gateFlowField), and A's node
       //    is not tNode, then C should point some cell outside. We can use C to derived A's result
       //    via DP instead.
-      if (node2 != tNode) continue;
-    } else {
+      if (node1 == node2 && m->IsGateCell(node1, v)) continue;
+    } else {  // node1 == tNode
       // If A's node is tNode, in the similar consideration, we should use it only if B is also
       // inside tNode.
-      if (node1 == node2 && m->IsGateCell(node1, v)) continue;
+      if (node2 != tNode) continue;
     }
 
     b[x][y] = true;
