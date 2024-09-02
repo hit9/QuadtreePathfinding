@@ -70,8 +70,8 @@ qdpf.hpp          # Public API
 
 API list can be found at [qdpf.hpp](qdpf.hpp).
 
-A* Visualizer
--------------
+Visualizer
+----------
 
 Install SDL and build:
 
