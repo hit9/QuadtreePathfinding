@@ -35,6 +35,12 @@ int CountBits(unsigned int n);
 // e.g. the first step is always (x1,y1), to obtain the next cell, pass limit = 2.
 void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector, int limit = -1);
 
+// Is (x,y) is inside rectangle rect?
+bool IsInsideRectangle(int x, int y, const Rectangle &rect);
+
+// Is (x,y) is inside rectangle (x1,y1),(x2,y2)?
+bool IsInsideRectangle(int x, int y, int x1, int y1, int x2, int y2);
+
 // AABB overlap testing.
 // Checks if rectangle a and b overlaps.
 bool IsOverlap(const Rectangle &a, const Rectangle &b);
@@ -46,6 +52,7 @@ bool GetOverlap(const Rectangle &a, const Rectangle &b, Rectangle &c);
 // Combine hash a and b into one via FNV hash.
 std::size_t HashCombine(std::size_t a, std::size_t b);
 
+// PairHasher is the hashing implementation for std::pair<A, B> using the FNV hash.
 template <typename A, typename B>
 class PairHasher {
  public:

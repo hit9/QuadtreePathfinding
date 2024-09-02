@@ -1,4 +1,7 @@
+#include "qdpf.hpp"
 #include "visualizer.hpp"
+
+using qdpf::internal::IsInsideRectangle;
 
 void Visualizer::renderWorld() {
   renderHighlightedNodes();
@@ -226,8 +229,7 @@ void Visualizer::renderPathFindingFlowFieldFinalField() {
     auto [x, y] = u;
     auto [x1, y1] = v;
     if (u == v) continue;
-    if (x >= flowfield.qrange.x1 && x <= flowfield.qrange.x2 && y >= flowfield.qrange.y1 &&
-        y <= flowfield.qrange.y2) {
+    if (IsInsideRectangle(x, y, flowfield.qrange)) {
       int dx = (x1 - x), dy = (y1 - y);
       int d = (dx + 1) * 3 + (dy + 1);
       if (!(d >= 0 && d <= 8 && d != 4)) continue;

@@ -1,4 +1,7 @@
+#include "qdpf.hpp"
 #include "visualizer.hpp"
+
+using qdpf::internal::IsInsideRectangle;
 
 // ~~~~~~~~~~ Agent ~~~~~~~~~~
 
@@ -34,15 +37,15 @@ void Map::Reset() {
 
   for (int x = 0; x < h; ++x) {
     for (int y = 0; y < w; ++y) {
-      if (x >= center.x1 && x <= center.x2 && y >= center.y1 && y <= center.y2)
+      if (IsInsideRectangle(x, y, center))
         grids[x][y] = Terrain::Water;
-      else if (x >= wall1.x1 && x <= wall1.x2 && y >= wall1.y1 && y <= wall1.y2)
+      else if (IsInsideRectangle(x, y, wall1))
         grids[x][y] = Terrain::Building;
-      else if (x >= wall2.x1 && x <= wall2.x2 && y >= wall2.y1 && y <= wall2.y2)
+      else if (IsInsideRectangle(x, y, wall2))
         grids[x][y] = Terrain::Building;
-      else if (x >= wall3.x1 && x <= wall3.x2 && y >= wall3.y1 && y <= wall3.y2)
+      else if (IsInsideRectangle(x, y, wall3))
         grids[x][y] = Terrain::Building;
-      else if (x >= wall4.x1 && x <= wall4.x2 && y >= wall4.y1 && y <= wall4.y2)
+      else if (IsInsideRectangle(x, y, wall4))
         grids[x][y] = Terrain::Building;
       else
         grids[x][y] = Terrain::Land;

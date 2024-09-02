@@ -40,6 +40,14 @@ void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collecto
   }
 }
 
+bool IsInsideRectangle(int x, int y, int x1, int y1, int x2, int y2) {
+  return x >= x1 && x <= x2 && y >= y1 && y <= y2;
+}
+
+bool IsInsideRectangle(int x, int y, const Rectangle &rect) {
+  return IsInsideRectangle(x, y, rect.x1, rect.y1, rect.x2, rect.y2);
+}
+
 // https://writings.sh/post/aabb
 bool IsOverlap(const Rectangle &a, const Rectangle &b) {
   return a.x1 <= b.x2 && a.x2 >= b.x1 && a.y1 <= b.y2 && a.y2 >= b.y1;

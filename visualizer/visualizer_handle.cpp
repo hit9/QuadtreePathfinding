@@ -9,7 +9,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "qdpf.hpp"
 #include "visualizer.hpp"
+
+using qdpf::internal::IsInsideRectangle;
 
 std::string StateToString(State state) {
   switch (state) {
@@ -122,7 +125,7 @@ void Visualizer::pushTerrainChanges(const Cell& cell) {
   auto [x, y] = cell;
   // invert between land and changeTo.
   auto to = (map.grids[x][y] == Terrain::Land) ? changeTo : Terrain::Land;
-  if (x >= 0 && x < map.h && y >= 0 && y < map.w && !map.changes[x][y]) {
+  if (IsInsideRectangle(x, y, 0, 0, map.h - 1, map.w - 1) && !map.changes[x][y]) {
     changingTerrainCells.push_back(cell);
     map.WantChangeTerrain(cell, to);
   }
