@@ -19,6 +19,7 @@ void Visualizer::renderGrids() {
       SDL_Rect grid = {x, y, map.gridSize, map.gridSize};
       SDL_Rect gridInner = {grid.x + 1, grid.y + 1, grid.w - 2, grid.h - 2};
       renderDrawRect(grid, LightGray);
+      if (hideTerrainRenderings) continue;
       // Its terrain value or changing to value
       auto v = map.grids[i][j];
       if (map.changes[i][j] != 0) v = map.changes[i][j];
@@ -196,9 +197,11 @@ void Visualizer::renderPathfindingFlowField() {
     case State::FlowFieldGateLevelComputed:
       drawQrangeRectangle();
       renderPathFindingFlowFieldGateField();
+      renderPathFindingFlowFieldGateNextsLines();
       return;
     case State::FlowFieldFinalLevelComputed:
       drawQrangeRectangle();
+      renderPathFindingFlowFieldGateNextsLines();
       renderFillCell(flowfield.x2, flowfield.y2, Green);  // target
       renderPathFindingFlowFieldFinalField();
       return;
@@ -211,10 +214,20 @@ void Visualizer::renderPathfindingFlowField() {
 void Visualizer::renderPathFindingFlowFieldGateField() {
   // draw gate cells on the flowfield.
   for (int i = 0; i < flowfield.gateFlowField.size(); ++i) {
-    auto& [gate, nextNext, cost] = flowfield.gateFlowField[i];
+    auto& [gate, next, cost] = flowfield.gateFlowField[i];
     auto [x, y] = gate;
-    SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
-    renderFillRect(cell, Green);
+    auto [xNext, yNext] = next;
+    renderFillCell(x, y, Green);
+  }
+}
+
+void Visualizer::renderPathFindingFlowFieldGateNextsLines() {
+  if (!renderFlowFieldGateNextLines) return;
+  for (int i = 0; i < flowfield.gateFlowField.size(); ++i) {
+    auto& [gate, next, cost] = flowfield.gateFlowField[i];
+    auto [x, y] = gate;
+    auto [xNext, yNext] = next;
+    renderDrawLineBetweenCells(x, y, xNext, yNext, Black);
   }
 }
 
@@ -264,13 +277,26 @@ void Visualizer::renderFillRect(const SDL_Rect& rect, const SDL_Color& color) {
 }
 
 void Visualizer::renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color) {
-  // TODO: how to crop?
+  // TODO: how to crop? May we need the Cohen-Sutherland..
   x1 -= camera->x;
   x2 -= camera->x;
   y1 -= camera->y;
   y2 -= camera->y;
   SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
   SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+}
+
+void Visualizer::renderDrawLineBetweenCells(int x1, int y1, int x2, int y2,
+                                            const SDL_Color& color) {
+  auto px1 = y1 * map.gridSize;
+  auto py1 = x1 * map.gridSize;
+  auto px2 = y2 * map.gridSize;
+  auto py2 = x2 * map.gridSize;
+  auto centerx1 = px1 + map.gridSize / 2;
+  auto centery1 = py1 + map.gridSize / 2;
+  auto centerx2 = px2 + map.gridSize / 2;
+  auto centery2 = py2 + map.gridSize / 2;
+  renderDrawLine(centerx1, centery1, centerx2, centery2, color);
 }
 
 void Visualizer::renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst) {

@@ -137,7 +137,6 @@ struct FlowFieldContext {
   bool isPfReset = false;
 
   // ~~~~~ optional test path ~~~~~~
-  int x1 = -1, y1 = -1;  // start
   std::vector<std::vector<Cell>> testPaths;
 
   ~FlowFieldContext();
@@ -277,6 +276,8 @@ class Visualizer {
 
   // ~~~~~~ ui states ~~~~~~~
   bool showClearAllTerrainsConfirm = false;
+  bool renderFlowFieldGateNextLines = false;
+  bool hideTerrainRenderings = false;
 
   // ~~~~~~ imgui ~~~~~~~
   ImFont* largeFont;
@@ -305,9 +306,11 @@ class Visualizer {
   void renderPathfindingFlowField();
   void renderPathFindingFlowFieldGateField();
   void renderPathFindingFlowFieldFinalField();
+  void renderPathFindingFlowFieldGateNextsLines();
   void renderDrawRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderFillRect(const SDL_Rect& rect, const SDL_Color& color);
   void renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color);
+  void renderDrawLineBetweenCells(int x1, int y1, int x2, int y2, const SDL_Color& color);
   void renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst);
   void renderFillCell(int x, int y, const SDL_Color& color);
   void renderFillAgent(int x, int y);
