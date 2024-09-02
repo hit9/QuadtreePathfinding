@@ -448,35 +448,28 @@ void Visualizer::handleLogics() {
 }
 
 void Visualizer::handlePlayFlowFieldTestPath() {
-  // (x1,y1) is the start
-  int x1 = flowfield.x1, y1 = flowfield.y1;
-  if (x1 == -1 || y1 == -1) return;
-
-  // (x2,y2) is thet target
+  // (x2,y2) is the target
   int x2 = flowfield.x2, y2 = flowfield.y2;
 
-  auto& p = flowfield.testPath;
+  for (auto& p : flowfield.testPaths) {
+    if (p.empty()) continue;
 
-  if (p.empty()) {
-    p.push_back({x1, y1});
-    return;
-  }
+    // get current position
+    auto [x3, y3] = p.back();
 
-  // get current position
-  auto [x3, y3] = p.back();
+    if (x3 == x2 && y3 == y2) {
+      // arrived the target.
+      // back to start;
+      auto [x1, y1] = p[0];
+      p.clear();
+      p.push_back({x1, y1});
+      return;
+    }
 
-  if (x3 == x2 && y3 == y2) {
-    // arrived the target.
-    // back to start;
-    p.clear();
-    p.push_back({x1, y1});
-    return;
-  }
-
-  // Is inside the rect?
-  if ((x3 >= flowfield.qrange.x1 && x3 <= flowfield.qrange.x2 && y3 >= flowfield.qrange.y1 &&
-       y3 <= flowfield.qrange.y2)) {
-    // get next from the final flow field.
-    p.push_back(flowfield.finalFlowNextMap[{x3, y3}]);
+    // Is inside the rect?
+    if (IsInsideRectangle(x3, y3, flowfield.qrange)) {
+      // get next from the final flow field.
+      p.push_back(flowfield.finalFlowNextMap[{x3, y3}]);
+    }
   }
 }

@@ -177,13 +177,10 @@ void Visualizer::handleInputsFlowFieldSetTestStart(SDL_Event& e) {
     auto [x, y] = cell;
     if (flowfield.finalFlowNextMap.find({x, y}) == flowfield.finalFlowNextMap.end()) {
       setMessageHint("FlowField: test path start invalid", ImRed);
-      flowfield.x1 = -1;
-      flowfield.y1 = -1;
       return;
     }
-    flowfield.x1 = x;
-    flowfield.y1 = y;
-    flowfield.testPath.clear();
-    setMessageHint("FlowField: playing a test path ...", ImGreen);
+    flowfield.testPaths.resize(flowfield.testPaths.size() + 1);
+    flowfield.testPaths.back().push_back({x, y});
+    setMessageHint("FlowField: playing test path ...", ImGreen);
   }
 }

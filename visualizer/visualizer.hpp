@@ -138,7 +138,7 @@ struct FlowFieldContext {
 
   // ~~~~~ optional test path ~~~~~~
   int x1 = -1, y1 = -1;  // start
-  std::vector<Cell> testPath;
+  std::vector<std::vector<Cell>> testPaths;
 
   ~FlowFieldContext();
   void InitPf(qdpf::QuadtreeMapX* qmx);

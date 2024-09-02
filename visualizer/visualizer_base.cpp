@@ -141,7 +141,7 @@ int FlowFieldContext::ResetPf(int agentSize, int capabilities) {
 void FlowFieldContext::ClearResults() {
   nodeFlowField.clear(), gateFlowField.clear(), finalFlowField.clear();
   finalFlowNextMap.clear();
-  testPath.clear();
+  testPaths.clear();
 }
 
 void FlowFieldContext::Reset() {

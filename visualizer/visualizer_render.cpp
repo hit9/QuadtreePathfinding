@@ -219,9 +219,11 @@ void Visualizer::renderPathFindingFlowFieldGateField() {
 }
 
 void Visualizer::renderPathFindingFlowFieldFinalField() {
-  if (flowfield.testPath.size()) {
-    for (auto [x, y] : flowfield.testPath) {
-      renderFillAgent(x, y);
+  if (flowfield.testPaths.size()) {
+    for (const auto& testPath : flowfield.testPaths) {
+      for (auto [x, y] : testPath) {
+        renderFillAgent(x, y);
+      }
     }
   }
   for (int i = 0; i < flowfield.finalFlowField.size(); ++i) {
