@@ -77,11 +77,19 @@ class QuadtreeMapXImpl {
   // dirties[terrainTypes] => {(x,y), ...}
   std::unordered_map<int, std::vector<std::pair<int, int>>> dirties;
 
+  // ~~~~~ clearance fields ~~~~~~~
+  void createClearanceFields();
+  void createClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
+                                           int terrainTypes);
   void buildClearanceFields();
-  void buildClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
-                                          int terrainTypes);
+
+  // ~~~~~ quadtree maps ~~~~~~~
+  void createQuadtreeMaps();
+  void createQuadtreeMapsForSetting(int agentSize, int terrainTypes);
   void buildQuadtreeMaps();
-  void buildQuadtreeMapsForSetting(int agentSize, int terrainTypes);
+
+  // ~~~~~ bind them ~~~~~~~
+  void bindClearanceFieldAndQuadtreeMaps();
 };
 
 }  // namespace internal

@@ -138,23 +138,26 @@ void QuadtreeMap::NodesInRange(const Rectangle &rect, QdNodeVisitor &visitor) co
 
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Graphs Maintaining ~~~~~~~~~~~~~~~~~
 
-void QuadtreeMap::BuildTree() {
+void QuadtreeMap::Build() {
   // debug: the tree's size should be 0 before build.
   // If it isn't (failed here), checks if BuildTree() is called for at least twice.
   assert(tree.NumNodes() == 0);
-  tree.Build();
-}
 
-void QuadtreeMap::Build() {
-  BuildTree();
+  // build the empty tree, which creates the root node.
+  tree.Build();
+
+  std::vector<quadtree::BatchOperationItem<bool>> items;
+
   for (int x = 0; x < h; x++) {
     for (int y = 0; y < w; y++) {
       // On the first build, we care only about the obstacles.
       // the grid map will be splited into multiple sections,
       // and gates will be created for the first time.
-      if (isObstacle(x, y)) Update(x, y);
+      if (isObstacle(x, y)) items.push_back({x, y, true});
     }
   }
+
+  tree.BatchAddToLeafNode(tree.GetRootNode(), items);
 }
 
 void QuadtreeMap::Update(int x, int y) {
