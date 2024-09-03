@@ -17,15 +17,17 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
     : w(w),
       h(h),
       step(step),
-      s(std::max(w, h)),
-      n(w * h),
+      s(std::max(w, h)),  // hint: checks comments for "Cell Id Packing"
+      n(s * s + 1),       // hint: checks comments for "Cell Id Packing"
       maxNodeWidth(maxNodeWidth == -1 ? w : maxNodeWidth),
       maxNodeHeight(maxNodeHeight == -1 ? h : maxNodeHeight),
       isObstacle(isObstacle),
       distance(distance),
       stepf(stepf),
       tree(QdTree(w, h)) {
-  assert(s > 0);  // debug mode: avoid s == 0, in case of division error
+  // debug mode: avoid s == 0, in case of division error
+  assert(s > 0);
+
   g1.Init(n);
   g2.Init(n);
   // ssf returns true to stop a quadtree node to continue to split.
@@ -66,6 +68,21 @@ static std::pair<int, int> __div(int n, int k) {
   auto dv = std::div(n, k);
   return {dv.quot, dv.rem};
 }
+
+// we use s=max(w,h) for packing (x,y) into a number.
+// if (w >= h) then
+//    z = s*x + y
+//    x = z / s
+//    y = z % s
+// the same way for case h > w.
+// thus, the max of z, is w*h.
+//
+// the packing should test if (s == w) at first, and pick (s*x+y) or (s*y+x), also for the
+// unpacking.
+//
+// but UnpackXY and PackXY are very high frequently used methods, it's **important** to be
+// faster. thus we use n = s*s instead of w*h, to avoid a test condition on (s == w). And s*s + 1
+// to avoid possible address boundry errors.
 
 int QuadtreeMap::PackXY(int x, int y) const { return s * x + y; }
 std::pair<int, int> QuadtreeMap::UnpackXY(int v) const { return __div(v, s); }
