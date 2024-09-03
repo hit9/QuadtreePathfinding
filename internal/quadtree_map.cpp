@@ -98,14 +98,7 @@ int QuadtreeMap::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const {
 
 QdNode *QuadtreeMap::FindNode(int x, int y) const { return tree.Find(x, y); }
 
-bool QuadtreeMap::IsGateCell(QdNode *node, int u) const {
-  auto it = gates1.find(node);
-  // the node is not found.
-  if (it == gates1.end()) return false;
-  // m is gates1[node], format: {u => set of gates}
-  auto &m = it->second;
-  return m.find(u) != m.end();
-}
+bool QuadtreeMap::IsGateCell(QdNode *node, int u) const { return gates1[node][u].Size() > 0; }
 
 bool QuadtreeMap::IsGateCell(int u) const {
   auto [x, y] = UnpackXY(u);
@@ -201,13 +194,11 @@ void QuadtreeMap::Update(int x, int y) {
 
 // visits each gate of a given node.
 void QuadtreeMap::forEachGateInNode(QdNode *node, std::function<void(Gate *)> &visitor) const {
-  auto it = gates1.find(node);
-  if (it == gates1.end()) return;
-  // m is gates1[node]
-  const auto &m = it->second;
-  for (const auto &[_, st] : m) {
-    // for each gate inside node.
-    for (auto gate : st) visitor(gate);
+  if (gates1[node].Size() == 0) return;
+  for (auto &[a, m] : gates1[node].GetUnderlyingUnorderedMap()) {  // gates1[aNode][a]
+    for (auto &[b, gate] : m.GetUnderlyingUnorderedMap()) {        // gates1[aNode][a][b]
+      visitor(gate);
+    }
   }
 }
 
@@ -222,12 +213,7 @@ void QuadtreeMap::connectCellsInGateGraphs(int u, int v) {
 // this node. The given node must not be an obstacle node. Hint: all cells inside a non-obstacle
 // node are reachable to each other.
 void QuadtreeMap::connectGateCellsInNodeToNewGateCell(QdNode *aNode, int a) {
-  auto it = gates1.find(aNode);
-  // the aNode is not found.
-  if (it == gates1.end()) return;
-  // m is gates1[aNode], map of { a => gate set }
-  const auto &m = it->second;
-  for (const auto &[u, _] : m) {
+  for (auto &[u, m] : gates1[aNode].GetUnderlyingUnorderedMap()) {
     if (u != a) connectCellsInGateGraphs(u, a);
   }
 }
@@ -241,36 +227,36 @@ void QuadtreeMap::connectGateCellsInNodeToNewGateCell(QdNode *aNode, int a) {
 // 1. Connect edges with existing gate cells inside each node.
 // 2. Connects a and b and add the created gate into management.
 void QuadtreeMap::createGate(QdNode *aNode, int a, QdNode *bNode, int b) {
+  // idempotent: if aNode[a][b] => bNode exist
+  auto gt1 = gates1[aNode][a][b];
+  if (gt1 != nullptr && gt1->bNode == bNode) return;
+
+  // idempotent: if bNode[b][a] => aNode exist
+  auto gt2 = gates1[bNode][b][a];
+  if (gt2 != nullptr && gt2->bNode == aNode) return;
+
   // bidirection edges between new gate cell and existing gate cells inside each node.
   connectGateCellsInNodeToNewGateCell(aNode, a);
   connectGateCellsInNodeToNewGateCell(bNode, b);
+
   // connects a and b.
   connectCellsInGateGraphs(a, b);
+
   // creates a gate and maintain into container gates and gates.
   auto gate1 = new Gate(aNode, bNode, a, b);  // a => b
   auto gate2 = new Gate(bNode, aNode, b, a);  // b => a
+
   gates.insert(gate1);
   gates.insert(gate2);
-  gates1[aNode][a].insert(gate1);
-  gates1[bNode][b].insert(gate2);
+
+  gates1[aNode][a][b] = gate1;
+  gates1[bNode][b][a] = gate2;
 }
 
 // Disconnects all edges connecting with given gate cell u.
 void QuadtreeMap::disconnectCellInGateGraphs(int u) {
   g2.ClearEdgeTo(u);
   g2.ClearEdgeFrom(u);
-}
-
-// Disconnects all gate cells in aNode from the gate graphs.
-void QuadtreeMap::disconnectCellsInNodeFromGateGraphs(QdNode *aNode) {
-  auto it = gates1.find(aNode);
-  // node is not found.
-  if (it == gates1.end()) return;
-  // m is gates1[aNode], map of { a => set of gates }
-  auto &m = it->second;
-  for (auto &[u, _] : m) {
-    disconnectCellInGateGraphs(u);
-  }
 }
 
 //  Connects given two nodes on the node graph.
@@ -287,60 +273,42 @@ void QuadtreeMap::disconnectNodeFromNodeGraph(QdNode *aNode) {
   g1.ClearEdgeFrom(aNode);
 }
 
-// Remove gate (a => b) from given node aNode.
-void QuadtreeMap::removeGateInNode(QdNode *aNode, int a, QdNode *bNode, int b) {
-  auto it = gates1.find(aNode);
-  if (it != gates1.end()) {
-    // m is gates1[aNode]
-    auto &m = it->second;
-    auto it1 = m.find(a);
-    if (it1 != m.end()) {
-      // st is gates1[aNode][a], set of gate pointers starting at cell a.
-      // we should find the gate points from a to b.
-      auto &st = it1->second;
-
-      // the set should be very small.
-      Gate *target = nullptr;
-      for (auto gate : st) {
-        if (gate->bNode == bNode && gate->b == b) {
-          target = gate;
-          break;
-        }
-      }
-
-      if (target != nullptr) {
-        // remove the gate (a => b)
-        gates.erase(target);
-        st.erase(target);
-        // remove the container st and m if empty.
-        if (st.empty()) m.erase(a);
-        if (m.empty()) gates1.erase(aNode);
-
-        delete target;
-      }
-    }
-  }
-}
-
 // Handle the node graph and all gate graphs changes on a quadtree node is removed.
-// 1. (gate graphs) Remove all edges connected to any gate cells in aNode (from and to).
-// 2. (node graphs) Remove all edges connected aNode (from and to aNode).
+// 1. (node graphs) Remove all edges connected aNode (from and to aNode).
+// 2. (gate graphs) Remove all edges connected to any gate cells in aNode (from and to).
 // 3. (gates) Remove all gates inside the node.
 void QuadtreeMap::handleRemovedNode(QdNode *aNode) {
   disconnectNodeFromNodeGraph(aNode);
-  disconnectCellsInNodeFromGateGraphs(aNode);
-  // ~~~~~~~~ disposes all gates for this node. ~~~~~~~~~
 
   // we first collect all gates in this node.
   std::vector<Gate *> aNodeGates;
   std::function<void(Gate *)> visitor = [&aNodeGates](Gate *gate) { aNodeGates.push_back(gate); };
   forEachGateInNode(aNode, visitor);
 
-  // remove gates in each adjacent node b.
-  for (const auto gate : aNodeGates) {
-    auto a = gate->a, b = gate->b;
-    auto bNode = gate->bNode;
-    removeGateInNode(bNode, b, aNode, a);
+  // for each gate cell a inside aNode, disconnect a from the gate graph.
+  for (auto gate : aNodeGates) disconnectCellInGateGraphs(gate->a);
+
+  // remove the dual gate in each adjacent node b.
+  for (const auto aGate : aNodeGates) {
+    auto a = aGate->a, b = aGate->b;
+    auto bNode = aGate->bNode;
+
+    auto bGate = gates1[bNode][b][a];
+
+    // remove bGate from bNode.
+    gates1[bNode][b].Erase(a);
+    gates.erase(bGate);
+    delete bGate;
+
+    // shrink the unordered_maps if empty.
+    if (gates1[bNode][b].Size() == 0) {
+      // that is, b is the gate cell which only points to a.
+      // disconncts it from the gate graph.
+      disconnectCellInGateGraphs(b);
+      gates1[bNode].Erase(b);
+    }
+
+    if (gates1[bNode].Size() == 0) gates1.Erase(bNode);
   }
 
   // remove all gates inside aNode.
@@ -348,7 +316,7 @@ void QuadtreeMap::handleRemovedNode(QdNode *aNode) {
     gates.erase(gate);
     delete gate;
   }
-  gates1.erase(aNode);
+  gates1.Erase(aNode);
 }
 
 // Handle the node graph and all gate graphs changes on a quadtree node is created.

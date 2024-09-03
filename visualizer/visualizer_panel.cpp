@@ -130,6 +130,18 @@ void Visualizer::renderImguiPanelSectionCommon() {
       showGateGraph = false;
     }
   }
+
+  ImGui::SameLine();
+
+  if (!showNodeGraph) {
+    if (ImGui::Button("Show Node Graph (May Slow!)")) {
+      showNodeGraph = true;
+    }
+  } else {
+    if (ImGui::Button("Hide Node Graph")) {
+      showNodeGraph = false;
+    }
+  }
 }
 
 void Visualizer::renderImguiPanelSectionAgent() {

@@ -279,6 +279,7 @@ class Visualizer {
   bool renderFlowFieldGateNextLines = false;
   bool hideTerrainRenderings = false;
   bool showGateGraph = false;
+  bool showNodeGraph = false;
 
   // ~~~~~~ imgui ~~~~~~~
   ImFont* largeFont;
@@ -300,6 +301,7 @@ class Visualizer {
   void renderQuadtreeNodes();
   void renderGates();
   void renderGateGraph();
+  void renderNodeGraph();
   void renderHighlightedNodes();
   void renderHighlightedNodesAstar();
   void renderHighlightedNodesFlowField();

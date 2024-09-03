@@ -92,6 +92,8 @@ class DefaultedUnorderedMap {
   // Returns the size of the map.
   std::size_t Size() const { return m.size(); }
 
+  void Erase(K k) { m.erase(k); }
+
  private:
   V defaultValue = DefaultValue;
   UnderlyingUnorderedMap m;
@@ -104,13 +106,15 @@ template <typename K, bool DefaultValue, typename Hasher = std::hash<K>>
 using DefaultedUnorderedMapBool = DefaultedUnorderedMap<K, bool, DefaultValue, Hasher>;
 
 // Nested unordered_map with default value.
+// unordered_map[k1][k2]
 template <typename K1, typename K2, typename V, V DefaultValue>
 class NestedDefaultedUnorderedMap {
  public:
   // Inner level map.
   using InnerMap = DefaultedUnorderedMap<K2, V, DefaultValue>;
+  using UnderlyingUnorderedMap = std::unordered_map<K1, InnerMap>;
   // An empty inner level map.
-  static InnerMap EmptyInnerMap;
+  static const inline InnerMap EmptyInnerMap;
   // Returns a mutable reference to the inner map for given key.
   // Inserts one if not exist.
   InnerMap &operator[](K1 k) { return m.try_emplace(k).first->second; }
@@ -123,10 +127,52 @@ class NestedDefaultedUnorderedMap {
   }
   // Clears all inner map.
   void Clear() { m.clear(); }
+  std::size_t Size() const { return m.size(); }
+  // Returns a const reference to underlying map.
+  const UnderlyingUnorderedMap &GetUnderlyingUnorderedMap() const { return m; }
+  void Erase(K1 k1) { m.erase(k1); }
 
  private:
   V defaultValue = DefaultValue;
-  std::unordered_map<K1, InnerMap> m;
+  UnderlyingUnorderedMap m;
+};
+
+// NestedNestedDefaultedUnorderedMap is the nested unordered_map[k1][k2][k3] with default value.
+template <typename K1, typename K2, typename K3, typename V, V DefaultValue>
+class NestedNestedDefaultedUnorderedMap {
+ public:
+  // The inner map is a NestedDefaultedUnorderedMap.
+  using InnerMap = NestedDefaultedUnorderedMap<K2, K3, V, DefaultValue>;
+
+  using UnderlyingUnorderedMap = std::unordered_map<K1, InnerMap>;
+
+  static const inline InnerMap EmptyInnerMap;
+
+  // Returns a mutable reference to the inner map for given key.
+  // Inserts one if not exist.
+  InnerMap &operator[](K1 k) { return m.try_emplace(k).first->second; }
+
+  // Returns a const reference to the inner map for given key.
+  // Returns the reference to EmptyInnerMap if not exist.
+  const InnerMap &operator[](K1 k) const {
+    auto it = m.find(k);
+    if (it == m.end()) return EmptyInnerMap;
+    return it->second;
+  }
+
+  // Clears all inner map.
+  void Clear() { m.clear(); }
+
+  std::size_t Size() const { return m.size(); }
+
+  // Returns a const reference to underlying map.
+  const UnderlyingUnorderedMap &GetUnderlyingUnorderedMap() const { return m; }
+
+  void Erase(K1 k1) { m.erase(k1); }
+
+ private:
+  V defaultValue = DefaultValue;
+  UnderlyingUnorderedMap m;
 };
 
 // KVContainer on vector (faster but more memory occuption).

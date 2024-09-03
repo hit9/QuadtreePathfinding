@@ -178,6 +178,7 @@ class Quadtree {
   void SetSsfV2(SplitingStopperV2 f) { ssfv2 = f; }
   // Sets the callback functions later after construction.
   void SetAfterLeafCreatedCallback(VisitorT cb) { afterLeafCreated = cb; }
+  // Notes that the node is already freed, don't access the memory this node pointing to.
   void SetAfterLeafRemovedCallback(VisitorT cb) { afterLeafRemoved = cb; }
   // Build all nodes recursively on an empty quadtree.
   // This build function must be called on an **empty** quadtree,
@@ -351,8 +352,9 @@ Node<Object, ObjectHasher>::~Node() {
 // a non-leaf node turns to a leaf node.
 // The afterLeafRemoved is a callback function to be called
 // after a leaf node is removed or a leaf node turns to a non-leaf node.
-// Notes that the afterLeafRemoved won't be called on the whole quadtree's
-// destruction.
+// It's important to note that the node passed to afterLeafRemoved is **already** freed, so don't
+// access the memory it pointing to. And notes that the afterLeafRemoved won't be called on the
+// whole quadtree's destruction.
 template <typename Object, typename ObjectHasher>
 Quadtree<Object, ObjectHasher>::Quadtree(int w, int h, SplitingStopper ssf,
                                          VisitorT afterLeafCreated, VisitorT afterLeafRemoved)

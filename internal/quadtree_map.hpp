@@ -54,6 +54,9 @@ using GateVisitor = std::function<void(const Gate *)>;
 // Graph of gate cells.
 using GateGraph = SimpleDirectedGraph;
 
+// Graph of nodes.
+using NodeGraph = SimpleUnorderedMapDirectedGraph<QdNode *>;
+
 // QuadtreeMap is a 2D map maintained by a quadtree.
 // QuadtreeMap is nothing to do with agent size and terrain types.
 class QuadtreeMap {
@@ -85,7 +88,12 @@ class QuadtreeMap {
   // Approximate distance between two quadtree nodes.
   // Using the provided distance calculator on their center cells.
   int DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const;
+
+  // Returns the gates's graph.
   const GateGraph &GetGateGraph() const { return g2; }
+
+  // Returns the nodes's graph.
+  const NodeGraph &GetNodeGraph() const { return g1; }
 
   // ~~~~~~~~~~~~~ Visits and Reads ~~~~~~~~~~~~~~~~~
 
@@ -125,8 +133,6 @@ class QuadtreeMap {
   void Update(int x, int y);
 
  private:
-  using NodeGraph = SimpleUnorderedMapDirectedGraph<QdNode *>;
-
   const int w, h, step;
   const int s;  // max side of (w,h)
   const int n;  // w x h, number of cells
@@ -140,7 +146,7 @@ class QuadtreeMap {
   QdTree tree;
 
   // ~~~~~~~~~~~~~~~ Graphs ~~~~~~~~~~~
-  // the 1st level abstract graph: graph  of nodes.
+  // the 1st level abstract graph: graph of nodes.
   NodeGraph g1;
   // the 2st level abstract graph: graph of gate cells.
   GateGraph g2;
@@ -149,15 +155,15 @@ class QuadtreeMap {
   // manages memory of gates.
   std::unordered_set<Gate *> gates;
   // gates group by node for faster quering.
-  // gates1[node][a] => set of gates
+  // gates1[aNode][a][b] => Gate*
   // there may exist 1~3 gates starting from a cell.
   // for an example below, the 3 gates are:
   // (a => c), (a => b) and (a => d).
   //   b | c
   //   --+--
   //   a | d
-  using GateSet = std::unordered_set<Gate *>;
-  std::unordered_map<QdNode *, std::unordered_map<int, GateSet>> gates1;
+  using Gates1Map = NestedNestedDefaultedUnorderedMap<QdNode *, int, int, Gate *, nullptr>;
+  Gates1Map gates1;
 
   // ~~~~~~~~~~~~~~~~ Internals ~~~~~~~~~~~~~~~
   void forEachGateInNode(QdNode *node, std::function<void(Gate *)> &visitor) const;
@@ -166,11 +172,9 @@ class QuadtreeMap {
   void connectCellsInGateGraphs(int u, int v);
   void connectGateCellsInNodeToNewGateCell(QdNode *aNode, int a);
   void disconnectCellInGateGraphs(int u);
-  void disconnectCellsInNodeFromGateGraphs(QdNode *aNode);
   void connectNodesOnNodeGraph(QdNode *aNode, QdNode *bNode);
   void disconnectNodeFromNodeGraph(QdNode *aNode);
   void createGate(QdNode *aNode, int a, QdNode *bNode, int b);
-  void removeGateInNode(QdNode *aNode, int a, QdNode *bNode, int b);
   void getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a, int &b) const;
   void getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNode,
                            std::vector<std::pair<int, int>> &ncs) const;

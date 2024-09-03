@@ -7,6 +7,7 @@ void Visualizer::renderWorld() {
   renderHighlightedNodes();
   renderGates();
   renderGateGraph();
+  renderNodeGraph();
   renderGrids();
   renderQuadtreeNodes();
   renderPathfindingDispatch();
@@ -82,6 +83,22 @@ void Visualizer::renderGateGraph() {
       auto [x2, y2] = mp->UnpackXY(v);
       renderDrawLineBetweenCells(x1, y1, x2, y2, Blue);
     };
+    graph.ForEachEdge(visitor);
+  }
+}
+
+void Visualizer::renderNodeGraph() {
+  if (!showNodeGraph) return;
+
+  auto mp = getCurrentQuadtreeMapByAgent();
+  if (mp != nullptr) {
+    auto& graph = mp->GetNodeGraph();
+    qdpf::internal::EdgeVisitor<qdpf::internal::QdNode*> visitor =
+        [this, mp](qdpf::internal::QdNode* u, qdpf::internal::QdNode* v, int cost) {
+          auto x1 = (u->x1 + u->x2) / 2, y1 = (u->y1 + u->y2) / 2;
+          auto x2 = (v->x1 + v->x2) / 2, y2 = (v->y1 + v->y2) / 2;
+          renderDrawLineBetweenCells(x1, y1, x2, y2, Red);
+        };
     graph.ForEachEdge(visitor);
   }
 }
