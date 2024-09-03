@@ -1,7 +1,7 @@
 // Optimized quadtrees on grid rectangles in C++.
 // https://github.com/hit9/quadtree-hpp
 //
-// BSD license. Chao Wang, Version: 0.2.1
+// BSD license. Chao Wang, Version: 0.2.2
 //
 // Coordinate conventions:
 //
@@ -14,6 +14,10 @@
 //    x
 //
 
+// changes
+// ~~~~~~~
+// 0.2.2: Add `RemoveObjects` and `BatchAddToLeafNode`.
+
 #ifndef HIT9_QUADTREE_HPP
 #define HIT9_QUADTREE_HPP
 
@@ -23,6 +27,7 @@
 #include <functional>     // for std::function, std::hash
 #include <unordered_map>  // for std::unordered_map
 #include <unordered_set>  // for std::unordered_set
+#include <vector>
 
 namespace quadtree {
 
@@ -143,6 +148,14 @@ using Collector = std::function<void(int, int, Object)>;
 template <typename Object, typename ObjectHasher = std::hash<Object>>
 using Visitor = std::function<void(Node<Object, ObjectHasher>*)>;
 
+template <typename Object>
+struct BatchOperationItem {
+  // (x,y) is the position to add or remove object o.
+  int x, y;
+  // o is the object to add or remove.
+  Object o;
+};
+
 // Quadtree on a rectangle with width w and height h, storing the objects.
 // The type parameter Object is the type of the objects to store on this tree.
 // Object is required to be comparable (the operator== must be available).
@@ -156,6 +169,7 @@ class Quadtree {
   using CollectorT = Collector<Object>;
   using VisitorT = Visitor<Object, ObjectHasher>;
   using ObjectsT = Objects<Object, ObjectHasher>;
+  using BatchOperationItemT = BatchOperationItem<Object>;
 
   Quadtree(int w, int h,                         // width and height of the whole region.
            SplitingStopper ssf = nullptr,        // function to stop node spliting
@@ -166,28 +180,41 @@ class Quadtree {
 
   // Returns the depth of the tree, starting from 0.
   uint8_t Depth() const { return maxd; }
+
   // Returns the total number of objects managed by this tree.
   int NumObjects() const { return numObjects; }
+
   // Returns the number of nodes in this tree.
   int NumNodes() const { return m.size(); }
+
   // Returns the number of leaf nodes in this tree.
   int NumLeafNodes() const { return numLeafNodes; }
+
   // Sets the ssf function later after construction.
   void SetSsf(SplitingStopper f) { ssf = f; }
+
   // Sets the ssf v2 function later after construction.
   void SetSsfV2(SplitingStopperV2 f) { ssfv2 = f; }
+
   // Sets the callback functions later after construction.
   void SetAfterLeafCreatedCallback(VisitorT cb) { afterLeafCreated = cb; }
+
   // Notes that the node is already freed, don't access the memory this node pointing to.
   void SetAfterLeafRemovedCallback(VisitorT cb) { afterLeafRemoved = cb; }
+
+  // Returns the root node.
+  NodeT* GetRootNode() { return root; }
+
   // Build all nodes recursively on an empty quadtree.
   // This build function must be called on an **empty** quadtree,
   // where the word "empty" means that there's no nodes inside this tree.
   void Build();
+
   // Find the leaf node managing given position (x,y).
   // If the given position crosses the bound, returns nullptr.
   // We use binary-search for optimization, the time complexity is O(log Depth).
   NodeT* Find(int x, int y) const;
+
   // Add a object located at position (x,y) to the right leaf node.
   // And split down if the node is able to continue the spliting after the insertion.
   // Or merge up if the node's parent is able to be a leaf node instead.
@@ -195,6 +222,7 @@ class Quadtree {
   // Does nothing if the given position is out of boundary.
   // Dose nothing if this object already exist at given position.
   void Add(int x, int y, Object o);
+
   // Remove the managed object located at position (x,y).
   // And then try to merge the corresponding leaf node with its brothers, if possible.
   // Or try to split down if the node's parent is able to be a leaf node itself.
@@ -202,29 +230,43 @@ class Quadtree {
   // Does nothing if the given position crosses the boundary.
   // Dose nothing if this object dose not exist at given position.
   void Remove(int x, int y, Object o);
+
+  // RemoveObjects remove all objects located at position (x,y).
+  // And then try to merge or split to maintain the structure of the quadtree.
+  // the behaviour is similar to method Remove().
+  // Does nothing if the given position crosses the boundary.
+  // Dose nothing if this object dose not exist at given position.
+  void RemoveObjects(int x, int y);
+
   // Query the objects inside given rectangular range, the given collector will be called
-  // for each object hits. The parameters (x1,y1) and (x2,y2) are the left-top and right-bottom
-  // corners of the given rectangle.
+  // for each object hits.
+  //
+  // The parameters (x1,y1) and (x2,y2) are the left-top and right-bottom corners of the given
+  // rectangle.
   // Does nothing if x1 <= x2 && y1 <= y2 is not satisfied.
+  //
   // We first locate the smallest node that encloses the given rectangular range, and then query
-  // its descendant leaf nodes overlaping with this range recursively, and finally collects the
-  // objects inside this range from these leaf nodes.
-  // Time complexity: O(log D + N), where N is the number of nodes under the node found, which is
-  // worst to be the total tree's nodes.
+  // its descendant leaf nodes overlapping with this range recursively, and finally collects the
+  // objects inside this range from these leaf nodes. Time complexity: O(log D + N), where N is the
+  // number of nodes under the node found, which is worst to be the total tree's nodes.
   void QueryRange(int x1, int y1, int x2, int y2, CollectorT& collector) const;
   void QueryRange(int x1, int y1, int x2, int y2, CollectorT&& collector) const;
-  // Quert the leaf nodes inside given rectangular range, the given visitor will be called for each
-  // leaf nodes hits. The parameters (x1,y1) and (x2,y2) are the left-top and right-bottom corners
-  // of the given rectangle.
-  // Does nothing if x1 <= x2 && y1 <= y2 is not satisfied.
-  // The internal implementation is the same to QueryRange.
+
+  // Quert the leaf nodes overlapping with  given rectangular range, the given visitor will be
+  // called for each leaf nodes hits. The parameters (x1,y1) and (x2,y2) are the left-top and
+  // right-bottom corners of the given rectangle.
+  //
+  // Does nothing if x1 <= x2 && y1 <= y2 is not satisfied. The internal implementation is the same
+  // to QueryRange.
   void QueryLeafNodesInRange(int x1, int y1, int x2, int y2, VisitorT& collector) const;
   void QueryLeafNodesInRange(int x1, int y1, int x2, int y2, VisitorT&& collector) const;
+
   // Find the smallest node enclosing the given rectangular query range.
   // (x1,y1) and (x2,y2) are the left-top and right-bottom corners of the query range.
   // Returns nullptr if any axis of the two corners is out-of-boundary.
   // The time complexity is O(log D), where D is the depth of the tree.
   NodeT* FindSmallestNodeCoveringRange(int x1, int y1, int x2, int y2) const;
+
   // Find all neighbours leaf nodes for given node at one direction.
   // The meaning of 8 direction integers:
   //
@@ -256,6 +298,17 @@ class Quadtree {
   // removing. If some changes happen at places other than the objects locating areas, we may force
   // sync the leaf nodes to maintain the potential splitings and mergings.
   void ForceSyncLeafNode(NodeT* leafNode);
+
+  // BatchAddToLeafNode adds multiple objects into the given leaf node.
+  // The caller should guarantee:
+  //
+  // 1. the given leafNode is indeed a leaf node, doing nothing if this is not satisfied.
+  // 2. each given item's (x,y) is inside the leaf node, skipping if this is not satisfied.
+  //
+  // There's a typical scenario: if the map already contains some objects, we can use this api to
+  // initialize the quadtree. This is faster than adding the object one by one. We can just call
+  // something like: BatchAddToLeafNode(GetRootNode(), allObjectItems).
+  void BatchAddToLeafNode(NodeT* leafNode, const std::vector<BatchOperationItemT>& items);
 
  private:
   NodeT* root = nullptr;
@@ -763,6 +816,22 @@ void Quadtree<Object, ObjectHasher>::Remove(int x, int y, Object o) {
 }
 
 template <typename Object, typename ObjectHasher>
+void Quadtree<Object, ObjectHasher>::RemoveObjects(int x, int y) {
+  // boundary checks.
+  if (!(x >= 0 && x < h && y >= 0 && y < w)) return;
+  // find the leaf node.
+  auto node = Find(x, y);
+  if (node == nullptr) return;
+  int size = node->objects.size();
+  node->objects.clear();
+  if (size) {
+    numObjects -= size;
+    // At most only one of "split and merge" will be performed.
+    tryMergeUp(node) || trySplitDown(node);
+  }
+}
+
+template <typename Object, typename ObjectHasher>
 void Quadtree<Object, ObjectHasher>::Build() {
   root = createNode(true, 0, 0, 0, h - 1, w - 1);
   if (!trySplitDown(root)) {
@@ -1032,6 +1101,26 @@ void Quadtree<Object, ObjectKeyHasher>::ForceSyncLeafNode(NodeT* leafNode) {
   if (m.find(id) == m.end()) return;
   // only one will happen.
   tryMergeUp(leafNode) || trySplitDown(leafNode);
+}
+
+template <typename Object, typename ObjectKeyHasher>
+void Quadtree<Object, ObjectKeyHasher>::BatchAddToLeafNode(
+    NodeT* leafNode, const std::vector<BatchOperationItemT>& items) {
+  if (leafNode == nullptr || !leafNode->isLeaf) return;
+
+  int numAdded = 0;
+
+  for (const auto& [x, y, o] : items) {
+    if (!(x >= leafNode->x1 && x <= leafNode->x2 && y >= leafNode->y1 && y <= leafNode->y2))
+      continue;
+    leafNode->objects.insert({x, y, o});
+    ++numAdded;
+    ++numObjects;
+  }
+
+  if (numAdded) {
+    trySplitDown(leafNode) || tryMergeUp(leafNode);
+  }
 }
 
 }  // namespace quadtree
