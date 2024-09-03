@@ -119,16 +119,10 @@ class QuadtreeMap {
 
   // ~~~~~~~~~~~~~ Graphs Maintaining ~~~~~~~~~~~~~~~~~
 
-  // BuildTree builds only the quadtree, this works on an **empty** grid map.
-  // If there're exisiting obstacles on the map, we should call Update on each of them after this
-  // BuildTree(). Or just call Build() instead of BuildTree().
-  // DO NOT call both Build and BuildTree.
-  void BuildTree();
   // Build the underlying quadtree right after construction.
-  // This will call BuildTree() for the underlying quadtree and then call Update for each exisiting
-  // obstacles on the map.
-  // DO NOT call both Build and BuildTree.
+  // This will call BuildTree() for the underlying quadtree and add all existing obstacles.
   void Build();
+
   // Update should be called after any cell (x,y)'s value is changed.
   void Update(int x, int y);
 
