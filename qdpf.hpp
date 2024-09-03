@@ -23,6 +23,7 @@
 //     reduced into a progress without the agent-size and terrain factors.
 
 // Changes:
+// 2024/09/03 v0.3.1: Speed up the map's build (a lot).
 // 2024/09/02 v0.3.0: Add flowfield supports.
 
 // Coordinates
