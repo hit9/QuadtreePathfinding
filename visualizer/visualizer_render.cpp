@@ -6,6 +6,7 @@ using qdpf::internal::IsInsideRectangle;
 void Visualizer::renderWorld() {
   renderHighlightedNodes();
   renderGates();
+  renderGateGraph();
   renderGrids();
   renderQuadtreeNodes();
   renderPathfindingDispatch();
@@ -53,6 +54,7 @@ void Visualizer::renderQuadtreeNodes() {
     mp->Nodes(c1);
   }
 }
+
 void Visualizer::renderGates() {
   auto mp = getCurrentQuadtreeMapByAgent();
   if (mp != nullptr) {
@@ -66,6 +68,21 @@ void Visualizer::renderGates() {
     };
 
     mp->Gates(visitor);
+  }
+}
+
+void Visualizer::renderGateGraph() {
+  if (!showGateGraph) return;
+
+  auto mp = getCurrentQuadtreeMapByAgent();
+  if (mp != nullptr) {
+    auto& graph = mp->GetGateGraph();
+    qdpf::internal::EdgeVisitor<int> visitor = [this, mp](int u, int v, int cost) {
+      auto [x1, y1] = mp->UnpackXY(u);
+      auto [x2, y2] = mp->UnpackXY(v);
+      renderDrawLineBetweenCells(x1, y1, x2, y2, Blue);
+    };
+    graph.ForEachEdge(visitor);
   }
 }
 
@@ -258,85 +275,4 @@ void Visualizer::renderPathFindingFlowFieldFinalField() {
       renderCopy(arrows.texture, src, dst);
     }
   }
-}
-
-void Visualizer::renderDrawRect(const SDL_Rect& rect, const SDL_Color& color) {
-  SDL_Rect overlap;
-  if (cropRectByCamera(rect, overlap)) {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderDrawRect(renderer, &overlap);
-  }
-}
-
-void Visualizer::renderFillRect(const SDL_Rect& rect, const SDL_Color& color) {
-  SDL_Rect overlap;
-  if (cropRectByCamera(rect, overlap)) {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderFillRect(renderer, &overlap);
-  }
-}
-
-void Visualizer::renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color) {
-  // TODO: how to crop? May we need the Cohen-Sutherland..
-  x1 -= camera->x;
-  x2 -= camera->x;
-  y1 -= camera->y;
-  y2 -= camera->y;
-  SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-  SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
-}
-
-void Visualizer::renderDrawLineBetweenCells(int x1, int y1, int x2, int y2,
-                                            const SDL_Color& color) {
-  auto px1 = y1 * map.gridSize;
-  auto py1 = x1 * map.gridSize;
-  auto px2 = y2 * map.gridSize;
-  auto py2 = x2 * map.gridSize;
-  auto centerx1 = px1 + map.gridSize / 2;
-  auto centery1 = py1 + map.gridSize / 2;
-  auto centerx2 = px2 + map.gridSize / 2;
-  auto centery2 = py2 + map.gridSize / 2;
-  renderDrawLine(centerx1, centery1, centerx2, centery2, color);
-}
-
-void Visualizer::renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst) {
-  SDL_Rect dstOverlap;
-  if (!cropRectByCamera(dst, dstOverlap, false)) return;
-  // find the crop region in src
-  SDL_Rect srcOverlap = {src.x + dstOverlap.x - dst.x, src.y + dstOverlap.y - dst.y, dstOverlap.w,
-                         dstOverlap.h};
-  dstOverlap.x -= camera->x;
-  dstOverlap.y -= camera->y;
-  SDL_RenderCopy(renderer, texture, &srcOverlap, &dstOverlap);
-}
-
-void Visualizer::renderFillCell(int x, int y, const SDL_Color& color) {
-  SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
-  renderFillRect(cell, color);
-}
-
-void Visualizer::renderFillAgent(int x, int y) {
-  int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
-  SDL_Rect outer{y * map.gridSize, x * map.gridSize, agentSizeInPixels, agentSizeInPixels};
-  SDL_Rect inner{outer.x + 1, outer.y + 1, outer.w - 2, outer.h - 2};
-  renderDrawRect(outer, Black);
-  renderFillRect(inner, Green);
-}
-
-// Crop given rect by camera, and converts to the coordinates relative to the camera's left-top
-// corner. The results are stored into overlap. Returns false if no overlaping.
-bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
-                                  bool marginToCameraCoordinates) {
-  qdpf::Rectangle c{camera->x, camera->y, camera->x + camera->w - 1, camera->y + camera->h - 1};
-  qdpf::Rectangle a{rect.x, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1};
-  qdpf::Rectangle d;
-  auto b = qdpf::internal::GetOverlap(c, a, d);
-  if (!b) return false;
-  overlap.x = d.x1, overlap.y = d.y1;
-  overlap.w = d.x2 - d.x1 + 1, overlap.h = d.y2 - d.y1 + 1;
-  if (marginToCameraCoordinates) {
-    overlap.x -= camera->x;
-    overlap.y -= camera->y;
-  }
-  return true;
 }

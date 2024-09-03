@@ -165,7 +165,7 @@ void QuadtreeMap::Build() {
 }
 
 void QuadtreeMap::Update(int x, int y) {
-  // ndebug, let's do nothing, do crash the program.
+  // ndebug, let's do nothing, don't crash the program.
   // since the (x,y) is passed in by a user-level programmer.
   if (!(x >= 0 && x < h)) return;
   if (!(y >= 0 && y < w)) return;

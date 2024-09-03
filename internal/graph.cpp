@@ -41,5 +41,13 @@ void SimpleDirectedGraph::Clear() {
   predecessors.clear();
 }
 
+void SimpleDirectedGraph::ForEachEdge(EdgeVisitor<int> &visitor) const {
+  for (int u = 0; u < edges.size(); ++u) {
+    for (auto [v, cost] : edges[u]) {
+      visitor(u, v, cost);
+    }
+  }
+}
+
 }  // namespace internal
 }  // namespace qdpf

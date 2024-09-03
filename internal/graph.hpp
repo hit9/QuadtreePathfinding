@@ -20,6 +20,9 @@ namespace internal {
 template <typename Vertex>
 using NeighbourVertexVisitor = std::function<void(Vertex v, int cost)>;
 
+template <typename Vertex>
+using EdgeVisitor = std::function<void(Vertex u, Vertex v, int cost)>;
+
 // IDirectedGraph is the interface of a directed graph.
 // The parameter Vertex is the type of vertex (e.g. int).
 // The subclasses should implement all the virtual methods.
@@ -40,6 +43,8 @@ class IDirectedGraph {
   virtual void ForEachNeighbours(Vertex u, NeighbourVertexVisitor<Vertex> &visitor) const = 0;
   // Clears all edges.
   virtual void Clear() = 0;
+  // Iterates each vertex of the graph.
+  virtual void ForEachEdge(EdgeVisitor<Vertex> &visitor) const = 0;
 };
 
 // SimpleDirectedGraph is a simple implementation of IDirectedGraph, using integral vertex.
@@ -52,6 +57,7 @@ class SimpleDirectedGraph : public IDirectedGraph<int> {
   void ClearEdgeTo(int v) override;
   void ForEachNeighbours(int u, NeighbourVertexVisitor<int> &visitor) const override;
   void Clear() override;
+  void ForEachEdge(EdgeVisitor<int> &visitor) const override;
 
  protected:
   // edges[from] => { to => cost }
@@ -72,11 +78,12 @@ class SimpleUnorderedMapDirectedGraph : public IDirectedGraph<Vertex> {
   void ClearEdgeTo(Vertex v) override;
   void ForEachNeighbours(Vertex u, NeighbourVertexVisitor<Vertex> &visitor) const override;
   void Clear() override;
+  void ForEachEdge(EdgeVisitor<Vertex> &visitor) const override;
 
  protected:
   using M = std::unordered_map<Vertex, int, VertexHasher>;
   using ST = std::unordered_set<Vertex, VertexHasher>;
-  // edges[v] => { v =>  cost(u => v) }
+  // edges[u] => { v =>  cost(u => v) }
   std::unordered_map<Vertex, M, VertexHasher> edges;
   // predecessors[to] => { from .. }
   std::unordered_map<Vertex, ST, VertexHasher> predecessors;
@@ -169,6 +176,16 @@ template <typename Vertex, typename VertexHasher>
 void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::Clear() {
   edges.clear();
   predecessors.clear();
+}
+
+template <typename Vertex, typename VertexHasher>
+void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::ForEachEdge(
+    EdgeVisitor<Vertex> &visitor) const {
+  for (auto &[u, m] : edges) {
+    for (auto [v, cost] : m) {
+      visitor(u, v, cost);
+    }
+  }
 }
 
 }  // namespace internal

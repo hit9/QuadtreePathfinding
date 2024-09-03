@@ -107,6 +107,8 @@ void Visualizer::renderImguiPanelSectionCommon() {
     }
   }
 
+  // Debug
+
   if (!hideTerrainRenderings) {
     if (ImGui::Button("Hide Terrains")) {
       hideTerrainRenderings = true;
@@ -114,6 +116,18 @@ void Visualizer::renderImguiPanelSectionCommon() {
   } else {
     if (ImGui::Button("Show Terrains")) {
       hideTerrainRenderings = false;
+    }
+  }
+
+  ImGui::SameLine();
+
+  if (!showGateGraph) {
+    if (ImGui::Button("Show Gate Graph (May Slow!)")) {
+      showGateGraph = true;
+    }
+  } else {
+    if (ImGui::Button("Hide Gate Graph")) {
+      showGateGraph = false;
     }
   }
 }
