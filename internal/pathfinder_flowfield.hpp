@@ -39,7 +39,7 @@ class FlowField {
   static const inline P NullP = {NullVertex, inf};
 
   // Is given vertex exist in this flow field?
-  bool Exist(Vertex v) const { return m.find(v) != m.end(); }
+  bool Exist(const Vertex& v) const { return m.find(v) != m.end(); }
 
   // Clears the whole flow field.
   void Clear() { m.clear(); }
@@ -49,7 +49,7 @@ class FlowField {
 
   // Returns the next vertex and the cost to target for given vertex v.
   // Returns NullP if not found.
-  const P& operator[](Vertex v) const {
+  const P& operator[](const Vertex& v) const {
     auto it = m.find(v);
     if (it == m.end()) return NullP;
     return it->second;
@@ -57,15 +57,15 @@ class FlowField {
 
   // Returns the reference to the stored { Next, Cost } pair for given vertex v.
   // Returns a reference to NullP if not found
-  P& operator[](Vertex v) { return m.try_emplace(v, NullP).first->second; }
+  P& operator[](const Vertex& v) { return m.try_emplace(v, NullP).first->second; }
 
   // Returns the next vertex of given vertex.
   // Returns NullVertex if not found.
-  Vertex Next(Vertex v) const { return this->operator[](v).first; }
+  const Vertex& Next(const Vertex& v) const { return this->operator[](v).first; }
 
   // Returns the cost to target of given vertex.
   // Returns inf if not found.
-  int Cost(Vertex v) const { return this->operator[](v).second; }
+  int Cost(const Vertex& v) const { return this->operator[](v).second; }
 
   // Gets a const reference to the underlying map.
   const UnderlyingMap& GetUnderlyingMap() const { return m; }
@@ -74,15 +74,65 @@ class FlowField {
   UnderlyingMap m;
 };
 
+// UnpackedCellFlowField is a flow field container for unpacked cell.
+// Format: {x,y} => { next {x,y} and cost }.
+//
+// Reason not using the FlowField template:
+// the NullVertex does not support a std::pair (before C++20)
+class UnpackedCellFlowField {
+ public:
+  // P is the underlying stored item.
+  // Format: { Next Cell, Cost to target }
+  using P = std::pair<Cell, int>;
+  static const inline P NullP = {{-1, -1}, inf};
+
+  // The underlying unordered map.
+  // { x, y }  => P
+  using UnderlyingMap = std::unordered_map<Cell, P, PairHasher<int, int>>;
+
+  // Is cell (x,y) is inside the flowfield?
+  bool Exist(const Cell& v) const;
+
+  // Clears the whole flow field.
+  void Clear();
+
+  // Returns the size of this flowfield.
+  std::size_t Size() const;
+
+  // Returns the next cell and the cost to target for given cell v.
+  // Returns NullP if not found.
+  const P& operator[](const Cell& v) const;
+
+  // Returns the reference to the stored { Next, Cost } struct for given cell v.
+  // Returns a reference to NullP if not found
+  P& operator[](const Cell& v);
+
+  // Returns the next cell of given cell.
+  // Returns {-1,-1} if not found.
+  const Cell& Next(const Cell& v) const;
+
+  // Returns the cost to target of given vertex.
+  // Returns inf if not found.
+  int Cost(const Cell& v) const;
+
+  // Gets a const reference to the underlying map.
+  const UnderlyingMap& GetUnderlyingMap() const;
+
+ private:
+  UnderlyingMap m;
+};
+
 // FlowField of quadtree nodes.
 using NodeFlowField = FlowField<QdNode*, nullptr>;
-// FlowField of cells.
-using CellFlowField = FlowField<int, inf>;
 
-// UnpackedCellFlowFieldVisitor is a function to visit each item in a CellFlowField.
-// The (x,y) is current cell, (xNext, yNext) is the next cell that current cell pointing to.
-using UnpackedCellFlowFieldVisitor =
-    std::function<void(int x, int y, int xNext, int yNext, int cost)>;
+// FlowField of gate cells.
+using GateFlowField = UnpackedCellFlowField;
+
+// FlowField of final cells.
+using FinalFlowField = UnpackedCellFlowField;
+
+// FlowField of packed cells (internal)
+using PackedCellFlowField = FlowField<int, inf>;
 
 //////////////////////////////////////
 /// FlowField (Algorithm)
@@ -159,29 +209,16 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
   // Computes the node flow field.
   // Returns -1 on failure (unreachable).
-  int ComputeNodeFlowField();
+  int ComputeNodeFlowField(NodeFlowField& nodeFlowField);
 
   // Computes the gate cell flow field.
   // Returns -1 on failure (unreachable).
-  int ComputeGateFlowField(bool useNodeFlowField = true);
+  int ComputeGateFlowField(GateFlowField& gateFlowField, const NodeFlowField& nodeFlowField);
+  int ComputeGateFlowField(GateFlowField& gateFlowField);
 
   // Computes the final cell flow field for the query range.
   // Returns -1 on failure (unreachable).
-  int ComputeFinalFlowFieldInQueryRange();
-
-  // Visits the computed node flow field.
-  const NodeFlowField& GetNodeFlowField() const { return nodeFlowField; }
-
-  // Visits the computed gate flow field.
-  const CellFlowField& GetGateFlowField() const { return gateFlowField; }
-
-  // Visits the computed detailed flow field for the query range.
-  // The final flow field.
-  const CellFlowField& GetFinalFlowFieldInQueryRange() const { return finalFlowField; }
-
-  // Helps to visit the cell flow field via (x,y,nextX,nextY,cost)
-  void VisitCellFlowField(const CellFlowField& cellFlowField,
-                          UnpackedCellFlowFieldVisitor& visitor) const;
+  int ComputeFinalFlowField(FinalFlowField& finalFlowField, const GateFlowField& gateFlowField);
 
  private:
   // ~~~~~~~  algorithm handlers ~~~~~~~~
@@ -227,14 +264,6 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   // ComputeNodeFlowField() call.
   std::unordered_set<int> gateCellsOnNodeFields;
 
-  // ~~~~~~~~~~ computed results ~~~~~~~~~~~~~
-  // results for node flow field.
-  NodeFlowField nodeFlowField;
-  // results for gate flow field.
-  CellFlowField gateFlowField;
-  // results for the final cell flow field.
-  CellFlowField finalFlowField;
-
   // ~~~~~~~~ compution lambdas (optimization for reuses) ~~~~~~~~~
   // lambda to collect quadtree nodes overlapping with the qrange.
   QdNodeVisitor nodesOverlappingQueryRangeCollector = nullptr;
@@ -246,8 +275,8 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
   // ~~~~~~~~ internal functions ~~~~~~~~~~~
 
-  void collectGateCellsOnNodeField();
-  void shrinkNodeFlowField();
+  void collectGateCellsOnNodeField(const NodeFlowField& nodeFlowField);
+  void shrinkNodeFlowField(NodeFlowField& nodeFlowField);
 
   // DP value container of f for ComputeFinalFlowFieldInQueryRange()
   using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
@@ -272,7 +301,7 @@ FlowFieldAlgorithm<Vertex, NullVertex, Vis>::FlowFieldAlgorithm(int n) : n(n) {
 }
 
 template <typename Vertex, Vertex NullVertex, typename Vis>
-void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& field,
+void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& f,
                                                           NeighboursCollectorT& neighborsCollector,
                                                           NeighbourFilterTesterT neighborTester,
                                                           StopAfterFunction& stopAfterTester) {
@@ -284,19 +313,19 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   std::priority_queue<P, std::vector<P>, std::greater<P>> q;
 
   // Notes that the target's next is itself.
-  field[t] = {t, 0};
+  f[t] = {t, 0};
   q.push({0, t});
 
   Vertex u;
 
   // expand from u to v with cost c
-  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &field, this](Vertex v,
-                                                                                      int c) {
+  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &f, this](Vertex v,
+                                                                                  int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
-    int fu = field.Cost(u);  // readonly
-    int fv = field.Cost(v);  // readonly
-    auto g = fu + c;         // existing real cost
-    auto cost = g;           // future estimation cost
+    int fu = f.Cost(u);  // readonly
+    int fv = f.Cost(v);  // readonly
+    auto g = fu + c;     // existing real cost
+    auto cost = g;       // future estimation cost
     if (heuristic != nullptr) cost += heuristic(v);
     if (fv > g) {
       fv = g;
@@ -304,7 +333,7 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
       // v comes from u, that is.
       // In inversing view, u is the next way to go.
       // g is the real cost.
-      field[v] = {u, g};
+      f[v] = {u, g};
     }
   };
 

@@ -73,30 +73,22 @@ int FlowFieldPathFinder::Reset(int x2, int y2, const Rectangle &dest, int agentS
   return 0;
 }
 
-int FlowFieldPathFinder::ComputeNodeFlowField() { return impl.ComputeNodeFlowField(); }
-
-int FlowFieldPathFinder::ComputeGateFlowField(bool useNodeFlowField) {
-  return impl.ComputeGateFlowField(useNodeFlowField);
+int FlowFieldPathFinder::ComputeNodeFlowField(NodeFlowField &nodeFlowfield) {
+  return impl.ComputeNodeFlowField(nodeFlowfield);
 }
 
-int FlowFieldPathFinder::ComputeFinalFlowFieldInQueryRange() {
-  return impl.ComputeFinalFlowFieldInQueryRange();
+int FlowFieldPathFinder::ComputeGateFlowField(GateFlowField &gateFlowField) {
+  return impl.ComputeGateFlowField(gateFlowField);
 }
 
-void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
-  const auto &field = impl.GetNodeFlowField();
-  for (auto [node, p] : field.GetUnderlyingMap()) {
-    auto [next, cost] = p;
-    visitor(node, next, cost);
-  }
+int FlowFieldPathFinder::ComputeGateFlowField(GateFlowField &gateFlowField,
+                                              const NodeFlowField &nodeFlowField) {
+  return impl.ComputeGateFlowField(gateFlowField, nodeFlowField);
 }
 
-void FlowFieldPathFinder::VisitComputedGateFlowField(CellFlowFieldVisitor &visitor) {
-  impl.VisitCellFlowField(impl.GetGateFlowField(), visitor);
-}
-
-void FlowFieldPathFinder::VisitComputedCellFlowFieldInQueryRange(CellFlowFieldVisitor &visitor) {
-  impl.VisitCellFlowField(impl.GetFinalFlowFieldInQueryRange(), visitor);
+int FlowFieldPathFinder::ComputeFinalFlowField(FinalFlowField &finalFlowfield,
+                                               const GateFlowField &gateFlowField) {
+  return impl.ComputeFinalFlowField(finalFlowfield, gateFlowField);
 }
 
 }  // namespace qdpf

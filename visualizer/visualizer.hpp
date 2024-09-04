@@ -129,10 +129,9 @@ struct FlowFieldContext {
   qdpf::Rectangle qrange;
 
   // ~~~~~~ results ~~~~~~
-  std::vector<FlowFieldItem<const qdpf::QdNode*>> nodeFlowField;
-  std::vector<FlowFieldItem<Cell>> gateFlowField;
-  std::vector<FlowFieldItem<Cell>> finalFlowField;
-  std::unordered_map<Cell, Cell, qdpf::internal::PairHasher<int, int>> finalFlowNextMap;
+  qdpf::NodeFlowField nodeFlowField;
+  qdpf::GateFlowField gateFlowField;
+  qdpf::FinalFlowField finalFlowField;
 
   bool isPfReset = false;
 

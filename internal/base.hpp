@@ -6,12 +6,16 @@
 
 #include <functional>
 #include <unordered_map>
+#include <utility>  // for std::pair
 #include <vector>
 
 namespace qdpf {
 namespace internal {
 
 const int inf = 0x3f3f3f3f;
+
+// Cell {x, y} in pair format.
+using Cell = std::pair<int, int>;
 
 // CellCollector is the function to collect cells (x,y).
 using CellCollector = std::function<void(int x, int y)>;

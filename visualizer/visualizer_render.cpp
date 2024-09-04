@@ -151,7 +151,8 @@ void Visualizer::renderHighlightedNodesAstar() {
 }
 
 void Visualizer::renderHighlightedNodesFlowField() {
-  for (auto [node, nextNode, cost] : flowfield.nodeFlowField) {
+  for (auto& [node, p] : flowfield.nodeFlowField.GetUnderlyingMap()) {
+    auto [next, cost] = p;
     // highlight node with background orange
     int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
     int h = (x2 - x1 + 1) * map.gridSize;
@@ -247,8 +248,8 @@ void Visualizer::renderPathfindingFlowField() {
 
 void Visualizer::renderPathFindingFlowFieldGateField() {
   // draw gate cells on the flowfield.
-  for (int i = 0; i < flowfield.gateFlowField.size(); ++i) {
-    auto& [gate, next, cost] = flowfield.gateFlowField[i];
+  for (auto& [gate, p] : flowfield.gateFlowField.GetUnderlyingMap()) {
+    auto [next, cost] = p;
     auto [x, y] = gate;
     auto [xNext, yNext] = next;
     renderFillCell(x, y, Green);
@@ -257,8 +258,8 @@ void Visualizer::renderPathFindingFlowFieldGateField() {
 
 void Visualizer::renderPathFindingFlowFieldGateNextsLines() {
   if (!renderFlowFieldGateNextLines) return;
-  for (int i = 0; i < flowfield.gateFlowField.size(); ++i) {
-    auto& [gate, next, cost] = flowfield.gateFlowField[i];
+  for (auto& [gate, p] : flowfield.gateFlowField.GetUnderlyingMap()) {
+    auto [next, cost] = p;
     auto [x, y] = gate;
     auto [xNext, yNext] = next;
     renderDrawLineBetweenCells(x, y, xNext, yNext, Black);
@@ -273,8 +274,8 @@ void Visualizer::renderPathFindingFlowFieldFinalField() {
       }
     }
   }
-  for (int i = 0; i < flowfield.finalFlowField.size(); ++i) {
-    auto& [u, v, cost] = flowfield.finalFlowField[i];
+  for (auto& [u, p] : flowfield.finalFlowField.GetUnderlyingMap()) {
+    auto [v, cost] = p;
     auto [x, y] = u;
     auto [x1, y1] = v;
     if (u == v) continue;
