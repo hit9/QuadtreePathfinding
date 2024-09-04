@@ -85,8 +85,8 @@ int FlowFieldPathFinder::ComputeFinalFlowFieldInQueryRange() {
 
 void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
   const auto &field = impl.GetNodeFlowField();
-  for (auto [node, cost] : field.costs.GetUnderlyingUnorderedMap()) {
-    auto next = field.nexts[node];
+  for (auto [node, p] : field.GetUnderlyingMap()) {
+    auto [next, cost] = p;
     visitor(node, next, cost);
   }
 }

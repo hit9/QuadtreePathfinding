@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <queue>  // for std::priority_queue
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -27,18 +28,50 @@ namespace internal {
 // FlowField is a simple data container that stores the direction from a vertex to next vertex,
 // along with the cost to the target.
 template <typename Vertex, Vertex NullVertex, typename Hasher = std::hash<Vertex>>
-struct FlowField {
-  using CostFieldT = DefaultedUnorderedMap<Vertex, int, inf>;
-  using NextFieldT = DefaultedUnorderedMap<Vertex, Vertex, NullVertex>;
+class FlowField {
+ public:
+  // { Next, Cost }
+  using P = std::pair<Vertex, int>;
+  // The underlying unordered map.
+  using UnderlyingMap = std::unordered_map<Vertex, P, Hasher>;
 
-  bool Exist(Vertex v) const { return costs.Exist(v); }
-  void Clear() { costs.Clear(), nexts.Clear(); }
+  // The default P.
+  static const inline P NullP = {NullVertex, inf};
 
-  // costs[v] stores the cost of vertex v to target.
-  CostFieldT costs;
-  // nexts[v] stores the next vertex of vertex v.
-  // next for target is itself.
-  NextFieldT nexts;
+  // Is given vertex exist in this flow field?
+  bool Exist(Vertex v) const { return m.find(v) != m.end(); }
+
+  // Clears the whole flow field.
+  void Clear() { m.clear(); }
+
+  // Returns the size of the field, that is the number vertices inside this flow field.
+  std::size_t Size() const { return m.size(); }
+
+  // Returns the next vertex and the cost to target for given vertex v.
+  // Returns NullP if not found.
+  const P& operator[](Vertex v) const {
+    auto it = m.find(v);
+    if (it == m.end()) return NullP;
+    return it->second;
+  }
+
+  // Returns the reference to the stored { Next, Cost } pair for given vertex v.
+  // Returns a reference to NullP if not found
+  P& operator[](Vertex v) { return m.try_emplace(v, NullP).first->second; }
+
+  // Returns the next vertex of given vertex.
+  // Returns NullVertex if not found.
+  Vertex Next(Vertex v) const { return this->operator[](v).first; }
+
+  // Returns the cost to target of given vertex.
+  // Returns inf if not found.
+  int Cost(Vertex v) const { return this->operator[](v).second; }
+
+  // Gets a const reference to the underlying map.
+  const UnderlyingMap& GetUnderlyingMap() const { return m; }
+
+ private:
+  UnderlyingMap m;
 };
 
 // FlowField of quadtree nodes.
@@ -250,9 +283,8 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   // smallest-first queue, where P is { cost, vertex }
   std::priority_queue<P, std::vector<P>, std::greater<P>> q;
 
-  field.costs[t] = 0;
   // Notes that the target's next is itself.
-  field.nexts[t] = t;
+  field[t] = {t, 0};
   q.push({0, t});
 
   Vertex u;
@@ -261,18 +293,18 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &field, this](Vertex v,
                                                                                       int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
-    int fu = field.costs[u];  // readonly
-    int fv = field.costs[v];  // readonly
-    auto g = fu + c;          // existing real cost
-    auto cost = g;            // future estimation cost
+    int fu = field.Cost(u);  // readonly
+    int fv = field.Cost(v);  // readonly
+    auto g = fu + c;         // existing real cost
+    auto cost = g;           // future estimation cost
     if (heuristic != nullptr) cost += heuristic(v);
     if (fv > g) {
       fv = g;
       q.push({cost, v});
-      field.costs[v] = g;  // real cost
       // v comes from u, that is.
       // In inversing view, u is the next way to go.
-      field.nexts[v] = u;
+      // g is the real cost.
+      field[v] = {u, g};
     }
   };
 

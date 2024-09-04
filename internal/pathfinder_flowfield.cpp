@@ -150,7 +150,7 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField() {
   if (m->IsObstacle(x2, y2)) return -1;
 
   // ensures that we can call it for multiple times
-  if (nodeFlowField.costs.Size()) nodeFlowField.Clear();
+  if (nodeFlowField.Size()) nodeFlowField.Clear();
 
   // stops earlier if all nodes overlapping with the query range are checked.
 
@@ -186,12 +186,10 @@ void FlowFieldPathFinderImpl::shrinkNodeFlowField() {
   while (q.size()) {
     auto node = q.front();
     q.pop();
-    if (f.costs.Exist(node)) continue;
-
-    f.costs[node] = nodeFlowField.costs[node];
-    f.nexts[node] = nodeFlowField.nexts[node];
-
-    q.push(nodeFlowField.nexts[node]);
+    if (f.Exist(node)) continue;
+    auto [next, cost] = nodeFlowField[node];
+    f[node] = {next, cost};
+    q.push(next);
   }
 
   std::swap(f, nodeFlowField);
@@ -223,9 +221,9 @@ void FlowFieldPathFinderImpl::collectGateCellsOnNodeField() {
   };
 
   // nodeVisitor visits each node inside the nodeField.
-  for (auto [v, cost] : nodeFlowField.costs.GetUnderlyingUnorderedMap()) {
+  for (auto [v, p] : nodeFlowField.GetUnderlyingMap()) {
     node = v;
-    nextNode = nodeFlowField.nexts[v];
+    nextNode = p.first;
     m->ForEachGateInNode(node, gateVisitor);
   }
 }
@@ -239,7 +237,7 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(bool useNodeFlowField) {
   if (m->IsObstacle(x2, y2)) return -1;
 
   // ensures that we can call it for multiple times
-  if (gateFlowField.costs.Size()) gateFlowField.Clear();
+  if (gateFlowField.Size()) gateFlowField.Clear();
 
   if (useNodeFlowField) {
     if (gateCellsOnNodeFields.size()) gateCellsOnNodeFields.clear();
@@ -293,7 +291,7 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
   if (m->IsObstacle(x2, y2)) return -1;
 
   // ensures the finalFlowField is empty
-  if (finalFlowField.costs.Size()) finalFlowField.Clear();
+  if (finalFlowField.Size()) finalFlowField.Clear();
 
   // f[x][y] is the cost from the cell (x,y) to the target, all cells are initialized to inf.
   Final_F f;
@@ -303,8 +301,8 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
   Final_B b;
 
   // initialize f from computed gate flow field.
-  for (auto [v, cost] : gateFlowField.costs.GetUnderlyingUnorderedMap()) {
-    auto next = gateFlowField.nexts[v];
+  for (auto [v, p] : gateFlowField.GetUnderlyingMap()) {
+    auto [next, cost] = p;
 
     auto [x, y] = m->UnpackXY(v);
     auto [x1, y1] = m->UnpackXY(next);
@@ -362,8 +360,7 @@ int FlowFieldPathFinderImpl::ComputeFinalFlowFieldInQueryRange() {
       if (f[x][y] == inf || from[x][y] == inf) continue;
 
       int v = m->PackXY(x, y);
-      finalFlowField.costs[v] = f[x][y];
-      finalFlowField.nexts[v] = from[x][y];
+      finalFlowField[v] = {from[x][y], f[x][y]};
     }
   }
 
@@ -473,8 +470,8 @@ void FlowFieldPathFinderImpl::findNeighbourCellByNext(int x, int y, int x1, int 
 
 void FlowFieldPathFinderImpl::VisitCellFlowField(const CellFlowField &cellFlowField,
                                                  UnpackedCellFlowFieldVisitor &visitor) const {
-  for (auto [v, cost] : cellFlowField.costs.GetUnderlyingUnorderedMap()) {
-    auto next = cellFlowField.nexts[v];
+  for (auto [v, p] : cellFlowField.GetUnderlyingMap()) {
+    auto [next, cost] = p;
     auto [x, y] = m->UnpackXY(v);
     auto [xNext, yNext] = m->UnpackXY(next);
     visitor(x, y, xNext, yNext, cost);
