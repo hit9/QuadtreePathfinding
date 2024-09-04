@@ -102,8 +102,8 @@ struct AStarContext {
   int x2 = 0, y2 = 0;
 
   // ~~~~~~ results ~~~~~~
-  std::vector<const qdpf::QdNode*> nodePath;
-  std::vector<Cell> gatePath;
+  qdpf::AStarPathFinder::NodePath nodePath;
+  qdpf::AStarPathFinder::GatePath gatePath;
   std::vector<Cell> finalPath;
 
   ~AStarContext();

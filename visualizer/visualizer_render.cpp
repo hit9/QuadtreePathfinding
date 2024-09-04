@@ -138,7 +138,7 @@ void Visualizer::renderHighlightedNodes() {
 }
 
 void Visualizer::renderHighlightedNodesAstar() {
-  for (auto node : astar.nodePath) {
+  for (auto [node, cost] : astar.nodePath) {
     int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
     int h = (x2 - x1 + 1) * map.gridSize;
     int w = (y2 - y1 + 1) * map.gridSize;
@@ -181,7 +181,7 @@ void Visualizer::renderPathfindingAStar() {
     case State::AStarGatePathComputed:
       // draw gate route cells.
       // start and target are included in gate path.
-      for (const auto [x, y] : astar.gatePath) {
+      for (const auto [x, y, _] : astar.gatePath) {
         renderFillCell(x, y, Green);
       }
       break;

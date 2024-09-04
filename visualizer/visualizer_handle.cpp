@@ -202,10 +202,13 @@ void Visualizer::computeAstarNodePath() {
     setMessageHint("internal error: astar reset failure", ImRed);
     return;
   }
+
+  if (astar.nodePath.size()) astar.nodePath.clear();
+
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
   startAt = std::chrono::high_resolution_clock::now();
-  int cost = astar.pf->ComputeNodeRoutes();
+  int cost = astar.pf->ComputeNodeRoutes(astar.nodePath);
   endAt = std::chrono::high_resolution_clock::now();
 
   state = State::AStarNodePathComputed;
@@ -213,10 +216,6 @@ void Visualizer::computeAstarNodePath() {
     setMessageHint("A*: unreachable!", ImRed);
     return;
   }
-
-  if (astar.nodePath.size()) astar.nodePath.clear();
-  qdpf::NodeVisitor visitor = [this](const qdpf::QdNode* node) { astar.nodePath.push_back(node); };
-  if (astar.pf->NodePathSize()) astar.pf->VisitComputedNodeRoutes(visitor);
 
   setMessageHint(
       fmt::format(
@@ -235,14 +234,12 @@ void Visualizer::computeAstarGatePath() {
     return;
   }
 
+  if (astar.gatePath.size()) astar.gatePath.clear();
+
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
-  if (astar.gatePath.size()) astar.gatePath.clear();
-  bool useNodePath = astar.pf->NodePathSize() > 0;
-  qdpf::CellCollector collector = [this](int x, int y) { astar.gatePath.push_back({x, y}); };
-
   startAt = std::chrono::high_resolution_clock::now();
-  int cost = astar.pf->ComputeGateRoutes(collector, useNodePath);
+  int cost = astar.pf->ComputeGateRoutes(astar.gatePath, astar.nodePath);
   endAt = std::chrono::high_resolution_clock::now();
 
   state = State::AStarGatePathComputed;
@@ -254,7 +251,7 @@ void Visualizer::computeAstarGatePath() {
   setMessageHint(
       fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us ; Next we can click button "
                   "< Compute Final Path >.",
-                  useNodePath,
+                  astar.nodePath.size() > 0,
                   std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
       ImGreen);
 }
@@ -282,9 +279,9 @@ void Visualizer::computeAstarFinalPath() {
 
   startAt = std::chrono::high_resolution_clock::now();
 
-  auto [x, y] = astar.gatePath[0];
+  auto [x, y, _] = astar.gatePath[0];
   for (int i = 1; i < astar.gatePath.size(); i++) {
-    auto [x2, y2] = astar.gatePath[i];
+    auto [x2, y2, _] = astar.gatePath[i];
     qdpf::ComputeStraightLine(x, y, x2, y2, collector);
     x = x2, y = y2;
   }
