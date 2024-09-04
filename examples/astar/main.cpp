@@ -56,32 +56,35 @@ int main(void) {
     return -1;
   }
 
-  std::cout << "node route path:" << std::endl;
   // ComputeNodeRoutes is much faster than ComputeGateRoutes to test whether the target is
   // reachable.
-  if (pf.ComputeNodeRoutes() == -1) {
+
+  std::cout << "node route path:" << std::endl;
+  qdpf::NodePath nodePath;
+
+  if (pf.ComputeNodeRoutes(nodePath) == -1) {
     std::cout << "unreachable!" << std::endl;
     return -1;
   }
-  qdpf::NodeVisitor visitor1 = [](const qdpf::QdNode* node) {
-    std::cout << node->x1 << "," << node->y1 << " " << node->x2 << "," << node->y2 << std::endl;
-  };
-  pf.VisitComputedNodeRoutes(visitor1);
+  for (auto [node, cost] : nodePath) {
+    std::cout << node->x1 << "," << node->y1 << " " << node->x2 << "," << node->y2
+              << " cost: " << cost << std::endl;
+  }
 
   // Compute gate cell routes.
   std::cout << "collect route gate cell path..." << std::endl;
-  std::vector<std::pair<int, int>> routes;
-  qdpf::CellCollector collector = [&routes](int x, int y) { routes.push_back({x, y}); };
-  // The second boolean argument specifics whether to use only the gate cells on the computed node
-  // path. This will make the ComputeGateRoutes runs much faster, but less optimal.
-  // We can just use ComputeGateRoutes(collector, false) directly without calling ComputeGateRoutes
-  // in advance if we don't use the node path.
-  int cost = pf.ComputeGateRoutes(collector, true);
+  qdpf::GatePath routes;
+
+  // Using the computed nodePath will make the ComputeGateRoutes running much faster,
+  // but less optimal.
+  int cost = pf.ComputeGateRoutes(routes, nodePath);
+
   std::cout << "cost: " << cost << std::endl;
 
-  for (auto [x, y] : routes) std::cout << x << "," << y << std::endl;
+  for (auto [x, y, cost] : routes) std::cout << x << "," << y << " cost: " << cost << std::endl;
 
   std::cout << "collect detailed path..." << std::endl;
+
   // Fill the detailed path (straight lines).
   std::vector<std::pair<int, int>> path;
   qdpf::CellCollector collector1 = [&path](int x, int y) {
@@ -92,9 +95,9 @@ int main(void) {
     }
     path.push_back({x, y});
   };
-  auto [x, y] = routes[0];
+  auto [x, y, _] = routes[0];
   for (int i = 1; i < routes.size(); i++) {
-    auto [x2, y2] = routes[i];
+    auto [x2, y2, _] = routes[i];
     qdpf::ComputeStraightLine(x, y, x2, y2, collector1);
     x = x2, y = y2;
   }

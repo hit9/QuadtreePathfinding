@@ -3,10 +3,8 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 
-#include <algorithm>
 #include <chrono>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 #include "qdpf.hpp"
@@ -202,10 +200,13 @@ void Visualizer::computeAstarNodePath() {
     setMessageHint("internal error: astar reset failure", ImRed);
     return;
   }
+
+  if (astar.nodePath.size()) astar.nodePath.clear();
+
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
   startAt = std::chrono::high_resolution_clock::now();
-  int cost = astar.pf->ComputeNodeRoutes();
+  int cost = astar.pf->ComputeNodeRoutes(astar.nodePath);
   endAt = std::chrono::high_resolution_clock::now();
 
   state = State::AStarNodePathComputed;
@@ -213,10 +214,6 @@ void Visualizer::computeAstarNodePath() {
     setMessageHint("A*: unreachable!", ImRed);
     return;
   }
-
-  if (astar.nodePath.size()) astar.nodePath.clear();
-  qdpf::NodeVisitor visitor = [this](const qdpf::QdNode* node) { astar.nodePath.push_back(node); };
-  if (astar.pf->NodePathSize()) astar.pf->VisitComputedNodeRoutes(visitor);
 
   setMessageHint(
       fmt::format(
@@ -235,14 +232,12 @@ void Visualizer::computeAstarGatePath() {
     return;
   }
 
+  if (astar.gatePath.size()) astar.gatePath.clear();
+
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
-  if (astar.gatePath.size()) astar.gatePath.clear();
-  bool useNodePath = astar.pf->NodePathSize() > 0;
-  qdpf::CellCollector collector = [this](int x, int y) { astar.gatePath.push_back({x, y}); };
-
   startAt = std::chrono::high_resolution_clock::now();
-  int cost = astar.pf->ComputeGateRoutes(collector, useNodePath);
+  int cost = astar.pf->ComputeGateRoutes(astar.gatePath, astar.nodePath);
   endAt = std::chrono::high_resolution_clock::now();
 
   state = State::AStarGatePathComputed;
@@ -254,7 +249,7 @@ void Visualizer::computeAstarGatePath() {
   setMessageHint(
       fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us ; Next we can click button "
                   "< Compute Final Path >.",
-                  useNodePath,
+                  astar.nodePath.size() > 0,
                   std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
       ImGreen);
 }
@@ -282,9 +277,9 @@ void Visualizer::computeAstarFinalPath() {
 
   startAt = std::chrono::high_resolution_clock::now();
 
-  auto [x, y] = astar.gatePath[0];
+  auto [x, y, _] = astar.gatePath[0];
   for (int i = 1; i < astar.gatePath.size(); i++) {
-    auto [x2, y2] = astar.gatePath[i];
+    auto [x2, y2, _] = astar.gatePath[i];
     qdpf::ComputeStraightLine(x, y, x2, y2, collector);
     x = x2, y = y2;
   }
@@ -317,10 +312,12 @@ void Visualizer::computeNodeFlowField() {
     return;
   }
 
+  if (flowfield.nodeFlowField.Size()) flowfield.nodeFlowField.Clear();
+
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
   startAt = std::chrono::high_resolution_clock::now();
-  int ret = flowfield.pf->ComputeNodeFlowField();
+  int ret = flowfield.pf->ComputeNodeFlowField(flowfield.nodeFlowField);
   endAt = std::chrono::high_resolution_clock::now();
 
   state = State::FlowFieldNodeLevelComputed;
@@ -328,21 +325,6 @@ void Visualizer::computeNodeFlowField() {
     setMessageHint("FlowField: unreachable!", ImRed);
     return;
   }
-
-  if (flowfield.nodeFlowField.size()) flowfield.nodeFlowField.clear();
-
-  qdpf::NodeFlowFieldVisitor visitor = [this](const qdpf::QdNode* node,
-                                              const qdpf::QdNode* nextNode, int cost) {
-    if (node != nullptr) flowfield.nodeFlowField.push_back({node, nextNode, cost});
-  };
-  flowfield.pf->VisitComputedNodeFlowField(visitor);
-
-  // sort to draw from left-top to right-bottom.
-  auto cmp = [](const FlowFieldItem<const qdpf::QdNode*>& a,
-                const FlowFieldItem<const qdpf::QdNode*>& b) {
-    return ((a.current->x1) < (b.current->x1)) || ((a.current->y1) < (b.current->y1));
-  };
-  std::stable_sort(flowfield.nodeFlowField.begin(), flowfield.nodeFlowField.end(), cmp);
 
   setMessageHint(
       fmt::format("FlowField: Node flowfield computed! cost {}us ; Next we can click button < "
@@ -364,11 +346,10 @@ void Visualizer::computeGateFlowField() {
 
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
-  if (flowfield.gateFlowField.size()) flowfield.gateFlowField.clear();
-  bool useNodeFlowField = flowfield.nodeFlowField.size() > 0;
+  if (flowfield.gateFlowField.Size()) flowfield.gateFlowField.Clear();
 
   startAt = std::chrono::high_resolution_clock::now();
-  int ret = flowfield.pf->ComputeGateFlowField(useNodeFlowField);
+  int ret = flowfield.pf->ComputeGateFlowField(flowfield.gateFlowField, flowfield.nodeFlowField);
   endAt = std::chrono::high_resolution_clock::now();
 
   state = State::FlowFieldGateLevelComputed;
@@ -378,22 +359,11 @@ void Visualizer::computeGateFlowField() {
     return;
   }
 
-  qdpf::CellFlowFieldVisitor visitor = [this](int x, int y, int xNext, int yNext, int cost) {
-    flowfield.gateFlowField.push_back({{x, y}, {xNext, yNext}, cost});
-  };
-  flowfield.pf->VisitComputedGateFlowField(visitor);
-
-  // sort to draw from left-top to right-bottom
-  std::stable_sort(flowfield.gateFlowField.begin(), flowfield.gateFlowField.end(),
-                   [](const FlowFieldItem<Cell>& a, const FlowFieldItem<Cell>& b) {
-                     return a.current < b.current;
-                   });
-
   setMessageHint(
       fmt::format("Flowfield:: Gate flow field computed! useNodeFlowField: {}  cost {}us ; Next "
                   "we can click button "
                   "< Compute Final Flow Field >.",
-                  useNodeFlowField,
+                  flowfield.nodeFlowField.Size() > 0,
                   std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
       ImGreen);
 }
@@ -406,11 +376,10 @@ void Visualizer::computeFinalFlowField() {
 
   std::chrono::high_resolution_clock::time_point startAt, endAt;
 
-  if (flowfield.finalFlowField.size()) flowfield.finalFlowField.clear();
-  if (flowfield.finalFlowNextMap.size()) flowfield.finalFlowNextMap.clear();
+  if (flowfield.finalFlowField.Size()) flowfield.finalFlowField.Clear();
 
   startAt = std::chrono::high_resolution_clock::now();
-  int ret = flowfield.pf->ComputeFinalFlowFieldInQueryRange();
+  int ret = flowfield.pf->ComputeFinalFlowField(flowfield.finalFlowField, flowfield.gateFlowField);
   endAt = std::chrono::high_resolution_clock::now();
   state = State::FlowFieldFinalLevelComputed;
 
@@ -418,18 +387,6 @@ void Visualizer::computeFinalFlowField() {
     setMessageHint("FlowField: unreachable!", ImRed);
     return;
   }
-
-  qdpf::CellFlowFieldVisitor visitor = [this](int x, int y, int xNext, int yNext, int cost) {
-    flowfield.finalFlowField.push_back({{x, y}, {xNext, yNext}, cost});
-    flowfield.finalFlowNextMap[{x, y}] = {xNext, yNext};
-  };
-
-  flowfield.pf->VisitComputedCellFlowFieldInQueryRange(visitor);
-
-  std::stable_sort(flowfield.finalFlowField.begin(), flowfield.finalFlowField.end(),
-                   [](const FlowFieldItem<Cell>& a, const FlowFieldItem<Cell>& b) {
-                     return a.current < b.current;
-                   });
 
   setMessageHint(
       fmt::format("Flowfield:: Final flow field computed!  cost {}us  ",
@@ -469,7 +426,8 @@ void Visualizer::handlePlayFlowFieldTestPath() {
     // Is inside the rect?
     if (IsInsideRectangle(x3, y3, flowfield.qrange)) {
       // get next from the final flow field.
-      p.push_back(flowfield.finalFlowNextMap[{x3, y3}]);
+      const auto& next = flowfield.finalFlowField.Next({x3, y3});
+      p.push_back(next);
     }
   }
 }

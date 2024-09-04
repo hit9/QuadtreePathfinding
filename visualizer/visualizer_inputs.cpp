@@ -174,13 +174,12 @@ void Visualizer::handleInputsFlowFieldSetTarget(SDL_Event& e) {
 void Visualizer::handleInputsFlowFieldSetTestStart(SDL_Event& e) {
   if (e.type == SDL_MOUSEBUTTONDOWN) {
     auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
-    auto [x, y] = cell;
-    if (flowfield.finalFlowNextMap.find({x, y}) == flowfield.finalFlowNextMap.end()) {
+    if (!flowfield.finalFlowField.Exist(cell)) {
       setMessageHint("FlowField: test path start invalid", ImRed);
       return;
     }
     flowfield.testPaths.resize(flowfield.testPaths.size() + 1);
-    flowfield.testPaths.back().push_back({x, y});
+    flowfield.testPaths.back().push_back(cell);
     setMessageHint("FlowField: playing test path ...", ImGreen);
   }
 }

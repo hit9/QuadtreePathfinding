@@ -36,15 +36,26 @@ int AStarPathFinder::Reset(int x1, int y1, int x2, int y2, int agentSize, int te
   return 0;
 }
 
-int AStarPathFinder::ComputeNodeRoutes() { return impl.ComputeNodeRoutes(); }
-std::size_t AStarPathFinder::NodePathSize() const { return impl.NodePath().size(); }
-
-void AStarPathFinder::VisitComputedNodeRoutes(NodeVisitor &visitor) const {
-  for (auto [node, _] : impl.NodePath()) visitor(node);
+int AStarPathFinder::ComputeNodeRoutes(NodePath &nodePath) {
+  return impl.ComputeNodeRoutes(nodePath);
 }
 
-int AStarPathFinder::ComputeGateRoutes(CellCollector &collector, bool useNodePath) {
-  return impl.ComputeGateRoutes(collector, useNodePath);
+int AStarPathFinder::ComputeGateRoutes(GateRouteCollector &collector, const NodePath &nodePath) {
+  return impl.ComputeGateRoutes(collector, nodePath);
+}
+
+int AStarPathFinder::ComputeGateRoutes(GateRouteCollector &collector) {
+  return impl.ComputeGateRoutes(collector);
+}
+
+int AStarPathFinder::ComputeGateRoutes(GatePath &path, const NodePath &nodePath) {
+  GateRouteCollector collector = [&path](int x, int y, int cost) { path.push_back({x, y, cost}); };
+  return ComputeGateRoutes(collector, nodePath);
+}
+
+int AStarPathFinder::ComputeGateRoutes(GatePath &path) {
+  GateRouteCollector collector = [&path](int x, int y, int cost) { path.push_back({x, y, cost}); };
+  return ComputeGateRoutes(collector);
 }
 
 //////////////////////////////////////
@@ -62,30 +73,22 @@ int FlowFieldPathFinder::Reset(int x2, int y2, const Rectangle &dest, int agentS
   return 0;
 }
 
-int FlowFieldPathFinder::ComputeNodeFlowField() { return impl.ComputeNodeFlowField(); }
-
-int FlowFieldPathFinder::ComputeGateFlowField(bool useNodeFlowField) {
-  return impl.ComputeGateFlowField(useNodeFlowField);
+int FlowFieldPathFinder::ComputeNodeFlowField(NodeFlowField &nodeFlowfield) {
+  return impl.ComputeNodeFlowField(nodeFlowfield);
 }
 
-int FlowFieldPathFinder::ComputeFinalFlowFieldInQueryRange() {
-  return impl.ComputeFinalFlowFieldInQueryRange();
+int FlowFieldPathFinder::ComputeGateFlowField(GateFlowField &gateFlowField) {
+  return impl.ComputeGateFlowField(gateFlowField);
 }
 
-void FlowFieldPathFinder::VisitComputedNodeFlowField(NodeFlowFieldVisitor &visitor) {
-  const auto &field = impl.GetNodeFlowField();
-  for (auto [node, cost] : field.costs.GetUnderlyingUnorderedMap()) {
-    auto next = field.nexts[node];
-    visitor(node, next, cost);
-  }
+int FlowFieldPathFinder::ComputeGateFlowField(GateFlowField &gateFlowField,
+                                              const NodeFlowField &nodeFlowField) {
+  return impl.ComputeGateFlowField(gateFlowField, nodeFlowField);
 }
 
-void FlowFieldPathFinder::VisitComputedGateFlowField(CellFlowFieldVisitor &visitor) {
-  impl.VisitCellFlowField(impl.GetGateFlowField(), visitor);
-}
-
-void FlowFieldPathFinder::VisitComputedCellFlowFieldInQueryRange(CellFlowFieldVisitor &visitor) {
-  impl.VisitCellFlowField(impl.GetFinalFlowFieldInQueryRange(), visitor);
+int FlowFieldPathFinder::ComputeFinalFlowField(FinalFlowField &finalFlowfield,
+                                               const GateFlowField &gateFlowField) {
+  return impl.ComputeFinalFlowField(finalFlowfield, gateFlowField);
 }
 
 }  // namespace qdpf

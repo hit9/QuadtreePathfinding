@@ -71,61 +71,71 @@ int main(void) {
 
   // Computes the node flow field.
   std::cout << "1st step: ComputeNodeFlowField..." << std::endl;
-  if (-1 == pf.ComputeNodeFlowField()) {
+
+  qdpf::NodeFlowField nodeFlowField;
+  if (-1 == pf.ComputeNodeFlowField(nodeFlowField)) {
     std::cout << "ComputeNodeFlowField failed!" << std::endl;
     return -1;
   }
 
   // Don't need this in real usage, here we just print it out for having a look.
-  qdpf::NodeFlowFieldVisitor visitor1 = [](const qdpf::QdNode *node, const qdpf::QdNode *nextNode,
-                                           int cost) {
+  for (auto& [node, p] : nodeFlowField.GetUnderlyingMap()) {
+    auto [nextNode, cost] = p;
     std::cout << "node : " << node->x1 << "," << node->y1 << " " << node->x2 << "," << node->y2;
     std::cout << " node's next : " << nextNode->x1 << "," << nextNode->y1 << " " << nextNode->x2
               << "," << nextNode->y2;
     std::cout << " cost : " << cost << std::endl;
-  };
-  pf.VisitComputedNodeFlowField(visitor1);
+  }
 
   // Computes the gate flow field.
   std::cout << "2nd step: ComputeGateFlowField..." << std::endl;
-  if (-1 == pf.ComputeGateFlowField(true)) {
+  qdpf::GateFlowField gateFlowField;
+  if (-1 == pf.ComputeGateFlowField(gateFlowField, nodeFlowField)) {
     std::cout << "ComputeGateFlowField failed!" << std::endl;
     return -1;
   }
 
   // Don't need this in real usage, here we just print it out for having a look.
-  qdpf::CellFlowFieldVisitor visitor2 = [](int x, int y, int xNext, int yNext, int cost) {
+  for (auto& [gate, p] : gateFlowField.GetUnderlyingMap()) {
+    auto [nextGate, cost] = p;
+    auto [x, y] = gate;
+    auto [xNext, yNext] = nextGate;
     std::cout << x << "," << y;
     std::cout << " next : " << xNext << "," << yNext;
     std::cout << " cost : " << cost << std::endl;
-  };
-  pf.VisitComputedGateFlowField(visitor2);
+  }
 
   // Computes the final flow field.
   std::cout << "3rd step: ComputeCellFlowFieldInDestRectangle..." << std::endl;
-  if (-1 == pf.ComputeFinalFlowFieldInQueryRange()) {
+  qdpf::FinalFlowField finalFlowfield;
+  if (-1 == pf.ComputeFinalFlowField(finalFlowfield, gateFlowField)) {
     std::cout << "ComputeCellFlowFieldInDestRectangle failed!" << std::endl;
     return -1;
   }
 
-  qdpf::CellFlowFieldVisitor visitor3 = [](int x, int y, int xNext, int yNext, int cost) {
+  // Don't need this in real usage, here we just print it out for having a look.
+  for (auto& [cell, p] : finalFlowfield.GetUnderlyingMap()) {
+    auto [nextCell, cost] = p;
+    auto [x, y] = cell;
+    auto [xNext, yNext] = nextCell;
     std::cout << x << "," << y;
     std::cout << " next : " << xNext << "," << yNext;
     std::cout << " cost : " << cost << std::endl;
-  };
-  pf.VisitComputedCellFlowFieldInQueryRange(visitor3);
+  }
 
   // Let's draw a flow field.
   // direction encoding: (dx+1)*3+(dy+1)
   int direction_fields[N][N];
   memset(direction_fields, 0xff, sizeof direction_fields);  // -1
-  qdpf::CellFlowFieldVisitor visitor4 = [&direction_fields](int x, int y, int xNext, int yNext,
-                                                            int cost) {
+
+  for (auto& [cell, p] : finalFlowfield.GetUnderlyingMap()) {
+    auto [nextCell, cost] = p;
+    auto [x, y] = cell;
+    auto [xNext, yNext] = nextCell;
     int dx = xNext - x, dy = yNext - y;
     int d = (dx + 1) * 3 + (dy + 1);
     if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) direction_fields[x][y] = d;
   };
-  pf.VisitComputedCellFlowFieldInQueryRange(visitor4);
 
   for (int x = 0; x < N; ++x) {
     for (int y = 0; y < N; ++y) {

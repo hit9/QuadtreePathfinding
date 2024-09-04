@@ -102,8 +102,8 @@ struct AStarContext {
   int x2 = 0, y2 = 0;
 
   // ~~~~~~ results ~~~~~~
-  std::vector<const qdpf::QdNode*> nodePath;
-  std::vector<Cell> gatePath;
+  qdpf::NodePath nodePath;
+  qdpf::GatePath gatePath;
   std::vector<Cell> finalPath;
 
   ~AStarContext();
@@ -129,10 +129,9 @@ struct FlowFieldContext {
   qdpf::Rectangle qrange;
 
   // ~~~~~~ results ~~~~~~
-  std::vector<FlowFieldItem<const qdpf::QdNode*>> nodeFlowField;
-  std::vector<FlowFieldItem<Cell>> gateFlowField;
-  std::vector<FlowFieldItem<Cell>> finalFlowField;
-  std::unordered_map<Cell, Cell, qdpf::internal::PairHasher<int, int>> finalFlowNextMap;
+  qdpf::NodeFlowField nodeFlowField;
+  qdpf::GateFlowField gateFlowField;
+  qdpf::FinalFlowField finalFlowField;
 
   bool isPfReset = false;
 

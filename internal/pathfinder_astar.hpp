@@ -36,13 +36,18 @@ class AStar {
 
   // Collects the result path and total cost to it.
   using PathCollector = std::function<void(Vertex v, int cost)>;
+
   // Returns the distance between two vertices u and v.
   using Distance = std::function<int(Vertex u, Vertex v)>;
+
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
+
   // The n is the upper bound of number of vertices on the graph.
   AStar(int n);
+
   void SetDistanceFunc(Distance f) { distance = f; }
+
   // Computes astar shortest path on given graph from start s to target t.
   // The collector will be called with each vertex on the result path,
   // along with the cost walking to it.
@@ -52,7 +57,9 @@ class AStar {
               NeighboursCollectorT &neighborsCollector, NeighbourFilterTesterT neighborTester);
 
  protected:
-  int n;  // upper bound of vertices
+  // upper bound of vertices
+  int n;
+  // returns the distance bwteen two vertices.
   Distance distance;
   // store containers to avoid memory reallocation.
   F f;
@@ -64,6 +71,12 @@ class AStar {
 /// AStarPathFinder
 //////////////////////////////////////
 
+// the type of node path, a vector if { node, cost to target }.
+using NodePath = std::vector<std::pair<QdNode *, int>>;
+
+// the type of the function to collect computed gate cells.
+using GateRouteCollector = std::function<void(int x, int y, int cost)>;
+
 // AStar PathFinder.
 // how to:
 // 1. Resets the map to use and start, target cells: Reset(m, x1,y1, x2, y2)
@@ -72,24 +85,26 @@ class AStar {
 // 4. Fill the detailed cells from current to next route cell: ComputeStraightLine().
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
-  // the path of nodes if ComputeNodeRoutes is called successfully.
-  using P = std::pair<QdNode *, int>;  // { node, cost }
-
   // n is the upper bound of the number of vertices of  gate graph and node graph.
   AStarPathFinderImpl(int n) : astar1(A1(n)), astar2(A2(n)) {}
 
   // Resets current working context: the map instance, start(x1,y1) and target (x2,y2);
   void Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2);
-  // Returns the computed node path.
-  const std::vector<P> &NodePath() const { return nodePath; }
+
   // Compute the node path.
   // Returns 0 on success.
   // Returns -1 on failure (unreachable).
-  int ComputeNodeRoutes();
+  int ComputeNodeRoutes(NodePath &nodePath);
+
   // Compute the gate cell path.
   // Returns 0 on success.
   // Returns -1 on failure (unreachable).
-  int ComputeGateRoutes(CellCollector &collector, bool useNodePath = true);
+  int ComputeGateRoutes(GateRouteCollector &collector);
+
+  // Compute the gate cell path, based on computed node path.
+  // Returns 0 on success.
+  // Returns -1 on failure (unreachable).
+  int ComputeGateRoutes(GateRouteCollector &collector, const NodePath &nodePath);
 
  private:
   // the quadtree map current working on
@@ -108,11 +123,9 @@ class AStarPathFinderImpl : public PathFinderHelper {
   int x1, y1, x2, y2;
   int s, t;
   QdNode *sNode = nullptr, *tNode = nullptr;
-  std::vector<P> nodePath;
-  // the gate cells on the node path if ComputeNodeRoutes is called successfully.
-  std::unordered_set<int> gateCellsOnNodePath;
 
-  void collectGateCellsOnNodePath();
+  void collectGateCellsOnNodePath(std::unordered_set<int> &gateCellsOnNodePath,
+                                  const NodePath &nodePath);
 };
 
 //////////////////////////////////////////
