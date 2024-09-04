@@ -71,6 +71,12 @@ class AStar {
 /// AStarPathFinder
 //////////////////////////////////////
 
+// the type of node path, a vector if { node, cost to target }.
+using NodePath = std::vector<std::pair<QdNode *, int>>;
+
+// the type of the function to collect computed gate cells.
+using GateRouteCollector = std::function<void(int x, int y, int cost)>;
+
 // AStar PathFinder.
 // how to:
 // 1. Resets the map to use and start, target cells: Reset(m, x1,y1, x2, y2)
@@ -79,15 +85,6 @@ class AStar {
 // 4. Fill the detailed cells from current to next route cell: ComputeStraightLine().
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
-  // the path of nodes if ComputeNodeRoutes is called successfully.
-  using P = std::pair<QdNode *, int>;  // { node, cost }
-
-  // the type of node path, a vector if { node, cost to target }.
-  using NodePath = std::vector<P>;
-
-  // the type of the function to collect computed gate cells.
-  using GateRouteCollector = std::function<void(int x, int y, int cost)>;
-
   // n is the upper bound of the number of vertices of  gate graph and node graph.
   AStarPathFinderImpl(int n) : astar1(A1(n)), astar2(A2(n)) {}
 

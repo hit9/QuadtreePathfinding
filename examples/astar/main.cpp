@@ -60,7 +60,7 @@ int main(void) {
   // reachable.
 
   std::cout << "node route path:" << std::endl;
-  qdpf::AStarPathFinder::NodePath nodePath;
+  qdpf::NodePath nodePath;
 
   if (pf.ComputeNodeRoutes(nodePath) == -1) {
     std::cout << "unreachable!" << std::endl;
@@ -73,7 +73,7 @@ int main(void) {
 
   // Compute gate cell routes.
   std::cout << "collect route gate cell path..." << std::endl;
-  qdpf::AStarPathFinder::GatePath routes;
+  qdpf::GatePath routes;
 
   // Using the computed nodePath will make the ComputeGateRoutes running much faster,
   // but less optimal.

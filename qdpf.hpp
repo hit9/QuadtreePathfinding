@@ -209,22 +209,22 @@ using NodeVisitor = internal::QdNodeVisitor;
 /// AStarPathFinder
 //////////////////////////////////////
 
+// A vector to collect the node's path.
+// Each item of the vector is a pair of { QdNode*, cost to target }.
+// Signature: std::vector<std::pair<QdNode *, int>>
+using NodePath = internal::NodePath;
+
+// A vector to collect the gate route path.
+// Each item: { x, y, cost }
+using GatePath = std::vector<std::tuple<int, int, int>>;
+
+// A function to collect the computed gate cell routes along with the cost to the target cell.
+// Signature: std::function<void(int x, int y, int cost)>;
+using GateRouteCollector = internal::GateRouteCollector;
+
 // A* path finder (stateful).
 class AStarPathFinder {
  public:
-  // A vector to collect the node's path.
-  // Each item of the vector is a pair of { QdNode*, cost to target }.
-  // Signature: std::vector<std::pair<QdNode *, int>>
-  using NodePath = internal::AStarPathFinderImpl::NodePath;
-
-  // A function to collect the computed gate cell routes along with the cost to the target cell.
-  // Signature: std::function<void(int x, int y, int cost)>;
-  using GateRouteCollector = internal::AStarPathFinderImpl::GateRouteCollector;
-
-  // A vector to collect the gate route path.
-  // Each item: { x, y, cost }
-  using GatePath = std::vector<std::tuple<int, int, int>>;
-
   // AStarPathFinder is bound to a quadtree map manager.
   AStarPathFinder(const QuadtreeMapX &mx);
 
