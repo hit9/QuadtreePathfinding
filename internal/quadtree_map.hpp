@@ -69,24 +69,28 @@ class QuadtreeMap {
 
   // PackXY packs a cell position (x,y) to an integral id v.
   int PackXY(int x, int y) const;
+
   // UnpackXY unpacks a vertex id v to a two-dimensional position (x,y).
   std::pair<int, int> UnpackXY(int v) const;
+
   // Unpacks a cell id v's x axis.
   int UnpackX(int v) const;
+
   // Unpacks a cell id v's y axis.
   int UnpackY(int v) const;
 
   // ~~~~~~~~~~~~~ Basic methods ~~~~~~~~~~~~~~~~~
-  // S is the max(w, h);
-  int S() const { return s; }
   int W() const { return w; }
   int H() const { return h; }
+
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
   int Distance(int x1, int y1, int x2, int y2) const;
+
   // Returns true if the given cell (x,y) is an obstacle.
   // if the given (x,y) is out of bounds, it's also considered an obstacle.
   bool IsObstacle(int x, int y) const;
+
   // Approximate distance between two quadtree nodes.
   // Using the provided distance calculator on their center cells.
   int DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const;
@@ -102,20 +106,27 @@ class QuadtreeMap {
   // Get the quadtree node where the given cell (x,y) locates.
   // Returns nullptr if (x,y) is invalid (out of bound).
   QdNode *FindNode(int x, int y) const;
+
   // Is given cell u locating at given node a gate cell?
   bool IsGateCell(QdNode *node, int u) const;
+
   // Is given cell u is a gate?
   // higher level version method based on IsGateCell(node, u).
   bool IsGateCell(int u) const;
+
   // Visit each gate cell inside a node and call given visitor with it.
   void ForEachGateInNode(const QdNode *node, GateVisitor &visitor) const;
+
   // Visit all the quadtree's leaf nodes.
   void Nodes(QdNodeVisitor &visitor) const;
+
   // Visit all gate cells.
   // Note that dual gates (a => b) and (b => a) are visited twice (once for each).
   void Gates(GateVisitor &visitor) const;
+
   // Visit reachable neighbor nodes for given node on the node graph.
   void ForEachNeighbourNodes(QdNode *node, NeighbourVertexVisitor<QdNode *> &visitor) const;
+
   // Visit quadtree nodes inside given rectangle range.
   void NodesInRange(const Rectangle &rect, QdNodeVisitor &visitor) const;
 
