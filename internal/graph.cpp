@@ -10,7 +10,9 @@ namespace internal {
 /// SimpleDirectedGraph
 //////////////////////////////////////
 
-void SimpleDirectedGraph::Init(int n) { edges.resize(n), predecessors.resize(n); }
+void SimpleDirectedGraph::Resize(int n) { edges.resize(n), predecessors.resize(n); }
+
+void SimpleDirectedGraph::Init() {}
 
 void SimpleDirectedGraph::AddEdge(int u, int v, int cost) {
   edges[u].insert({v, cost});

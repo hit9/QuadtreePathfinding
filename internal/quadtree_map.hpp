@@ -77,14 +77,16 @@ class QuadtreeMap {
   int UnpackY(int v) const;
 
   // ~~~~~~~~~~~~~ Basic methods ~~~~~~~~~~~~~~~~~
-  int N() const { return n; }
+  // S is the max(w, h);
+  int S() const { return s; }
   int W() const { return w; }
   int H() const { return h; }
   // Returns the distance between two vertices u and v.
   int Distance(int u, int v) const;
   int Distance(int x1, int y1, int x2, int y2) const;
   // Returns true if the given cell (x,y) is an obstacle.
-  bool IsObstacle(int x, int y) const { return isObstacle(x, y); }
+  // if the given (x,y) is out of bounds, it's also considered an obstacle.
+  bool IsObstacle(int x, int y) const;
   // Approximate distance between two quadtree nodes.
   // Using the provided distance calculator on their center cells.
   int DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const;
@@ -129,7 +131,6 @@ class QuadtreeMap {
  private:
   const int w, h, step;
   const int s;  // max side of (w,h)
-  const int n;  // w x h, number of cells
   const int maxNodeWidth, maxNodeHeight;
 
   ObstacleChecker isObstacle;

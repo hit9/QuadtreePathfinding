@@ -26,8 +26,7 @@ const internal::QuadtreeMap *QuadtreeMapX::Get(int agentSize, int terrainTypes) 
 /// AStarPathFinder
 //////////////////////////////////////
 
-AStarPathFinder::AStarPathFinder(const QuadtreeMapX &mx)
-    : mx(mx), impl(internal::AStarPathFinderImpl(mx.impl.N())) {}
+AStarPathFinder::AStarPathFinder(const QuadtreeMapX &mx) : mx(mx) {}
 
 int AStarPathFinder::Reset(int x1, int y1, int x2, int y2, int agentSize, int terrainTypes) {
   auto m = mx.Get(agentSize, terrainTypes);
@@ -62,8 +61,7 @@ int AStarPathFinder::ComputeGateRoutes(GatePath &path) {
 /// FlowFieldPathFinder
 //////////////////////////////////////
 
-FlowFieldPathFinder::FlowFieldPathFinder(const QuadtreeMapX &mx)
-    : mx(mx), impl(internal::FlowFieldPathFinderImpl(mx.impl.N())) {}
+FlowFieldPathFinder::FlowFieldPathFinder(const QuadtreeMapX &mx) : mx(mx) {}
 
 int FlowFieldPathFinder::Reset(int x2, int y2, const Rectangle &dest, int agentSize,
                                int walkableterrainTypes) {

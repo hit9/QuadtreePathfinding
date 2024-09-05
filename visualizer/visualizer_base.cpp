@@ -111,6 +111,7 @@ void AStarContext::Reset() {
   ClearResults();
   x1 = y1 = x2 = y2 = 0;
   isPfReset = false;
+  timeCost = std::chrono::microseconds(0);
 }
 
 int AStarContext::ResetPf(int agentSize, int capabilities) {
@@ -148,16 +149,19 @@ void FlowFieldContext::Reset() {
   x2 = y2 = 0;
   qrange = {0, 0, 0, 0};
   isPfReset = false;
+  timeCost = std::chrono::microseconds(0);
 }
 
 // ~~~~~~~~~~ Camera ~~~~~~~~~~
 
 Camera::Camera(int w, int h, int mpw, int mph) : w(w), h(h), mpw(mpw), mph(mph) {}
 
-void Camera::MoveUp() { dy -= 50; }
-void Camera::MoveDown() { dy += 50; }
-void Camera::MoveLeft() { dx -= 50; }
-void Camera::MoveRight() { dx += 50; }
+void Camera::MoveUp(int k) { dy -= k; }
+void Camera::MoveDown(int k) { dy += k; }
+void Camera::MoveLeft(int k) { dx -= k; }
+void Camera::MoveRight(int k) { dx += k; }
+void Camera::MoveToLeftMost() { x = 0; }
+void Camera::MoveToRightMost() { x = mpw - w - 1; }
 
 void Camera::Update() {
   if (dx == 0 && dy == 0) return;
@@ -166,8 +170,8 @@ void Camera::Update() {
   // bounds check.
   x = std::max(0, x);
   y = std::max(0, y);
-  x = std::min(x, mpw - w);
-  y = std::min(y, mph - h);
+  x = std::min(x, mpw - w - 1);
+  y = std::min(y, mph - h - 1);
   // clears the delta changes.
   dx = dy = 0;
 }

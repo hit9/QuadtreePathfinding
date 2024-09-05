@@ -26,9 +26,7 @@ namespace internal {
 //////////////////////////////////////
 
 // AStar algorithm on a directed graph.
-template <typename Vertex, Vertex NullVertex, typename F = DefaultedUnorderedMapInt<Vertex, inf>,
-          typename Vis = DefaultedUnorderedMapBool<Vertex, false>,
-          typename From = DefaultedUnorderedMap<Vertex, Vertex, NullVertex>>
+template <typename Vertex, Vertex NullVertex>
 class AStar {
  public:
   using NeighboursCollectorT = NeighboursCollector<Vertex>;
@@ -43,28 +41,13 @@ class AStar {
   // Pair of { cost, vertex}.
   using P = std::pair<int, Vertex>;
 
-  // The n is the upper bound of number of vertices on the graph.
-  AStar(int n);
-
-  void SetDistanceFunc(Distance f) { distance = f; }
-
   // Computes astar shortest path on given graph from start s to target t.
   // The collector will be called with each vertex on the result path,
   // along with the cost walking to it.
   // Returns -1 if the target is unreachable.
   // Returns the total cost to the target on success.
-  int Compute(Vertex s, Vertex t, PathCollector &collector,
+  int Compute(Vertex s, Vertex t, PathCollector &collector, Distance &distance,
               NeighboursCollectorT &neighborsCollector, NeighbourFilterTesterT neighborTester);
-
- protected:
-  // upper bound of vertices
-  int n;
-  // returns the distance bwteen two vertices.
-  Distance distance;
-  // store containers to avoid memory reallocation.
-  F f;
-  Vis vis;
-  From from;
 };
 
 //////////////////////////////////////
@@ -85,8 +68,8 @@ using GateRouteCollector = std::function<void(int x, int y, int cost)>;
 // 4. Fill the detailed cells from current to next route cell: ComputeStraightLine().
 class AStarPathFinderImpl : public PathFinderHelper {
  public:
-  // n is the upper bound of the number of vertices of  gate graph and node graph.
-  AStarPathFinderImpl(int n) : astar1(A1(n)), astar2(A2(n)) {}
+  // n is the upper bound of the number of vertices of gate graph and node graph.
+  AStarPathFinderImpl() {}
 
   // Resets current working context: the map instance, start(x1,y1) and target (x2,y2);
   void Reset(const QuadtreeMap *m, int x1, int y1, int x2, int y2);
@@ -115,8 +98,7 @@ class AStarPathFinderImpl : public PathFinderHelper {
   A1 astar1;
 
   // Astar for computing gate cell path.
-  using A2 = AStar<int, inf, DefaultedVectorInt<inf>, DefaultedVectorBool<false>,
-                   DefaultedVectorInt<inf>>;
+  using A2 = AStar<int, inf>;
   A2 astar2;
 
   // stateful values for current round compution.
@@ -134,19 +116,15 @@ class AStarPathFinderImpl : public PathFinderHelper {
 
 // ~~~~~~~~~~~ Implements AStar ~~~~~~~~~~~~~~
 
-template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
-AStar<Vertex, NullVertex, F, Vis, From>::AStar(int n) : n(n) {
-  f.Resize(n), vis.Resize(n), from.Resize(n);
-}
-
 // A* search algorithm.
-template <typename Vertex, Vertex NullVertex, typename F, typename Vis, typename From>
-int AStar<Vertex, NullVertex, F, Vis, From>::Compute(Vertex s, Vertex t, PathCollector &collector,
-                                                     NeighboursCollectorT &neighborsCollector,
-                                                     NeighbourFilterTesterT neighborTester) {
-  f.Clear(), vis.Clear(), from.Clear();
-  f.Resize(n), vis.Resize(n);
-  from[t] = NullVertex;
+template <typename Vertex, Vertex NullVertex>
+int AStar<Vertex, NullVertex>::Compute(Vertex s, Vertex t, PathCollector &collector,
+                                       Distance &distance,
+                                       NeighboursCollectorT &neighborsCollector,
+                                       NeighbourFilterTesterT neighborTester) {
+  DefaultedUnorderedMapInt<Vertex, inf> f;
+  DefaultedUnorderedMapBool<Vertex, false> vis;
+  DefaultedUnorderedMap<Vertex, Vertex, NullVertex> from;
 
   // A* smallest-first queue, where P is { cost, vertex }
   std::priority_queue<P, std::vector<P>, std::greater<P>> q;
@@ -156,7 +134,8 @@ int AStar<Vertex, NullVertex, F, Vis, From>::Compute(Vertex s, Vertex t, PathCol
   Vertex u;
 
   // expand from u to v with cost c
-  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, this](Vertex v, int c) {
+  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &f, &from, &distance](
+                                              Vertex v, int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
     auto g = f[u] + c;
     auto h = distance(v, t);

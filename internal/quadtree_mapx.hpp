@@ -35,8 +35,6 @@ class QuadtreeMapXImpl {
                    int maxNodeWidth = -1, int maxNodeHeight = -1);
   ~QuadtreeMapXImpl();
 
-  // Return the number of cells.
-  int N() const { return w * h; }
   int W() const { return w; }
   int H() const { return h; }
 

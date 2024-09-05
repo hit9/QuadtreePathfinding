@@ -142,8 +142,7 @@ using PackedCellFlowField = FlowField<int, inf>;
 // 1. Compute the cost field by reverse-traversing from the target, using the astar algorithm.
 // 2. Compute the flow field by comparing each vertex with its neighours vertices.
 
-template <typename Vertex, Vertex NullVertex,
-          typename Vis = DefaultedUnorderedMapBool<Vertex, false>>
+template <typename Vertex, Vertex NullVertex>
 class FlowFieldAlgorithm {
  public:
   using FlowFieldT = FlowField<Vertex, NullVertex>;
@@ -156,9 +155,6 @@ class FlowFieldAlgorithm {
   // The heuristic function for astar, it's optional.
   using HeuristicFunction = std::function<int(Vertex u)>;
 
-  // The n is the upper bound of the number of vertices on the graph.
-  FlowFieldAlgorithm(int n);
-
   // Compute flowfield on given graph to target t.
   // Parameters:
   // 1. neighborsCollector is a function that gives the neighbor vertices of a vertex.
@@ -170,20 +166,9 @@ class FlowFieldAlgorithm {
   // directed graph. But specially speaking, for our case, on the grid map, either the gate graph
   // or the node graph are both bidirectional graph. That is, passing in a function visiting the
   // original direction is just ok.
-  void Compute(Vertex t, FlowFieldT& field, NeighboursCollectorT& neighborsCollector,
-               NeighbourFilterTesterT neighborTester, StopAfterFunction& stopAfterTester);
-
-  void SetHeuristicFunction(HeuristicFunction f) { heuristic = f; }
-
- private:
-  // Pair of { cost, vertex}.
-  using P = std::pair<int, Vertex>;
-  // upper bound of the number of vertices on the graph.
-  int n;
-  // avoid reallocations..
-  Vis vis;  // visit array.
-
-  HeuristicFunction heuristic = nullptr;
+  void Compute(Vertex t, FlowFieldT& field, HeuristicFunction& heuristic,
+               NeighboursCollectorT& neighborsCollector, NeighbourFilterTesterT neighborTester,
+               StopAfterFunction& stopAfterTester);
 };
 
 //////////////////////////////////////
@@ -198,8 +183,7 @@ class FlowFieldAlgorithm {
 // 4. Compute the detailed flow field for each cell in the query range.
 class FlowFieldPathFinderImpl : public PathFinderHelper {
  public:
-  // n is the max number of vertex in the graphs.
-  FlowFieldPathFinderImpl(int n);
+  FlowFieldPathFinderImpl();
 
   // Resets current working context:
   // * the the map instance
@@ -228,7 +212,7 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
   FFA1 ffa1;
 
   // for computing gate flow field.
-  using FFA2 = FlowFieldAlgorithm<int, inf, DefaultedVectorBool<false>>;
+  using FFA2 = FlowFieldAlgorithm<int, inf>;
   FFA2 ffa2;
 
   // ~~~~~~~ stateful values for current round compution.~~~~~~~~
@@ -295,19 +279,17 @@ class FlowFieldPathFinderImpl : public PathFinderHelper {
 
 // ~~~~~~~~~~~~~~~ Implements FlowField Algorithm ~~~~~~~~~~~
 
-template <typename Vertex, Vertex NullVertex, typename Vis>
-FlowFieldAlgorithm<Vertex, NullVertex, Vis>::FlowFieldAlgorithm(int n) : n(n) {
-  vis.Resize(n);
-}
+template <typename Vertex, Vertex NullVertex>
+void FlowFieldAlgorithm<Vertex, NullVertex>::Compute(Vertex t, FlowFieldT& f,
+                                                     HeuristicFunction& heuristic,
+                                                     NeighboursCollectorT& neighborsCollector,
+                                                     NeighbourFilterTesterT neighborTester,
+                                                     StopAfterFunction& stopAfterTester) {
+  // Pair of { cost, vertex}.
+  using P = std::pair<int, Vertex>;
 
-template <typename Vertex, Vertex NullVertex, typename Vis>
-void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& f,
-                                                          NeighboursCollectorT& neighborsCollector,
-                                                          NeighbourFilterTesterT neighborTester,
-                                                          StopAfterFunction& stopAfterTester) {
   // astar
-  vis.Clear();
-  vis.Resize(n);
+  DefaultedUnorderedMapBool<Vertex, false> vis;
 
   // smallest-first queue, where P is { cost, vertex }
   std::priority_queue<P, std::vector<P>, std::greater<P>> q;
@@ -319,8 +301,8 @@ void FlowFieldAlgorithm<Vertex, NullVertex, Vis>::Compute(Vertex t, FlowFieldT& 
   Vertex u;
 
   // expand from u to v with cost c
-  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &f, this](Vertex v,
-                                                                                  int c) {
+  NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &f, &heuristic](Vertex v,
+                                                                                        int c) {
     if (neighborTester != nullptr && !neighborTester(v)) return;
     int fu = f.Cost(u);  // readonly
     int fv = f.Cost(v);  // readonly

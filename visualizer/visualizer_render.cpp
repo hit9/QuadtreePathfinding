@@ -39,6 +39,7 @@ void Visualizer::renderGrids() {
 
 // render quadtree nodes of current map.
 void Visualizer::renderQuadtreeNodes() {
+  if (hideNodeBorders) return;
   auto mp = getCurrentQuadtreeMapByAgent();
   if (mp != nullptr) {
     qdpf::internal::QdNodeVisitor c1 = [this](const qdpf::internal::QdNode* node) {
@@ -57,6 +58,7 @@ void Visualizer::renderQuadtreeNodes() {
 }
 
 void Visualizer::renderGates() {
+  if (hideGateCellHighlights) return;
   auto mp = getCurrentQuadtreeMapByAgent();
   if (mp != nullptr) {
     // Gates.

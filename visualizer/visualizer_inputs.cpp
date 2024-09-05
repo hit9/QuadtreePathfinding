@@ -69,10 +69,18 @@ void Visualizer::handleInputsForCrameMovementsByMouse(SDL_Event& e) {
 void Visualizer::handleInputsForCrameMovementsByKeyBoard(SDL_Event& e) {
   switch (e.type) {
     case SDL_KEYDOWN:
-      if (e.key.keysym.sym == SDLK_UP || e.key.keysym.sym == SDLK_k) camera->MoveUp();
-      if (e.key.keysym.sym == SDLK_DOWN || e.key.keysym.sym == SDLK_j) camera->MoveDown();
-      if (e.key.keysym.sym == SDLK_LEFT || e.key.keysym.sym == SDLK_h) camera->MoveLeft();
-      if (e.key.keysym.sym == SDLK_RIGHT || e.key.keysym.sym == SDLK_l) camera->MoveRight();
+      if (e.key.keysym.sym == SDLK_UP || e.key.keysym.sym == SDLK_k) camera->MoveUp();        // k
+      if (e.key.keysym.sym == SDLK_DOWN || e.key.keysym.sym == SDLK_j) camera->MoveDown();    // j
+      if (e.key.keysym.sym == SDLK_LEFT || e.key.keysym.sym == SDLK_h) camera->MoveLeft();    // h
+      if (e.key.keysym.sym == SDLK_RIGHT || e.key.keysym.sym == SDLK_l) camera->MoveRight();  // l
+      if (e.key.keysym.sym == SDLK_0) camera->MoveToLeftMost();                               // 0
+      if (e.key.keysym.sym == SDLK_DOLLAR ||
+          (e.key.keysym.sym == SDLK_4 && SDL_GetModState() & KMOD_SHIFT))
+        camera->MoveToRightMost();  // $
+      if (e.key.keysym.sym == SDLK_d && SDL_GetModState() & KMOD_CTRL)
+        camera->MoveDown(800);  // Ctrl-D
+      if (e.key.keysym.sym == SDLK_u && SDL_GetModState() & KMOD_CTRL)
+        camera->MoveUp(800);  // Ctrl-U
       break;
   }
 }

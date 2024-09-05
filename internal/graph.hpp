@@ -29,8 +29,8 @@ using EdgeVisitor = std::function<void(Vertex u, Vertex v, int cost)>;
 template <typename Vertex>
 class IDirectedGraph {
  public:
-  // Initialize the graph, where the n is the total number of vertices.
-  virtual void Init(int n) = 0;
+  // Initialize the graph.
+  virtual void Init() = 0;
   // Add an edge from vertex u to v with given cost.
   virtual void AddEdge(Vertex u, Vertex v, int cost) = 0;
   // Remove an edge from vertex u to v.
@@ -50,7 +50,9 @@ class IDirectedGraph {
 // SimpleDirectedGraph is a simple implementation of IDirectedGraph, using integral vertex.
 class SimpleDirectedGraph : public IDirectedGraph<int> {
  public:
-  void Init(int n) override;
+  void Resize(int n);
+  // ~~~~~~~~~~ Implements IDirectedGraph ~~~~~~~~~~~~~~~~
+  void Init() override;
   void AddEdge(int u, int v, int cost) override;
   void RemoveEdge(int u, int v) override;
   void ClearEdgeFrom(int u) override;
@@ -71,7 +73,7 @@ class SimpleDirectedGraph : public IDirectedGraph<int> {
 template <typename Vertex, typename VertexHasher = std::hash<Vertex>>
 class SimpleUnorderedMapDirectedGraph : public IDirectedGraph<Vertex> {
  public:
-  void Init(int n) override;
+  void Init() override;
   void AddEdge(Vertex u, Vertex v, int cost) override;
   void RemoveEdge(Vertex u, Vertex v) override;
   void ClearEdgeFrom(Vertex u) override;
@@ -92,7 +94,7 @@ class SimpleUnorderedMapDirectedGraph : public IDirectedGraph<Vertex> {
 // ~~~~~~~~~~~ Implements  SimpleUnorderedMapDirectedGraph ~~~~~~~~~~~~~~
 
 template <typename Vertex, typename VertexHasher>
-void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::Init(int n) {}
+void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::Init() {}
 
 template <typename Vertex, typename VertexHasher>
 void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::AddEdge(Vertex u, Vertex v, int cost) {

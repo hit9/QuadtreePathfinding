@@ -2,6 +2,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
+#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <string_view>
@@ -215,11 +216,13 @@ void Visualizer::computeAstarNodePath() {
     return;
   }
 
-  setMessageHint(
-      fmt::format(
-          "A*: Node path computed! cost {}us ; Next we can click button < Compute Gate Path >.",
-          std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
-      ImGreen);
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+  astar.timeCost += timeCost;
+
+  setMessageHint(fmt::format("A*: Node path computed! cost {}us (cumulative {}us); Next we can "
+                             "click button < Compute Gate Path >.",
+                             timeCost.count(), astar.timeCost.count()),
+                 ImGreen);
 }
 
 void Visualizer::computeAstarGatePath() {
@@ -245,13 +248,14 @@ void Visualizer::computeAstarGatePath() {
     setMessageHint("A*: unreachable!", ImRed);
     return;
   }
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+  astar.timeCost += timeCost;
 
-  setMessageHint(
-      fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us ; Next we can click button "
-                  "< Compute Final Path >.",
-                  astar.nodePath.size() > 0,
-                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
-      ImGreen);
+  setMessageHint(fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us (cumulative "
+                             "{}us); Next we can click button "
+                             "< Compute Final Path >.",
+                             astar.nodePath.size() > 0, timeCost.count(), astar.timeCost.count()),
+                 ImGreen);
 }
 
 void Visualizer::computeAstarFinalPath() {
@@ -286,11 +290,13 @@ void Visualizer::computeAstarFinalPath() {
   state = State::AStarFinalPathComputed;
   endAt = std::chrono::high_resolution_clock::now();
 
-  setMessageHint(
-      fmt::format(
-          "A*: final path computed! cost {}us ; Click button < Reset > to clear these results.",
-          std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
-      ImGreen);
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+  astar.timeCost += timeCost;
+
+  setMessageHint(fmt::format("A*: final path computed! cost {}us (cumulative {}us); Click button "
+                             "< Reset > to clear these results.",
+                             timeCost.count(), astar.timeCost.count()),
+                 ImGreen);
 }
 
 void Visualizer::handleFlowFieldInputQueryRangeBegin() {
@@ -326,11 +332,14 @@ void Visualizer::computeNodeFlowField() {
     return;
   }
 
-  setMessageHint(
-      fmt::format("FlowField: Node flowfield computed! cost {}us ; Next we can click button < "
-                  "Compute Gate Flow Field  >.",
-                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
-      ImGreen);
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+  flowfield.timeCost += timeCost;
+
+  setMessageHint(fmt::format("FlowField: Node flowfield computed! cost {}us (cumulative {}us); "
+                             "Next we can click button < "
+                             "Compute Gate Flow Field  >.",
+                             timeCost.count(), flowfield.timeCost.count()),
+                 ImGreen);
 }
 
 void Visualizer::computeGateFlowField() {
@@ -359,12 +368,16 @@ void Visualizer::computeGateFlowField() {
     return;
   }
 
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+  flowfield.timeCost += timeCost;
+
   setMessageHint(
-      fmt::format("Flowfield:: Gate flow field computed! useNodeFlowField: {}  cost {}us ; Next "
+      fmt::format("Flowfield:: Gate flow field computed! useNodeFlowField: {}  cost {}us "
+                  "(cumulative {}us); Next "
                   "we can click button "
                   "< Compute Final Flow Field >.",
-                  flowfield.nodeFlowField.Size() > 0,
-                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+                  flowfield.nodeFlowField.Size() > 0, timeCost.count(),
+                  flowfield.timeCost.count()),
       ImGreen);
 }
 
@@ -388,9 +401,12 @@ void Visualizer::computeFinalFlowField() {
     return;
   }
 
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+  flowfield.timeCost += timeCost;
+
   setMessageHint(
-      fmt::format("Flowfield:: Final flow field computed!  cost {}us  ",
-                  std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt).count()),
+      fmt::format("Flowfield:: Final flow field computed!  cost {}us  (cumulative {}us)",
+                  timeCost.count(), flowfield.timeCost.count()),
       ImGreen);
 }
 

@@ -47,7 +47,7 @@ const UnpackedCellFlowField::UnderlyingMap &UnpackedCellFlowField::GetUnderlying
 // ffa1 is the flowfield pathfinder to work on the node graph.
 // ffa2 is the flowfield pathfinder to work on the gate graph.
 // In the constructor, we just initialized some lambda function for further reusing.
-FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FFA2(n)) {
+FlowFieldPathFinderImpl::FlowFieldPathFinderImpl() {
   // nodesOverlappingQueryRangeCollector is to collect nodes overlapping with the query range.
   nodesOverlappingQueryRangeCollector = [this](QdNode *node) {
     // we care about only leaf nodes with no obstacles
@@ -72,24 +72,6 @@ FlowFieldPathFinderImpl::FlowFieldPathFinderImpl(int n) : ffa1(FFA1(n)), ffa2(FF
   ffa2NeighborsCollector = [this](int u, NeighbourVertexVisitor<int> &visitor) {
     ForEachNeighbourGateWithST(u, visitor);
   };
-
-  // Heuristic function for node level astar.
-  // node's center to qrange's center.
-  FFA1::HeuristicFunction ffa1Heuristic = [this](QdNode *node) {
-    // node's center
-    int nodeCenterX = node->x1 + (node->x2 - node->x1) / 2;
-    int nodeCenterY = node->y1 + (node->y2 - node->y1) / 2;
-    return m->Distance(nodeCenterX, nodeCenterY, qrangeCenterX, qrangeCenterY);
-  };
-  ffa1.SetHeuristicFunction(ffa1Heuristic);
-
-  // Heuristic function for gate level astar.
-  // gate cell to qrange's center.
-  FFA2::HeuristicFunction ffa2Heuristic = [this](int u) {
-    auto [x, y] = m->UnpackXY(u);
-    return m->Distance(x, y, qrangeCenterX, qrangeCenterY);
-  };
-  ffa2.SetHeuristicFunction(ffa2Heuristic);
 }
 
 void FlowFieldPathFinderImpl::Reset(const QuadtreeMap *m, int x2, int y2,
@@ -193,8 +175,17 @@ int FlowFieldPathFinderImpl::ComputeNodeFlowField(NodeFlowField &nodeFlowField) 
     return n >= nodesOverlappingQueryRange.size();
   };
 
+  // Heuristic function for node level astar.
+  // node's center to qrange's center.
+  FFA1::HeuristicFunction ffa1Heuristic = [this](QdNode *node) {
+    // node's center
+    int nodeCenterX = node->x1 + (node->x2 - node->x1) / 2;
+    int nodeCenterY = node->y1 + (node->y2 - node->y1) / 2;
+    return m->Distance(nodeCenterX, nodeCenterY, qrangeCenterX, qrangeCenterY);
+  };
+
   // Compute flowfield on the node graph.
-  ffa1.Compute(tNode, nodeFlowField, ffa1NeighborsCollector, nullptr, stopf);
+  ffa1.Compute(tNode, nodeFlowField, ffa1Heuristic, ffa1NeighborsCollector, nullptr, stopf);
 
   shrinkNodeFlowField(nodeFlowField);
   return 0;
@@ -291,12 +282,20 @@ int FlowFieldPathFinderImpl::ComputeGateFlowField(GateFlowField &gateFlowField,
     return true;
   };
 
+  // Heuristic function for gate level astar.
+  // gate cell to qrange's center.
+  FFA2::HeuristicFunction ffa2Heuristic = [this](int u) {
+    auto [x, y] = m->UnpackXY(u);
+    return m->Distance(x, y, qrangeCenterX, qrangeCenterY);
+  };
+
   // Why we use a packedGateFlowField over the original unpacked gateFlowField?
   // reason: the gate graph is built on top of packed cell ids, so we have to do packings and
   // unpackings during the flowfield algorithm. Thus it's better to unpack the cell ids later on
   // the results.
   PackedCellFlowField packedGateFlowField;
-  ffa2.Compute(t, packedGateFlowField, ffa2NeighborsCollector, neighbourTester, stopf);
+  ffa2.Compute(t, packedGateFlowField, ffa2Heuristic, ffa2NeighborsCollector, neighbourTester,
+               stopf);
 
   // Unpack into the gate flowfield.
   for (auto &[v, p] : packedGateFlowField.GetUnderlyingMap()) {

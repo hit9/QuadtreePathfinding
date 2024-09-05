@@ -18,7 +18,6 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
       h(h),
       step(step),
       s(std::max(w, h)),  // hint: checks comments for "Cell Id Packing"
-      n(s * s),           // hint: checks comments for "Cell Id Packing"
       maxNodeWidth(maxNodeWidth == -1 ? w : maxNodeWidth),
       maxNodeHeight(maxNodeHeight == -1 ? h : maxNodeHeight),
       isObstacle(isObstacle),
@@ -28,8 +27,10 @@ QuadtreeMap::QuadtreeMap(int w, int h, ObstacleChecker isObstacle, DistanceCalcu
   // debug mode: avoid s == 0, in case of division error
   assert(s > 0);
 
-  g1.Init(n);
-  g2.Init(n);
+  g1.Init();
+  g2.Init();
+  g2.Resize(s * s);
+
   // ssf returns true to stop a quadtree node to continue to split.
   // Where w and h are the width and height of the node's region.
   // n is the number of obstacles in this node.
@@ -103,6 +104,11 @@ int QuadtreeMap::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const {
 }
 
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Visits and Reads ~~~~~~~~~~~~~~~~~
+
+bool QuadtreeMap::IsObstacle(int x, int y) const {
+  if (!(x >= 0 && x < h && y >= 0 && y < w)) return true;
+  return isObstacle(x, y);
+}
 
 QdNode *QuadtreeMap::FindNode(int x, int y) const { return tree.Find(x, y); }
 

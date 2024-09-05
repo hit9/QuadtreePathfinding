@@ -75,8 +75,6 @@ class DefaultedUnorderedMap {
  public:
   using UnderlyingUnorderedMap = std::unordered_map<K, V, Hasher>;
 
-  // empty Resize. ignore
-  void Resize(std::size_t _ignoredn) {}
   // Is k exist in this map?
   bool Exist(K k) const { return m.find(k) != m.end(); }
   // Returns a mutable reference to the value of given key.

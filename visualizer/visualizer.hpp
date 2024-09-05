@@ -22,7 +22,7 @@ const int N = 800;
 
 // Cost unit between neighour cells.
 // better to set a value > 10.
-const int COST_UNIT = 100;
+const int COST_UNIT = 10;
 
 // {x,y}
 using Cell = std::pair<int, int>;
@@ -101,6 +101,9 @@ struct AStarContext {
   // target cell
   int x2 = 0, y2 = 0;
 
+  // Cumulative call time
+  std::chrono::microseconds timeCost = std::chrono::microseconds(0);
+
   // ~~~~~~ results ~~~~~~
   qdpf::NodePath nodePath;
   qdpf::GatePath gatePath;
@@ -127,6 +130,9 @@ struct FlowFieldContext {
   int x2 = 0, y2 = 0;
   // query rectangle.
   qdpf::Rectangle qrange;
+
+  // Cumulative call time
+  std::chrono::microseconds timeCost = std::chrono::microseconds(0);
 
   // ~~~~~~ results ~~~~~~
   qdpf::NodeFlowField nodeFlowField;
@@ -160,10 +166,12 @@ struct Camera {
   Camera(int w, int h, int mpw, int mph);
 
   // Movements
-  void MoveUp();
-  void MoveDown();
-  void MoveLeft();
-  void MoveRight();
+  void MoveUp(int k = 50);
+  void MoveDown(int k = 50);
+  void MoveLeft(int k = 50);
+  void MoveRight(int k = 50);
+  void MoveToLeftMost();
+  void MoveToRightMost();
 
   // Update should be called after lots of MoveXX calls
   void Update();
@@ -236,6 +244,10 @@ enum class PathFinderFlag {
   FlowField = 1,
 };
 
+// Compare to Naive Astar and FlowField.
+using NaiveGraph =
+    qdpf::internal::SimpleUnorderedMapDirectedGraph<Cell, qdpf::internal::PairHasher<int, int>>;
+
 class Visualizer {
  public:
   // w, h: the size of the grid map.
@@ -279,6 +291,8 @@ class Visualizer {
   bool hideTerrainRenderings = false;
   bool showGateGraph = false;
   bool showNodeGraph = false;
+  bool hideNodeBorders = false;
+  bool hideGateCellHighlights = false;
 
   // ~~~~~~ imgui ~~~~~~~
   ImFont* largeFont;

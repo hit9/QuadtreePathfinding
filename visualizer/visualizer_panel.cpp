@@ -142,6 +142,30 @@ void Visualizer::renderImguiPanelSectionCommon() {
       showNodeGraph = false;
     }
   }
+
+  ImGui::SameLine();
+
+  if (hideNodeBorders) {
+    if (ImGui::Button("Show Node Borders")) {
+      hideNodeBorders = false;
+    }
+  } else {
+    if (ImGui::Button("Hide Node Borders")) {
+      hideNodeBorders = true;
+    }
+  }
+
+  ImGui::SameLine();
+
+  if (hideGateCellHighlights) {
+    if (ImGui::Button("Show Gates")) {
+      hideGateCellHighlights = false;
+    }
+  } else {
+    if (ImGui::Button("Hide Gates")) {
+      hideGateCellHighlights = true;
+    }
+  }
 }
 
 void Visualizer::renderImguiPanelSectionAgent() {

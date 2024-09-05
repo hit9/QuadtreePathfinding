@@ -26,14 +26,6 @@ void AStarPathFinderImpl::Reset(const QuadtreeMap *m, int x1, int y1, int x2, in
   // stop further handlings.
   if (sNode == nullptr || tNode == nullptr) return;
 
-  // reset the distance function.
-  A1::Distance distance1 = [this](QdNode *a, QdNode *b) {
-    return this->m->DistanceBetweenNodes(a, b);
-  };
-  A2::Distance distance2 = [this](int u, int v) { return this->m->Distance(u, v); };
-  astar1.SetDistanceFunc(distance1);
-  astar2.SetDistanceFunc(distance2);
-
   // Rebuild the tmp graph. And add the start and target cells to the gate graph.
   PathFinderHelper::Reset(this->m);
 
@@ -78,8 +70,13 @@ int AStarPathFinderImpl::ComputeNodeRoutes(NodePath &nodePath) {
     m->ForEachNeighbourNodes(u, visitor);
   };
 
+  // Distance function
+  A1::Distance distance = [this](QdNode *a, QdNode *b) {
+    return this->m->DistanceBetweenNodes(a, b);
+  };
+
   // compute
-  return astar1.Compute(sNode, tNode, collector, neighborsCollector, nullptr);
+  return astar1.Compute(sNode, tNode, collector, distance, neighborsCollector, nullptr);
 }
 
 // Collects the gate cells on node path if ComputeNodeRoutes is successfully called and any further
@@ -141,8 +138,11 @@ int AStarPathFinderImpl::ComputeGateRoutes(GateRouteCollector &collector,
     ForEachNeighbourGateWithST(u, visitor);
   };
 
+  // Distance function
+  A2::Distance distance = [this](int u, int v) { return this->m->Distance(u, v); };
+
   // Compute
-  return astar2.Compute(s, t, collector1, neighborsCollector, neighbourTester);
+  return astar2.Compute(s, t, collector1, distance, neighborsCollector, neighbourTester);
 }
 
 // ComputeGateRoutes, not using a computed nodePath.
