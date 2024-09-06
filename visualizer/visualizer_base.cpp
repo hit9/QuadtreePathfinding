@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include "qdpf.hpp"
 #include "visualizer.hpp"
 
@@ -116,8 +118,11 @@ void AStarContext::Reset() {
 
 int AStarContext::ResetPf(int agentSize, int capabilities) {
   if (isPfReset) return 0;
+  auto startAt = std::chrono::high_resolution_clock::now();
   auto ret = pf->Reset(x1, y1, x2, y2, agentSize, capabilities);
   isPfReset = true;
+  auto endAt = std::chrono::high_resolution_clock::now();
+  timeCost += std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
   return ret;
 }
 
@@ -134,8 +139,11 @@ void FlowFieldContext::InitPf(qdpf::QuadtreeMapX* qmx) {
 
 int FlowFieldContext::ResetPf(int agentSize, int capabilities) {
   if (isPfReset) return 0;
+  auto startAt = std::chrono::high_resolution_clock::now();
   auto ret = pf->Reset(x2, y2, qrange, agentSize, capabilities);
   isPfReset = true;
+  auto endAt = std::chrono::high_resolution_clock::now();
+  timeCost += std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
   return ret;
 }
 
