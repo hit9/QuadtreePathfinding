@@ -31,7 +31,7 @@ void Map::Reset() {
   memset(grids, 0, sizeof grids);
   memset(changes, 0, sizeof changes);
 
-  qdpf::Rectangle center{2 * h / 5, 2 * w / 5, h * 3 / 5, w * 3 / 5};
+  qdpf::Rectangle center{2 * h / 7, 2 * w / 7, h * 5 / 7, w * 5 / 7};
   qdpf::Rectangle wall1{center.x2 + 4, center.y1, center.x2 + 4, center.y2 + 4};
   qdpf::Rectangle wall2{center.x1, center.y2 + 4, center.x2 + 4, center.y2 + 4};
   qdpf::Rectangle wall3{center.x1 - 4, center.y1 - 4, center.x1 - 4, center.y2};
