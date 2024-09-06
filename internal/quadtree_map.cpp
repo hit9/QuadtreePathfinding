@@ -4,6 +4,7 @@
 #include "quadtree_map.hpp"
 
 #include <cassert>
+#include <cstdlib>
 
 namespace qdpf {
 namespace internal {
@@ -77,7 +78,7 @@ static std::pair<int, int> __div(int n, int k) {
 // thus, the max of z, is max(x)*s+max(y) = (h-1)*s+(w-1) <= s*s-1 < s*s.
 
 int QuadtreeMap::PackXY(int x, int y) const { return s * x + y; }
-std::pair<int, int> QuadtreeMap::UnpackXY(int v) const { return __div(v, s); }
+Cell QuadtreeMap::UnpackXY(int v) const { return __div(v, s); }
 int QuadtreeMap::UnpackX(int v) const { return v / s; }
 int QuadtreeMap::UnpackY(int v) const { return v % s; }
 

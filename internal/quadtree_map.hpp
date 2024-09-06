@@ -71,7 +71,7 @@ class QuadtreeMap {
   int PackXY(int x, int y) const;
 
   // UnpackXY unpacks a vertex id v to a two-dimensional position (x,y).
-  std::pair<int, int> UnpackXY(int v) const;
+  Cell UnpackXY(int v) const;
 
   // Unpacks a cell id v's x axis.
   int UnpackX(int v) const;
