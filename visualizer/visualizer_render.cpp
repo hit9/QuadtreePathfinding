@@ -192,9 +192,18 @@ void Visualizer::renderPathfindingAStar() {
       for (const auto [x, y] : astar.finalPath) {
         renderFillAgent(x, y);
       }
+
+      renderPathfindingAStarNaive();
       break;
     default:
       return;  // do nothing
+  }
+}
+
+void Visualizer::renderPathfindingAStarNaive() {
+  if (astarNaive.path.empty()) return;
+  for (const auto [x, y] : astarNaive.path) {
+    renderFillAgent(x, y, DarkGreen);
   }
 }
 

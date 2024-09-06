@@ -1,3 +1,5 @@
+#include <spdlog/spdlog.h>
+
 #include <chrono>
 
 #include "qdpf.hpp"
@@ -15,15 +17,6 @@ void Agent::Reset() {
 // ~~~~~~~~~~ Map ~~~~~~~~~~
 
 Map::Map(int w, int h, int gridSize, int step) : w(w), h(h), gridSize(gridSize), step(step) {
-  Reset();
-}
-
-Map::~Map() {
-  delete qmx;
-  qmx = nullptr;
-}
-
-void Map::Reset() {
   // Inits the map, by default:
   // 1. the center are water.
   // 2. there's 2 walls.
@@ -55,7 +48,15 @@ void Map::Reset() {
   }
 }
 
-void Map::BuildMapX() {
+Map::~Map() {
+  delete qmx;
+  qmx = nullptr;
+  delete naiveMap;
+  ;
+}
+
+void Map::Build() {
+  // Build QuadtreeMapX.
   auto stepf = (step == -1) ? [](int z) -> int { return z / 8 + 1; } : nullptr;
   qdpf::QuadtreeMapXSettings settings{
       {COST_UNIT, Terrain::Land},
@@ -68,10 +69,17 @@ void Map::BuildMapX() {
       {2 * COST_UNIT, Terrain::Land | Terrain::Water},
       {3 * COST_UNIT, Terrain::Land | Terrain::Water},
   };
-  qmx = new qdpf::QuadtreeMapX(
-      w, h, qdpf::EuclideanDistance<COST_UNIT>, [this](int x, int y) { return grids[x][y]; },
-      settings, step, stepf);
+  auto distance = qdpf::EuclideanDistance<COST_UNIT>;
+  auto terrianChecker = [this](int x, int y) { return grids[x][y]; };
+  qmx = new qdpf::QuadtreeMapX(w, h, distance, terrianChecker, settings, step, stepf);
   qmx->Build();
+  spdlog::info("Build quadtree maps done");
+
+  // Build naive map.
+  auto isObstacle = [this](int x, int y) { return grids[x][y] != Terrain::Land; };
+  naiveMap = new qdpf::naive::NaiveGridMap(w, h, isObstacle, distance);
+  naiveMap->Build();
+  spdlog::info("Build naive map done");
 }
 
 void Map::WantChangeTerrain(const Cell& cell, Terrain to) {
@@ -84,6 +92,7 @@ void Map::ApplyChangeTerrain(const std::vector<Cell>& cells) {
     grids[x][y] = changes[x][y];
     changes[x][y] = 0;
     qmx->Update(x, y);
+    naiveMap->Update(x, y);
   }
   qmx->Compute();
 }
@@ -93,12 +102,18 @@ void Map::ClearAllTerrains() {
     for (int y = 0; y < w; ++y) {
       grids[x][y] = Terrain::Land;
       qmx->Update(x, y);
+      naiveMap->Update(x, y);
     }
   }
   qmx->Compute();
 }
 
 // ~~~~~~~~~~ AStarContext ~~~~~~~~~~
+
+void NaiveAStarContext::Reset() {
+  timeCost = std::chrono::microseconds(0);
+  path.clear();
+}
 
 void AStarContext::InitPf(qdpf::QuadtreeMapX* qmx) { pf = new qdpf::AStarPathFinder(*qmx); }
 

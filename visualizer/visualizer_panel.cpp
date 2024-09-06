@@ -224,6 +224,16 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar() {
   if (ImGui::Button("Compute Final Path")) {
     computeAstarFinalPath();
   }
+
+  if (state == State::AStarFinalPathComputed) {
+    if (ImGui::Button("Compare with Naive A*")) {
+      computeAStarNaive();
+    }
+    if (astarNaive.path.size() && astar.finalPath.size()) {
+      ImGui::Text("A* on quadtree vs Naive A* time costs: %lldus vs %lldus",
+                  astar.timeCost.count(), astarNaive.timeCost.count());
+    }
+  }
 }
 
 void Visualizer::renderImguiPanelSectionPathFindingFlowField() {

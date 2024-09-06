@@ -94,6 +94,7 @@ void Visualizer::Start() {
 void Visualizer::reset() {
   state = State::Idle;
   astar.Reset();
+  astarNaive.Reset();
   flowfield.Reset();
   changeTo = Terrain::Building;
   changingTerrainCells.clear();
@@ -297,6 +298,37 @@ void Visualizer::computeAstarFinalPath() {
                              "< Reset > to clear these results.",
                              timeCost.count(), astar.timeCost.count()),
                  ImGreen);
+}
+
+void Visualizer::computeAStarNaive() {
+  if (state != State::AStarFinalPathComputed) {
+    setMessageHint("invalid state; please compute astar on quadtree maps first.", ImRed);
+    return;
+  }
+
+  if (agent.size != COST_UNIT || agent.capability != Terrain::Land) {
+    setMessageHint("NaiveAstar works only for agent {1x1,Land}", ImRed);
+    return;
+  }
+
+  if (astarNaive.path.size()) astarNaive.path.clear();
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+
+  startAt = std::chrono::high_resolution_clock::now();
+  auto ret =
+      astarNaive.pf.Compute(map.naiveMap, astar.x1, astar.y1, astar.x2, astar.y2, astarNaive.path);
+  endAt = std::chrono::high_resolution_clock::now();
+  if (-1 == ret) {
+    setMessageHint("Naive A*: failed!", ImRed);
+    return;
+  }
+
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+
+  astarNaive.timeCost += timeCost;
+
+  setMessageHint(fmt::format("NaiveAstar: path computed ,cost {}us", timeCost.count()), ImGreen);
 }
 
 void Visualizer::handleFlowFieldInputQueryRangeBegin() {

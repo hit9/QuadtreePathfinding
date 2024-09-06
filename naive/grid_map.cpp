@@ -10,7 +10,16 @@ namespace qdpf {
 namespace naive {
 
 const int DIRECTIONS[8][2]{
-    {0, 1}, {0, -1}, {1, 0}, {-1, 0}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+    // right,right-bottom,bottom,left-bottom
+    {0, 1},
+    {1, 1},
+    {1, 0},
+    {1, -1},
+    // left,left-top,top,top-right
+    {0, -1},
+    {-1, -1},
+    {-1, 0},
+    {-1, 1},
 };
 
 NaiveGridMap::NaiveGridMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance)
@@ -18,8 +27,8 @@ NaiveGridMap::NaiveGridMap(int w, int h, ObstacleChecker isObstacle, DistanceCal
   g.Init();
   g.Resize(s * s);
 
-  costUnitHV = distance(0, 0, 0, 1);
-  costUnitDiagonal = distance(0, 0, 1, 1);
+  int costUnitHV = distance(0, 0, 0, 1);
+  int costUnitDiagonal = distance(0, 0, 1, 1);
 
   for (int i = 0; i < 8; ++i) {
     int dx = directions[i][0] = DIRECTIONS[i][0];
@@ -71,17 +80,14 @@ void NaiveGridMap::Update(int x, int y) {
     g.ClearEdgeTo(u);
     g.ClearEdgeFrom(u);
   } else {
-    for (int i = 0; i < 8; ++i) {
+    // we can check only the right | bottom directions
+    for (int i = 0; i < 4; ++i) {
       const auto& d = directions[i];
       int dx = d[0], dy = d[1], cost = d[2];
       int x1 = x + dx, y1 = y + dy;
 
-      // boundry checks.
-      if (!(x1 >= 0 && x1 < h)) continue;
-      if (!(y1 >= 0 && y1 < h)) continue;
-
-      // can't walk from/to obstacles.
-      if (isObstacle(x1, y1)) continue;
+      // can't walk from/to obstacles (including boundry).
+      if (IsObstacle(x1, y1)) continue;
 
       int v = PackXY(x1, y1);
       g.AddEdge(u, v, cost);

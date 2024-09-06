@@ -25,9 +25,6 @@ class NaiveGridMap {
  public:
   NaiveGridMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance);
 
-  int W() const { return w; }
-  int H() const { return h; }
-
   bool IsObstacle(int x, int y) const;
   bool IsObstacle(const Cell& c) const;
 
@@ -50,9 +47,6 @@ class NaiveGridMap {
 
   ObstacleChecker isObstacle;
   DistanceCalculator distance;
-
-  int costUnitHV;
-  int costUnitDiagonal;
 
   // directions[i] => {dx, dy, cost}
   int directions[8][3];

@@ -32,7 +32,7 @@ int NaiveAStarPathFinder::Compute(const NaiveGridMap* m, int x1, int y1, int x2,
     auto [x, y] = m->UnpackXY(v);
     collector(x, y, cost);
   };
-  A::Distance distance = [&m](int u, int v) { return m->Distance(u, v); };
+  A::Distance distance = [m](int u, int v) { return m->Distance(u, v); };
 
   A::NeighboursCollectorT neighboursCollector = [m](int u, NeighbourVertexVisitor<int>& visitor) {
     return m->GetGraph().ForEachNeighbours(u, visitor);

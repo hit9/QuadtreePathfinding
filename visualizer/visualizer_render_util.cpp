@@ -68,13 +68,15 @@ void Visualizer::renderFillCell(int x, int y, const SDL_Color& color) {
   renderFillRect(cell, color);
 }
 
-void Visualizer::renderFillAgent(int x, int y) {
+void Visualizer::renderFillAgent(int x, int y, const SDL_Color& color) {
   int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
   SDL_Rect outer{y * map.gridSize, x * map.gridSize, agentSizeInPixels, agentSizeInPixels};
   SDL_Rect inner{outer.x + 1, outer.y + 1, outer.w - 2, outer.h - 2};
   renderDrawRect(outer, Black);
-  renderFillRect(inner, Green);
+  renderFillRect(inner, color);
 }
+
+void Visualizer::renderFillAgent(int x, int y) { renderFillAgent(x, y, Green); }
 
 // Crop given rect by camera, and converts to the coordinates relative to the camera's left-top
 // corner. The results are stored into overlap. Returns false if no overlaping.
