@@ -94,7 +94,9 @@ void Visualizer::Start() {
 void Visualizer::reset() {
   state = State::Idle;
   astar.Reset();
+  astarNaive.Reset();
   flowfield.Reset();
+  flowfieldNaive.Reset();
   changeTo = Terrain::Building;
   changingTerrainCells.clear();
   showClearAllTerrainsConfirm = false;
@@ -299,6 +301,72 @@ void Visualizer::computeAstarFinalPath() {
                  ImGreen);
 }
 
+void Visualizer::computeAStarNaive() {
+  if (state != State::AStarFinalPathComputed) {
+    setMessageHint("invalid state; please compute astar on quadtree maps first.", ImRed);
+    return;
+  }
+
+  if (agent.size != COST_UNIT || agent.capability != Terrain::Land) {
+    setMessageHint("NaiveAstar works only for agent {1x1,Land}", ImRed);
+    return;
+  }
+
+  if (astarNaive.path.size()) astarNaive.path.clear();
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+
+  startAt = std::chrono::high_resolution_clock::now();
+  auto ret =
+      astarNaive.pf.Compute(map.naiveMap, astar.x1, astar.y1, astar.x2, astar.y2, astarNaive.path);
+  endAt = std::chrono::high_resolution_clock::now();
+  if (-1 == ret) {
+    setMessageHint("Naive A*: failed!", ImRed);
+    return;
+  }
+
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+
+  astarNaive.timeCost += timeCost;
+
+  setMessageHint(fmt::format("NaiveAstar: path computed ,cost {}us", timeCost.count()), ImGreen);
+}
+
+void Visualizer::computeFlowFieldNaive() {
+  if (state != State::FlowFieldFinalLevelComputed) {
+    setMessageHint("invalid state; please compute final flow field on quadtree maps first.",
+                   ImRed);
+    return;
+  }
+
+  if (agent.size != COST_UNIT || agent.capability != Terrain::Land) {
+    setMessageHint("NaiveFlowField works only for agent {1x1,Land}", ImRed);
+    return;
+  }
+
+  if (flowfieldNaive.finalFlowField.Size()) flowfieldNaive.finalFlowField.Clear();
+
+  std::chrono::high_resolution_clock::time_point startAt, endAt;
+
+  startAt = std::chrono::high_resolution_clock::now();
+
+  auto ret = flowfieldNaive.pf.Compute(map.naiveMap, flowfield.x2, flowfield.y2, flowfield.qrange,
+                                       flowfieldNaive.finalFlowField);
+  if (-1 == ret) {
+    setMessageHint("Naive FlowField: failed!", ImRed);
+    return;
+  }
+
+  endAt = std::chrono::high_resolution_clock::now();
+
+  auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
+
+  flowfieldNaive.timeCost += timeCost;
+
+  setMessageHint(fmt::format("NaiveFlowField: path computed ,cost {}us", timeCost.count()),
+                 ImGreen);
+}
+
 void Visualizer::handleFlowFieldInputQueryRangeBegin() {
   if (pathfinderFlag != PathFinderFlag::FlowField) {
     pathfinderFlag = PathFinderFlag::FlowField;
@@ -424,7 +492,11 @@ void Visualizer::handlePlayFlowFieldTestPath() {
   // (x2,y2) is the target
   int x2 = flowfield.x2, y2 = flowfield.y2;
 
-  for (auto& p : flowfield.testPaths) {
+  auto& testPaths = showNaiveFlowFieldResults ? flowfieldNaive.testPaths : flowfield.testPaths;
+  auto& finalFlowField =
+      showNaiveFlowFieldResults ? flowfieldNaive.finalFlowField : flowfield.finalFlowField;
+
+  for (auto& p : testPaths) {
     if (p.empty()) continue;
 
     // get current position
@@ -442,7 +514,7 @@ void Visualizer::handlePlayFlowFieldTestPath() {
     // Is inside the rect?
     if (IsInsideRectangle(x3, y3, flowfield.qrange)) {
       // get next from the final flow field.
-      const auto& next = flowfield.finalFlowField.Next({x3, y3});
+      const auto& next = finalFlowField.Next({x3, y3});
       p.push_back(next);
     }
   }

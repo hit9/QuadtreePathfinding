@@ -153,6 +153,8 @@ void Visualizer::handleInputsAStarSetTarget(SDL_Event& e) {
 void Visualizer::handleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e) {
   if (e.type == SDL_MOUSEBUTTONDOWN) {
     auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+    flowfield.Reset();
+    flowfieldNaive.Reset();
     flowfield.qrange.x1 = cell.first;
     flowfield.qrange.y1 = cell.second;
     state = State::FlowFieldWaitQrangeRightBottom;
@@ -186,8 +188,9 @@ void Visualizer::handleInputsFlowFieldSetTestStart(SDL_Event& e) {
       setMessageHint("FlowField: test path start invalid", ImRed);
       return;
     }
-    flowfield.testPaths.resize(flowfield.testPaths.size() + 1);
-    flowfield.testPaths.back().push_back(cell);
+    auto& testPaths = showNaiveFlowFieldResults ? flowfieldNaive.testPaths : flowfield.testPaths;
+    testPaths.resize(flowfield.testPaths.size() + 1);
+    testPaths.back().push_back(cell);
     setMessageHint("FlowField: playing test path ...", ImGreen);
   }
 }

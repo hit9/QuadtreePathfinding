@@ -23,7 +23,7 @@ target_include_directories(true_clearance_field
     PUBLIC "../3rd-party/true-clearance-field")
 
 # ----- library qdpf ------
-file(GLOB QDPF_SOURCES ../qdpf.cpp ../internal/*.cpp)
+file(GLOB QDPF_SOURCES ../qdpf.cpp ../internal/*.cpp ../naive/*.cpp)
 add_library(qdpf ${QDPF_SOURCES})
 target_link_libraries(qdpf true_clearance_field)
 target_include_directories(qdpf PUBLIC "../3rd-party" "..")

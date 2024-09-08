@@ -9,6 +9,9 @@
 #include <string>
 #include <utility>
 
+#include "naive/astar.hpp"
+#include "naive/flowfield.hpp"
+#include "naive/grid_map.hpp"
 #include "qdpf.hpp"
 
 enum Terrain {
@@ -34,6 +37,7 @@ const SDL_Color Red{255, 0, 0, 255};
 const SDL_Color Blue{0, 0, 255, 255};
 const SDL_Color Black{0, 0, 0, 255};
 const SDL_Color Green{0, 180, 0, 255};
+const SDL_Color DarkGreen{0, 100, 0, 255};
 const SDL_Color LightOrange{255, 200, 128, 255};
 const SDL_Color Orange{255, 165, 0, 255};
 const SDL_Color LightPurple{230, 190, 230, 255};
@@ -81,14 +85,26 @@ struct Map {
   // step to pick gate cells.
   int step = -1;
 
+  // naive map for comparasion
+  qdpf::naive::NaiveGridMap* naiveMap = nullptr;
+
   Map(int w, int h, int gridSize, int step = -1);
   ~Map();
-  void Reset();
-  void BuildMapX();  // call only once.
+  void Build();  // call only once.
   // Change Terrain
   void WantChangeTerrain(const Cell& cell, Terrain to);
   void ApplyChangeTerrain(const std::vector<Cell>& cells);
   void ClearAllTerrains();
+};
+
+struct NaiveAStarContext {
+  qdpf::naive::NaiveAStarPathFinder pf;
+  // timecost of naive astar in us.
+  std::chrono::microseconds timeCost = std::chrono::microseconds(0);
+  // results of naive astar.
+  std::vector<Cell> path;
+
+  void Reset();
 };
 
 struct AStarContext {
@@ -121,6 +137,19 @@ struct FlowFieldItem {
   V current;
   V next;
   int cost;
+};
+
+struct NaiveFlowFieldContext {
+  qdpf::naive::NaiveFlowFieldPathFinder pf;
+  // timecost of naive flowfield in us.
+  std::chrono::microseconds timeCost = std::chrono::microseconds(0);
+  // results of naive flowfield
+  qdpf::FinalFlowField finalFlowField;
+
+  // ~~~~~ optional test path ~~~~~~
+  std::vector<std::vector<Cell>> testPaths;
+
+  void Reset();
 };
 
 struct FlowFieldContext {
@@ -272,6 +301,9 @@ class Visualizer {
   AStarContext astar;
   FlowFieldContext flowfield;
 
+  NaiveAStarContext astarNaive;
+  NaiveFlowFieldContext flowfieldNaive;
+
   PathFinderFlag pathfinderFlag = PathFinderFlag::AStar;
 
   bool isMouseDown = false;
@@ -293,6 +325,7 @@ class Visualizer {
   bool showNodeGraph = false;
   bool hideNodeBorders = false;
   bool hideGateCellHighlights = false;
+  bool showNaiveFlowFieldResults = false;
 
   // ~~~~~~ imgui ~~~~~~~
   ImFont* largeFont;
@@ -320,6 +353,7 @@ class Visualizer {
   void renderHighlightedNodesFlowField();
   void renderPathfindingDispatch();
   void renderPathfindingAStar();
+  void renderPathfindingAStarNaive();
   void renderPathfindingFlowField();
   void renderPathFindingFlowFieldGateField();
   void renderPathFindingFlowFieldFinalField();
@@ -331,6 +365,7 @@ class Visualizer {
   void renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst);
   void renderFillCell(int x, int y, const SDL_Color& color);
   void renderFillAgent(int x, int y);
+  void renderFillAgent(int x, int y, const SDL_Color& color);
   void setMessageHint(std::string_view message, const ImVec4& color);
 
   // ~~~~~~ render the panel ~~~~~~~
@@ -351,6 +386,8 @@ class Visualizer {
   void computeAstarFinalPath();
   void handleAstarInputBegin();
   void handleFlowFieldInputQueryRangeBegin();
+  void computeAStarNaive();
+  void computeFlowFieldNaive();
 
   // ~~~~~ flowfield ~~~~~~
   void computeNodeFlowField();

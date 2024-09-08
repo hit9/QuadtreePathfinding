@@ -30,11 +30,11 @@ int Visualizer::Init() {
 
   spdlog::info("Building map (may take some time...)");
   // Build the map.
-  map.BuildMapX();
+  map.Build();
   // Build the pfs;
   astar.InitPf(map.qmx);
   flowfield.InitPf(map.qmx);
-  spdlog::info("Building map done");
+  spdlog::info("Visualizer's Init done");
   return 0;
 }
 
