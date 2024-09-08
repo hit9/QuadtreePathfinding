@@ -209,6 +209,8 @@ void Visualizer::renderImguiPanelSectionPathFinding() {
 }
 
 void Visualizer::renderImguiPanelSectionPathFindingAStar() {
+  ImGui::Text("Compution:");
+
   if (ImGui::Button("Set Start and Target")) {
     handleAstarInputBegin();
   }
@@ -226,6 +228,7 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar() {
   }
 
   if (state == State::AStarFinalPathComputed) {
+    ImGui::Text("Compare:");
     if (ImGui::Button("Compare with Naive A*")) {
       computeAStarNaive();
     }
@@ -237,6 +240,8 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar() {
 }
 
 void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
+  ImGui::Text("Compution:");
+
   if (ImGui::Button("Set Start Rectangle and Target")) {
     handleFlowFieldInputQueryRangeBegin();
   }
@@ -265,19 +270,47 @@ void Visualizer::renderImguiPanelSectionPathFindingFlowField() {
     computeFinalFlowField();
   }
 
-  ImGui::SameLine();
+  ImGui::Text("Debug:");
 
   if (ImGui::Button("Clear Tests Path")) {
     flowfield.testPaths.clear();
+    flowfieldNaive.testPaths.clear();
   }
 
+  ImGui::SameLine();
+
   if (!renderFlowFieldGateNextLines) {
-    if (ImGui::Button("Debug: Show Gate Connection to Next")) {
+    if (ImGui::Button("Show Gate Connection to Next")) {
       renderFlowFieldGateNextLines = true;
     }
   } else {
-    if (ImGui::Button("Debug: Hide Gate Connection to Next")) {
+    if (ImGui::Button("Hide Gate Connection to Next")) {
       renderFlowFieldGateNextLines = false;
+    }
+  }
+
+  if (state == State::FlowFieldFinalLevelComputed) {
+    ImGui::Text("Compare:");
+    if (ImGui::Button("Compare with Naive FlowField")) {
+      computeFlowFieldNaive();
+    }
+    if (flowfieldNaive.finalFlowField.Size() && flowfield.finalFlowField.Size()) {
+      ImGui::Text("FlowField on quadtree vs Naive FlowField time costs: %lldus vs %lldus",
+                  flowfield.timeCost.count(), flowfieldNaive.timeCost.count());
+    }
+
+    if (!showNaiveFlowFieldResults) {
+      if (ImGui::Button("Show Naive FlowField Results")) {
+        showNaiveFlowFieldResults = true;
+      }
+      ImGui::SameLine();
+      ImGui::Text("( Showing flowfield on Quadtrees results )");
+    } else {
+      if (ImGui::Button("Show FlowField on Quadtrees Results")) {
+        showNaiveFlowFieldResults = false;
+      }
+      ImGui::SameLine();
+      ImGui::Text("( Showing Naive FlowField Results) ");
     }
   }
 }

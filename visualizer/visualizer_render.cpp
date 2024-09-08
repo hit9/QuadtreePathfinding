@@ -268,6 +268,7 @@ void Visualizer::renderPathFindingFlowFieldGateField() {
 }
 
 void Visualizer::renderPathFindingFlowFieldGateNextsLines() {
+  if (showNaiveFlowFieldResults) return;
   if (!renderFlowFieldGateNextLines) return;
   for (auto& [gate, p] : flowfield.gateFlowField.GetUnderlyingMap()) {
     auto [next, cost] = p;
@@ -278,14 +279,21 @@ void Visualizer::renderPathFindingFlowFieldGateNextsLines() {
 }
 
 void Visualizer::renderPathFindingFlowFieldFinalField() {
-  if (flowfield.testPaths.size()) {
-    for (const auto& testPath : flowfield.testPaths) {
+  const auto& testPaths =
+      showNaiveFlowFieldResults ? flowfieldNaive.testPaths : flowfield.testPaths;
+
+  if (testPaths.size()) {
+    for (const auto& testPath : testPaths) {
       for (auto [x, y] : testPath) {
         renderFillAgent(x, y);
       }
     }
   }
-  for (auto& [u, p] : flowfield.finalFlowField.GetUnderlyingMap()) {
+
+  const auto& finalFlowField =
+      showNaiveFlowFieldResults ? flowfieldNaive.finalFlowField : flowfield.finalFlowField;
+
+  for (auto& [u, p] : finalFlowField.GetUnderlyingMap()) {
     auto [v, cost] = p;
     auto [x, y] = u;
     auto [x1, y1] = v;

@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "naive/astar.hpp"
+#include "naive/flowfield.hpp"
 #include "naive/grid_map.hpp"
 #include "qdpf.hpp"
 
@@ -136,6 +137,19 @@ struct FlowFieldItem {
   V current;
   V next;
   int cost;
+};
+
+struct NaiveFlowFieldContext {
+  qdpf::naive::NaiveFlowFieldPathFinder pf;
+  // timecost of naive flowfield in us.
+  std::chrono::microseconds timeCost = std::chrono::microseconds(0);
+  // results of naive flowfield
+  qdpf::FinalFlowField finalFlowField;
+
+  // ~~~~~ optional test path ~~~~~~
+  std::vector<std::vector<Cell>> testPaths;
+
+  void Reset();
 };
 
 struct FlowFieldContext {
@@ -288,6 +302,7 @@ class Visualizer {
   FlowFieldContext flowfield;
 
   NaiveAStarContext astarNaive;
+  NaiveFlowFieldContext flowfieldNaive;
 
   PathFinderFlag pathfinderFlag = PathFinderFlag::AStar;
 
@@ -310,6 +325,7 @@ class Visualizer {
   bool showNodeGraph = false;
   bool hideNodeBorders = false;
   bool hideGateCellHighlights = false;
+  bool showNaiveFlowFieldResults = false;
 
   // ~~~~~~ imgui ~~~~~~~
   ImFont* largeFont;
@@ -371,6 +387,7 @@ class Visualizer {
   void handleAstarInputBegin();
   void handleFlowFieldInputQueryRangeBegin();
   void computeAStarNaive();
+  void computeFlowFieldNaive();
 
   // ~~~~~ flowfield ~~~~~~
   void computeNodeFlowField();

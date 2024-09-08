@@ -143,6 +143,12 @@ int AStarContext::ResetPf(int agentSize, int capabilities) {
 
 // ~~~~~~~~~~ FlowFieldContext ~~~~~~~~~~
 
+void NaiveFlowFieldContext::Reset() {
+  timeCost = std::chrono::microseconds(0);
+  finalFlowField.Clear();
+  testPaths.clear();
+}
+
 FlowFieldContext::~FlowFieldContext() {
   delete pf;
   pf = nullptr;

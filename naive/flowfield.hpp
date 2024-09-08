@@ -19,6 +19,7 @@ using internal::FinalFlowField;
 using internal::Rectangle;
 
 class NaiveFlowFieldPathFinder {
+ public:
   // Computes a flowfield inside given rectangle range.
   // Returns -1 if unreachable.
   int Compute(const NaiveGridMap* m, int x2, int y2, const Rectangle& qrange,
