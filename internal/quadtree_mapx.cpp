@@ -5,11 +5,12 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <unordered_set>
 
 #include "base.hpp"
+#include "clearance-field/clearance_field.hpp"
 #include "quadtree_map.hpp"
-#include "true-clearance-field/true_clearance_field.hpp"
 
 namespace qdpf {
 namespace internal {
@@ -17,7 +18,8 @@ namespace internal {
 QuadtreeMapXImpl::QuadtreeMapXImpl(int w, int h, DistanceCalculator distance,
                                    TerrainTypesChecker terrainChecker,
                                    QuadtreeMapXSettings settings, int step, StepFunction stepf,
-                                   int maxNodeWidth, int maxNodeHeight)
+                                   int maxNodeWidth, int maxNodeHeight,
+                                   ClearanceFieldKind clearanceFieldKind)
     : w(w),
       h(h),
       distance(distance),
@@ -26,7 +28,8 @@ QuadtreeMapXImpl::QuadtreeMapXImpl(int w, int h, DistanceCalculator distance,
       step(step),
       stepf(stepf),
       maxNodeWidth(maxNodeWidth),
-      maxNodeHeight(maxNodeHeight) {
+      maxNodeHeight(maxNodeHeight),
+      clearanceFieldKind(clearanceFieldKind) {
   assert(w > 0);
   assert(h > 0);
 }
@@ -40,8 +43,8 @@ QuadtreeMapXImpl::~QuadtreeMapXImpl() {
   maps1.clear();
 
   // free the clearance field.
-  for (auto [_, tf] : tfs) delete tf;
-  tfs.clear();
+  for (auto [_, cf] : cfs) delete cf;
+  cfs.clear();
 
   // clear dirties.
   dirties.clear();
@@ -78,12 +81,12 @@ const QuadtreeMap* QuadtreeMapXImpl::Get(int agentSize, int walkableTerrainTypes
 
 void QuadtreeMapXImpl::Update(int x, int y) {
   // Update the clearance values
-  for (auto [_, tf] : tfs) tf->Update(x, y);
+  for (auto [_, cf] : cfs) cf->Update(x, y);
 }
 
 void QuadtreeMapXImpl::Compute() {
   // Apply the clearance updates for each field.
-  for (auto [_, tf] : tfs) tf->Compute();
+  for (auto [_, cf] : cfs) cf->Compute();
 
   // Update all cells in related quadtree maps.
   // Of which the clearance value is recomputed, we should maintain the gate cells etc.
@@ -137,17 +140,30 @@ void QuadtreeMapXImpl::createClearanceFieldForTerrainTypes(int agentSizeBound, i
                                                            int terrainTypes) {
   // rarely happens, but ensure that we won't reset an allocated clearance field, which makes
   // memory leakings.
-  if (tfs.find(terrainTypes) != tfs.end()) return;
+  if (cfs.find(terrainTypes) != cfs.end()) return;
 
-  true_clearance_field::ObstacleChecker isObstacle = [this, terrainTypes](int x, int y) {
+  clearance_field::ObstacleChecker isObstacle = [this, terrainTypes](int x, int y) {
     // if the terrain type value of cell (x,y) dismatches any of required terrain types, it's
     // considered an obstacle.
     return (terrainChecker(x, y) & terrainTypes) == 0;
   };
   // creates a clearance field.
-  auto tf = new true_clearance_field::TrueClearanceField(w, h, agentSizeBound, costUnit,
-                                                         costUnitDiagonal, isObstacle);
-  tfs[terrainTypes] = tf;
+  clearance_field::IClearanceField* cf = nullptr;
+
+  switch (clearanceFieldKind) {
+    case ClearanceFieldKind::TrueClearanceField:
+      cf = new clearance_field::TrueClearanceField(w, h, agentSizeBound, costUnit,
+                                                   costUnitDiagonal, isObstacle);
+      break;
+    case ClearanceFieldKind::BrushfireClearanceField:
+      cf = new clearance_field::BrushfireClearanceField(w, h, std::ceil(agentSizeBound / 2),
+                                                        costUnit, costUnitDiagonal, isObstacle);
+      break;
+    default:
+      assert(0);
+  }
+
+  cfs[terrainTypes] = cf;
 }
 
 // Creates a quadtree map for each setting.
@@ -159,17 +175,17 @@ void QuadtreeMapXImpl::createQuadtreeMaps() {
 
 // Build each of clearance field.
 void QuadtreeMapXImpl::buildClearanceFields() {
-  for (auto [_, tf] : tfs) {
+  for (auto [_, cf] : cfs) {
     // here: just build on an **empty** map.
-    tf->Build();
+    cf->Build();
 
     // Let's update each cell.
     for (int x = 0; x < h; ++x) {
-      for (int y = 0; y < w; ++y) tf->Update(x, y);
+      for (int y = 0; y < w; ++y) cf->Update(x, y);
     }
 
     // Finally, call Compute for the initial clearance field.
-    tf->Compute();
+    cf->Compute();
   }
 }
 
@@ -185,7 +201,7 @@ void QuadtreeMapXImpl::createQuadtreeMapsForSetting(int agentSize, int terrainTy
     if ((terrainChecker(x, y) & terrainTypes) == 0) return true;
     // If the clearance distance dismatches the agent's size, it's an obstacle, we can't walk into
     // this cell.
-    if (tfs[terrainTypes]->Get(x, y) < agentSize) return true;
+    if (cfs[terrainTypes]->Get(x, y) < agentSize) return true;
     return false;
   };
   auto m = new QuadtreeMap(w, h, isObstacle, distance, step, stepf, maxNodeWidth, maxNodeHeight);
@@ -206,12 +222,12 @@ void QuadtreeMapXImpl::buildQuadtreeMaps() {
 // terrainTypes. In detail is: bind a listener for each quadtree map to listen updates from the
 // related clearance field, and the bridge is a queue named "dirties".
 void QuadtreeMapXImpl::bindClearanceFieldAndQuadtreeMaps() {
-  for (auto [terrainTypes, tf] : tfs) {
+  for (auto [terrainTypes, cf] : cfs) {
     int t = terrainTypes;  // avoid clang++ warning: capture structure binding ... hahaha
     // when a terrain value is changed, it may affect the clearan values of cells around.
     // so we make a listener to collect them, and they will be applied to quadtree map's Updates in
     // the later Compute() call.
-    tf->SetUpdatedCellVisistor([this, t](int x, int y) { dirties[t].push_back({x, y}); });
+    cf->SetUpdatedCellVisistor([this, t](int x, int y) { dirties[t].push_back({x, y}); });
   }
 }
 
