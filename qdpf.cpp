@@ -11,9 +11,10 @@ namespace qdpf {
 
 QuadtreeMapX::QuadtreeMapX(int w, int h, DistanceCalculator distance,
                            TerrainTypesChecker terrainChecker, QuadtreeMapXSettings settings,
-                           int step, StepFunction stepf, int maxNodeWidth, int maxNodeHeight)
+                           int step, StepFunction stepf, int maxNodeWidth, int maxNodeHeight,
+                           ClearanceFieldKind clearanceFieldKind)
     : impl(internal::QuadtreeMapXImpl(w, h, distance, terrainChecker, settings, step, stepf,
-                                      maxNodeWidth, maxNodeHeight)) {}
+                                      maxNodeWidth, maxNodeHeight, clearanceFieldKind)) {}
 
 void QuadtreeMapX::Build() { impl.Build(); }
 void QuadtreeMapX::Update(int x, int y) { impl.Update(x, y); }

@@ -41,6 +41,13 @@ int ParseCommandlineOptions(int argc, char* argv[]) {
       .help("the relative fonts dir path")
       .default_value(std::string("./visualizer/fonts"))
       .store_into(options.fontsPath);
+  program.add_argument("-cf", "--clearance-field")
+      .help(
+          "the clearance field implementer to use: 0 for TrueClearanceField, 1 for "
+          "BrushfireClearanceField")
+      .default_value(0)
+      .store_into(options.clearanceFieldFlag);
+
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& e) {

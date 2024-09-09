@@ -71,7 +71,11 @@ void Map::Build() {
   };
   auto distance = qdpf::EuclideanDistance<COST_UNIT>;
   auto terrianChecker = [this](int x, int y) { return grids[x][y]; };
-  qmx = new qdpf::QuadtreeMapX(w, h, distance, terrianChecker, settings, step, stepf);
+  auto clearanceFieldKind = (options.clearanceFieldFlag == 0)
+                                ? qdpf::ClearanceFieldKind::TrueClearanceField
+                                : qdpf::ClearanceFieldKind::BrushfireClearanceField;
+  qmx = new qdpf::QuadtreeMapX(w, h, distance, terrianChecker, settings, step, stepf, -1, -1,
+                               clearanceFieldKind);
   qmx->Build();
   spdlog::info("Build quadtree maps done");
 
