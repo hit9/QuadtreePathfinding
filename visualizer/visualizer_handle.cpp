@@ -327,6 +327,7 @@ void Visualizer::computeAStarNaive() {
 
   auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
 
+  astarNaive.timeCost = std::chrono::microseconds(0);
   astarNaive.timeCost += timeCost;
 
   setMessageHint(fmt::format("NaiveAstar: path computed ,cost {}us", timeCost.count()), ImGreen);
@@ -360,7 +361,7 @@ void Visualizer::computeFlowFieldNaive() {
   endAt = std::chrono::high_resolution_clock::now();
 
   auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
-
+  flowfieldNaive.timeCost = std::chrono::microseconds(0);
   flowfieldNaive.timeCost += timeCost;
 
   setMessageHint(fmt::format("NaiveFlowField: path computed ,cost {}us", timeCost.count()),
