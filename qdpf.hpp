@@ -1,9 +1,10 @@
 // Hierarchical path finding on quadtree for equal-weighted 2D grid map.
-// License: BSD. Version: 0.3.5. Author: Chao Wang, hit9[At]icloud.com.
+// License: BSD. Version: 0.3.6. Author: Chao Wang, hit9[At]icloud.com.
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
 // Changes:
+// 2024/09/09 v0.3.6: Supports custom clearance field (+BrushfireClearanceField).
 // 2024/09/08 v0.3.5: Add comparasions with naive A* and flowfield on visualizer.
 // 2024/09/05 v0.3.4: Fix bug and drop use persistent vector for astar.
 // 2024/09/04 v0.3.3: don't store results on the path finders.
