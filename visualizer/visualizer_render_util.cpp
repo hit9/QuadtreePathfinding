@@ -1,3 +1,4 @@
+#include "imgui.h"
 #include "visualizer.hpp"
 
 class CohenSutherland {
@@ -70,7 +71,20 @@ void Visualizer::renderFillCell(int x, int y, const SDL_Color& color) {
 
 void Visualizer::renderFillAgent(int x, int y, const SDL_Color& color) {
   int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
-  SDL_Rect outer{y * map.gridSize, x * map.gridSize, agentSizeInPixels, agentSizeInPixels};
+
+  int px = y * map.gridSize, py = x * map.gridSize;
+
+  SDL_Rect outer;
+
+  if (options.clearanceFieldFlag == 0) {
+    // TrueClearanceField: let's use the left corner as the position of the agent.
+    outer = {px, py, agentSizeInPixels, agentSizeInPixels};
+  } else {
+    // BrushfireClearanceField: let's use the center as the position of the agent.
+    outer = {px - map.gridSize / 2 + 1, py - map.gridSize / 2 + 1, agentSizeInPixels,
+             agentSizeInPixels};
+  }
+
   SDL_Rect inner{outer.x + 1, outer.y + 1, outer.w - 2, outer.h - 2};
   renderDrawRect(outer, Black);
   renderFillRect(inner, color);

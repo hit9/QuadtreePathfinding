@@ -57,6 +57,10 @@ struct CommandlineOptions {
   std::string fontsPath;
   // step to pick gates, -1 for using stepf.
   int step = -1;
+  // clearance field:
+  // 0 for TrueClearanceField (the default)
+  // 1 for BrushfireClearanceField
+  int clearanceFieldFlag = 0;
 };
 
 // global options.

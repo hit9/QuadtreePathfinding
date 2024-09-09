@@ -11,8 +11,8 @@
 #include <initializer_list>
 #include <unordered_map>
 
+#include "clearance-field/clearance_field.hpp"
 #include "quadtree_map.hpp"
-#include "true-clearance-field/true_clearance_field.hpp"
 
 namespace qdpf {
 namespace internal {
@@ -21,6 +21,13 @@ struct QuadtreeMapXSetting {
   int AgentSize;
   // OR result of terrain type integers.
   int TerrainTypes;
+};
+
+// Supported clearance field kinds.
+// A clearance field must implement the interface clearance_field::IClearanceField;
+enum class ClearanceFieldKind {
+  TrueClearanceField = 0,
+  BrushfireClearanceField = 1,
 };
 
 using QuadtreeMapXSettings = std::initializer_list<QuadtreeMapXSetting>;
@@ -32,7 +39,8 @@ class QuadtreeMapXImpl {
  public:
   QuadtreeMapXImpl(int w, int h, DistanceCalculator distance, TerrainTypesChecker terrainChecker,
                    QuadtreeMapXSettings settings, int step = 1, StepFunction stepf = nullptr,
-                   int maxNodeWidth = -1, int maxNodeHeight = -1);
+                   int maxNodeWidth = -1, int maxNodeHeight = -1,
+                   ClearanceFieldKind clearanceFieldKind = ClearanceFieldKind::TrueClearanceField);
   ~QuadtreeMapXImpl();
 
   int W() const { return w; }
@@ -59,10 +67,11 @@ class QuadtreeMapXImpl {
   DistanceCalculator distance;
   TerrainTypesChecker terrainChecker;
   const QuadtreeMapXSettings settings;
+  const ClearanceFieldKind clearanceFieldKind;
 
   // ~~~~~~~ clearance fields ~~~~~~~~~~~
-  // tfs[terrainTypes] => tf.
-  std::unordered_map<int, true_clearance_field::TrueClearanceField*> tfs;
+  // cfs[terrainTypes] => cf.
+  std::unordered_map<int, clearance_field::IClearanceField*> cfs;
 
   // ~~~~~~~~~~~ quadtree maps ~~~~~~~~~~~
   // maps[agentSize][terrainTypes] => map.

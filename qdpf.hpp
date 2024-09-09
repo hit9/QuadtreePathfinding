@@ -1,9 +1,10 @@
 // Hierarchical path finding on quadtree for equal-weighted 2D grid map.
-// License: BSD. Version: 0.3.5. Author: Chao Wang, hit9[At]icloud.com.
+// License: BSD. Version: 0.3.6. Author: Chao Wang, hit9[At]icloud.com.
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
 // Changes:
+// 2024/09/09 v0.3.6: Supports custom clearance field (+BrushfireClearanceField).
 // 2024/09/08 v0.3.5: Add comparasions with naive A* and flowfield on visualizer.
 // 2024/09/05 v0.3.4: Fix bug and drop use persistent vector for astar.
 // 2024/09/04 v0.3.3: don't store results on the path finders.
@@ -151,6 +152,20 @@ using QuadtreeMapXSettings = internal::QuadtreeMapXSettings;
 // Signature: std::function<int(int x, int y)>;
 using TerrainTypesChecker = internal::TerrainTypesChecker;
 
+// ClearanceFieldKind indicates which clerance field implementer to use.
+// A ClearanceField stores the min distance to the nearest obstacles for each cells.
+//
+// 1. TrueClearanceField: stores the min distance to the obstacles at the right-bottom directions,
+//    in this case, we should use the left-top corner as the position of the moving agent, and we
+//    should compare the distance value with the side length of the moving agent.
+// 2. BrushfireClearanceField: stores the min distance to the obstacles arund at all directions, in
+//    this case, we should use the center as the position of the moving agent, and we should
+//    compare the distance value with the radius (half of the agent size provided by the settings)
+//    of the moving agent.
+//
+// for more details, go ahead at: https://github.com/hit9/clearance-field
+using internal::ClearanceFieldKind;
+
 // QuadtreeMapX is a manager of multiple 2D grid maps maintained by quadtrees.
 class QuadtreeMapX {
  public:
@@ -166,10 +181,13 @@ class QuadtreeMapX {
   // * step is the number of interval cells when picking gate cells in a quadtree map.
   // * stepf is a function to specific dynamic gate picking steps. We will use this function
   //   instead of the constant step if it's provided.
-  // * maxNodeWidth and maxNodeHeight the max width and height of a quadtree node's rectangle.
+  // * maxNodeWidth and maxNodeHeight the max width and height of a quadtree node's rectangle
+  // * clearanceFieldKind is the kind of the clearance-field implementer to use.
+  //   Ref: https://github.com/hit9/clearance-field
   QuadtreeMapX(int w, int h, DistanceCalculator distance, TerrainTypesChecker terrainChecker,
                QuadtreeMapXSettings settings, int step = 1, StepFunction stepf = nullptr,
-               int maxNodeWidth = -1, int maxNodeHeight = -1);
+               int maxNodeWidth = -1, int maxNodeHeight = -1,
+               ClearanceFieldKind clearanceFieldKind = ClearanceFieldKind::TrueClearanceField);
 
   // Build all managed quadtree maps on all existing terrains on the grid map.
   // This will create clerance fields, quadtree maps and build them.
