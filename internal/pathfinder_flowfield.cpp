@@ -420,8 +420,8 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
                                                        Final_From &from, Final_B &b, int c1,
                                                        int c2) {
   int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
-  for (int x = x1; x <= x2; ++x) {
-    for (int y = y1; y <= y2; ++y) {
+  for (int y = y1; y <= y2; ++y) {
+    for (int x = x1; x <= x2; ++x) {
       // skipping the cells that already computed in the gate flow field.
       if (b[x][y]) continue;
 
@@ -431,17 +431,17 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP1(const QdNode *node, Final
         f[x][y] = f[x - 1][y - 1] + c2;
         xfrom = x - 1, yfrom = y - 1;
       }
-      if (x > x1 && f[x][y] > f[x - 1][y] + c1) {  // up
-        f[x][y] = f[x - 1][y] + c1;
-        xfrom = x - 1, yfrom = y;
-      }
-      if (y > y1 && f[x][y] > f[x][y - 1] + c1) {  // left
+      if (y > y1 && f[x][y] > f[x][y - 1] + c1) {  // up
         f[x][y] = f[x][y - 1] + c1;
         xfrom = x, yfrom = y - 1;
       }
-      if (x > x1 && y < y2 && f[x][y] > f[x - 1][y + 1] + c2) {  // right-up
-        f[x][y] = f[x - 1][y + 1] + c2;
-        xfrom = x - 1, yfrom = y + 1;
+      if (x > x1 && f[x][y] > f[x - 1][y] + c1) {  // left
+        f[x][y] = f[x - 1][y] + c1;
+        xfrom = x - 1, yfrom = y;
+      }
+      if (y > y1 && x < x2 && f[x][y] > f[x + 1][y - 1] + c2) {  // right-up
+        f[x][y] = f[x + 1][y - 1] + c2;
+        xfrom = x + 1, yfrom = y - 1;
       }
       if (xfrom != -1) from[x][y] = m->PackXY(xfrom, yfrom);
     }
@@ -455,8 +455,8 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final
                                                        Final_From &from, Final_B &b, int c1,
                                                        int c2) {
   int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
-  for (int x = x2; x >= x1; --x) {
-    for (int y = y2; y >= y1; --y) {
+  for (int y = y2; y >= y1; --y) {
+    for (int x = x2; x >= x1; --x) {
       // skipping the cells that already computed in the gate flow field.
       if (b[x][y]) continue;
 
@@ -466,17 +466,17 @@ void FlowFieldPathFinderImpl::computeFinalFlowFieldDP2(const QdNode *node, Final
         f[x][y] = f[x + 1][y + 1] + c2;
         xfrom = x + 1, yfrom = y + 1;
       }
-      if (x < x2 && f[x][y] > f[x + 1][y] + c1) {  // bottom
+      if (x < x2 && f[x][y] > f[x + 1][y] + c1) {  // right
         f[x][y] = f[x + 1][y] + c1;
         xfrom = x + 1, yfrom = y;
       }
-      if (y < y2 && f[x][y] > f[x][y + 1] + c1) {  // right
+      if (y < y2 && f[x][y] > f[x][y + 1] + c1) {  // bottom
         f[x][y] = f[x][y + 1] + c1;
         xfrom = x, yfrom = y + 1;
       }
-      if (x < x2 && y > y1 && f[x][y] > f[x + 1][y - 1] + c2) {  // left-bottom
-        f[x][y] = f[x + 1][y - 1] + c2;
-        xfrom = x + 1, yfrom = y - 1;
+      if (y < y2 && x > x1 && f[x][y] > f[x - 1][y + 1] + c2) {  // left-bottom
+        f[x][y] = f[x - 1][y + 1] + c2;
+        xfrom = x - 1, yfrom = y + 1;
       }
       if (xfrom != -1) from[x][y] = m->PackXY(xfrom, yfrom);
     }

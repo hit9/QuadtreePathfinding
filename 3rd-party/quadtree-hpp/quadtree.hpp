@@ -1,21 +1,22 @@
 // Optimized quadtrees on grid rectangles in C++.
 // https://github.com/hit9/quadtree-hpp
 //
-// BSD license. Chao Wang, Version: 0.2.2
+// BSD license. Chao Wang, Version: 0.3.0
 //
 // Coordinate conventions:
 //
 //           w
-//    +---------------> y
+//    +---------------> x
 //    |
 // h  |
 //    |
 //    v
-//    x
+//    y
 //
 
 // changes
 // ~~~~~~~
+// 0.3.0: **Breaking change**: inverts the coordinates conventions.
 // 0.2.2: Add `RemoveObjects` and `BatchAddToLeafNode`.
 
 #ifndef HIT9_QUADTREE_HPP
@@ -42,14 +43,14 @@ using std::uint8_t;
 // NodeId is the unique identifier of a tree node, composed of:
 //
 // +----- 6bit -----+------- 29bit ----+----- 29bit -----+
-// | depth d (6bit) | floor(x*(2^d)/h) | floor(y*(2^d)/w |
+// | depth d (6bit) | floor(x*(2^d)/w) | floor(y*(2^d)/h |
 // +----------------+------------------+-----------------+
 //
 // Properties:
 // 1. Substituting this formula into any position (x,y) inside the node always give the same ID.
 // 2. The id of tree root is always 0.
 // 3. The deeper the node, the larger the id.
-// 4. For nodes at the same depth, the id changes with the size of x*w+y.
+// 4. For nodes at the same depth, the id changes with the size of x*h+y.
 using NodeId = uint64_t;
 
 // pack caculates the id of a node.
@@ -63,8 +64,8 @@ inline NodeId pack(uint64_t d, uint64_t x, uint64_t y, uint64_t w, uint64_t h) {
   //                      other bits are all 0.
   // 0x1fffffff         : the lowest 29 bits are all 1, the other bits are all 0.
   return ((d << 58) & 0xfc00000000000000ULL) |
-         ((((1 << d) * x / h) << 29) & 0x3ffffffe0000000ULL) |
-         (((1 << d) * y / w) & 0x1fffffffULL);
+         ((((1 << d) * x / w) << 29) & 0x3ffffffe0000000ULL) |
+         (((1 << d) * y / h) & 0x1fffffffULL);
 }
 
 template <typename Object>
@@ -280,7 +281,7 @@ class Quadtree {
   // For diagonal directions(4,5,6,7), it simply returns the single diagonal leaf neighbour.
   // For non-diagonal directions (0,1,2,3), there're two steps.
   // Explaination for direction=0 (North), supposing the depth of given node is d:
-  // 1. Take 2 neighbour positions p1(x1-1,y1), p2(x1-1,y2) find the smallest node containing p1
+  // 1. Take 2 neighbour positions p1(x1,y1-1), p2(x1,y2-1) find the smallest node containing p1
   //    and p2. This node's size should be equal or greater than current node.
   //    This step could be done by a binary-search in time complexity O(log Depth).
   // 2. Find the sourth children(No. 2,3) downward recursively from the node found in step1, until
@@ -450,7 +451,7 @@ bool Quadtree<Object, ObjectHasher>::splitable(int x1, int y1, int x2, int y2, i
     return true;
   }
   // ssf v1
-  if (ssf != nullptr && ssf(y2 - y1 + 1, x2 - x1 + 1, n)) return false;
+  if (ssf != nullptr && ssf(x2 - x1 + 1, y2 - y1 + 1, n)) return false;
   return true;
 }
 
@@ -501,8 +502,8 @@ Node<Object, ObjectHasher>* Quadtree<Object, ObjectHasher>::splitHelper1(
     uint8_t d, int x1, int y1, int x2, int y2, ObjectsT& upstreamObjects,
     NodeSet& createdLeafNodes) {
   // boundary checks.
-  if (!(x1 >= 0 && x1 < h && y1 >= 0 && y1 < w)) return nullptr;
-  if (!(x2 >= 0 && x2 < h && y2 >= 0 && y2 < w)) return nullptr;
+  if (!(x1 >= 0 && x1 < w && y1 >= 0 && y1 < h)) return nullptr;
+  if (!(x2 >= 0 && x2 < w && y2 >= 0 && y2 < h)) return nullptr;
   if (!(x1 <= x2 && y1 <= y2)) return nullptr;
   // steal objects inside this rectangle from upstream.
   ObjectsT objs;
@@ -545,30 +546,30 @@ void Quadtree<Object, ObjectHasher>::splitHelper2(NodeT* node, NodeSet& createdL
   auto d = node->d;
   // the following (x3,y3) is the middle point*:
   //
-  //     y1    y3       y2
-  //  x1 -+------+------+-
+  //     x1    x3       x2
+  //  y1 -+------+------+-
   //      |  0   |  1   |
-  //  x3  |    * |      |
+  //  y3  |    * |      |
   //     -+------+------+-
   //      |  2   |  3   |
   //      |      |      |
-  //  x2 -+------+------+-
+  //  y2 -+------+------+-
   int x3 = x1 + (x2 - x1) / 2, y3 = y1 + (y2 - y1) / 2;
 
-  // determines which side each axis x3 and y3 belongs, take y axis for instance:
-  // by default, we assume y3 belongs to the left side.
-  // but if the ids of y1 and y3 are going to dismatch, which means the y3 should belong to the
-  // right side, that is we should minus y3 by 1.
-  // And minus by 1 should be enough, because y3-2 always equals to y3-4, y3-8,.. until y1.
+  // determines which side each axis x3 and y3 belongs, take x axis for instance:
+  // by default, we assume x3 belongs to the left side.
+  // but if the ids of x1 and x3 are going to dismatch, which means the x3 should belong to the
+  // right side, that is we should minus x3 by 1.
+  // And minus by 1 should be enough, because x3-2 always equals to x3-4, x3-8,.. until x1.
   // Potential optimization: how to avoid the division here?
   uint64_t k = 1 << (d + 1);
-  if ((k * x3 / h) != (k * x1 / h)) --x3;
-  if ((k * y3 / w) != (k * y1 / w)) --y3;
+  if ((k * x3 / w) != (k * x1 / w)) --x3;
+  if ((k * y3 / h) != (k * y1 / h)) --y3;
 
   // clang-format off
   node->children[0] = splitHelper1(d + 1, x1, y1, x3, y3, node->objects, createdLeafNodes);
-  node->children[1] = splitHelper1(d + 1, x1, y3 + 1, x3, y2, node->objects, createdLeafNodes);
-  node->children[2] = splitHelper1(d + 1, x3 + 1, y1, x2, y3, node->objects, createdLeafNodes);
+  node->children[1] = splitHelper1(d + 1, x3 + 1, y1, x2, y3, node->objects, createdLeafNodes);
+  node->children[2] = splitHelper1(d + 1, x1, y3 + 1, x3, y2, node->objects, createdLeafNodes);
   node->children[3] = splitHelper1(d + 1, x3 + 1, y3 + 1, x2, y2, node->objects, createdLeafNodes);
   // clang-format on
 
@@ -702,16 +703,16 @@ inline bool isOverlap(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int 
   //
   // Ref: https://silentmatt.com/rectangle-intersection/
   //
-  // ax1 < bx2 => A's upper boundary is above B's bottom boundary.
-  // ax2 > bx1 => A's bottom boundary is below B's upper boundary.
+  // ay1 < by2 => A's left boundary is above B's bottom boundary.
+  // ay2 > by1 => A's bottom boundary is below B's upper boundary.
   //
   //                ***********  B's upper                      A's upper    -----------
   //   A's upper    -----------                       OR                     ***********  B's upper
   //                ***********  B's bottom                     A's bottom   -----------
   //   A's bottom   -----------                                              ***********  B's bottom
   //
-  // ay1 < by2 => A's left boundary is on the left of B's right boundary.
-  // ay2 > by1 => A's right boundary is on the right of B's left boundary.
+  // ax1 < bx2 => A's left boundary is on the left of B's right boundary.
+  // ax2 > bx1 => A's right boundary is on the right of B's left boundary.
   //
   //           A's left         A's right                  A's left        A's right
   //
@@ -759,7 +760,7 @@ void Quadtree<Object, ObjectHasher>::queryRange(NodeT* node, CollectorT& objects
 }
 
 // Using binary search to guess the depth of the target node.
-// Reason: the id = (d, x*2^d/h, y*2^d/w), it's the same for all (x,y) inside the same
+// Reason: the id = (d, x*2^d/w, y*2^d/h), it's the same for all (x,y) inside the same
 // node. If id(d,x,y) is not found in the map m, the guessed depth is too large, we should
 // shrink the upper bound. Otherwise, if we found a node, but it's not a leaf, the answer
 // is too small, we should make the lower bound larger, And finally, if we found a leaf node,
@@ -787,7 +788,7 @@ Node<Object, ObjectHasher>* Quadtree<Object, ObjectHasher>::Find(int x, int y) c
 template <typename Object, typename ObjectHasher>
 void Quadtree<Object, ObjectHasher>::Add(int x, int y, Object o) {
   // boundary checks.
-  if (!(x >= 0 && x < h && y >= 0 && y < w)) return;
+  if (!(x >= 0 && x < w && y >= 0 && y < h)) return;
   // find the leaf node.
   auto node = Find(x, y);
   if (node == nullptr) return;
@@ -803,7 +804,7 @@ void Quadtree<Object, ObjectHasher>::Add(int x, int y, Object o) {
 template <typename Object, typename ObjectHasher>
 void Quadtree<Object, ObjectHasher>::Remove(int x, int y, Object o) {
   // boundary checks.
-  if (!(x >= 0 && x < h && y >= 0 && y < w)) return;
+  if (!(x >= 0 && x < w && y >= 0 && y < h)) return;
   // find the leaf node.
   auto node = Find(x, y);
   if (node == nullptr) return;
@@ -818,7 +819,7 @@ void Quadtree<Object, ObjectHasher>::Remove(int x, int y, Object o) {
 template <typename Object, typename ObjectHasher>
 void Quadtree<Object, ObjectHasher>::RemoveObjects(int x, int y) {
   // boundary checks.
-  if (!(x >= 0 && x < h && y >= 0 && y < w)) return;
+  if (!(x >= 0 && x < w && y >= 0 && y < h)) return;
   // find the leaf node.
   auto node = Find(x, y);
   if (node == nullptr) return;
@@ -833,7 +834,7 @@ void Quadtree<Object, ObjectHasher>::RemoveObjects(int x, int y) {
 
 template <typename Object, typename ObjectHasher>
 void Quadtree<Object, ObjectHasher>::Build() {
-  root = createNode(true, 0, 0, 0, h - 1, w - 1);
+  root = createNode(true, 0, 0, 0, w - 1, h - 1);
   if (!trySplitDown(root)) {
     // If the root is not splited, it's finally a new-created leaf node.
     if (afterLeafCreated != nullptr) afterLeafCreated(root);
@@ -853,8 +854,8 @@ template <typename Object, typename ObjectKeyHasher>
 Node<Object, ObjectKeyHasher>* Quadtree<Object, ObjectKeyHasher>::findSmallestNodeCoveringRange(
     int x1, int y1, int x2, int y2, int dma) const {
   // boundary checks
-  if (!(x1 >= 0 && x1 < h && y1 >= 0 && y1 < w)) return nullptr;
-  if (!(x2 >= 0 && x2 < h && y2 >= 0 && y2 < w)) return nullptr;
+  if (!(x1 >= 0 && x1 < w && y1 >= 0 && y1 < h)) return nullptr;
+  if (!(x2 >= 0 && x2 < w && y2 >= 0 && y2 < h)) return nullptr;
   // Find the target
   int l = 0, r = dma;
   NodeT* node = root;
@@ -921,11 +922,11 @@ void Quadtree<Object, ObjectHasher>::QueryLeafNodesInRange(int x1, int y1, int x
 // Get the neighbour position (px,py) on given diagonal direction of given node.
 // The a,b,c,d is the target neighbour position for each direction:
 //
-//         y1    y2
+//         x1    x2
 //     4  a|     |b   5
-//       --+-----+--    x1
+//       --+-----+--    y1
 //         |     |
-//       --+-----+--    x2
+//       --+-----+--    y2
 //     7  d|     |c   6
 template <typename Object, typename ObjectKeyHasher>
 void Quadtree<Object, ObjectKeyHasher>::getNeighbourPositionDiagonal(NodeT* node, int direction,
@@ -936,13 +937,13 @@ void Quadtree<Object, ObjectKeyHasher>::getNeighbourPositionDiagonal(NodeT* node
       px = x1 - 1, py = y1 - 1;
       return;
     case 5:  // b
-      px = x1 - 1, py = y2 + 1;
+      px = x2 + 1, py = y1 - 1;
       return;
     case 6:  // c
       px = x2 + 1, py = y2 + 1;
       return;
     case 7:  // d
-      px = x2 + 1, py = y1 - 1;
+      px = x1 - 1, py = y2 + 1;
       return;
   }
 }
@@ -964,13 +965,13 @@ void Quadtree<Object, ObjectKeyHasher>::findNeighbourLeafNodesDiagonal(NodeT* no
 // The ab,cd,ef,gh are the target neighbour positions at each direction:
 //
 //            N:0
-//         y1    y2
+//         x1    x2
 //         |     |
 //         a     b
-//       -g+-----+c-    x1
+//       -g+-----+c-    y1
 //   W:3   |     |        E:1
 //         |     |
-//       -h+-----+d-    x2
+//       -h+-----+d-    y2
 //         e     f
 //         |     |
 //           S:2
@@ -981,20 +982,20 @@ void Quadtree<Object, ObjectKeyHasher>::getNeighbourPositionsHV(NodeT* node, int
   int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
   switch (direction) {
     case 0:                    // N
-      px1 = x1 - 1, py1 = y1;  // a
-      px2 = x1 - 1, py2 = y2;  // b
+      px1 = x1, py1 = y1 - 1;  // a
+      px2 = x2, py2 = y1 - 1;  // b
       return;
     case 1:                    // E
-      px1 = x1, py1 = y2 + 1;  // c
-      px2 = x2, py2 = y2 + 1;  // d
+      px1 = x2 + 1, py1 = y1;  // c
+      px2 = x2 + 1, py2 = y2;  // d
       return;
     case 2:                    // S
-      px1 = x2 + 1, py1 = y1;  // e
-      px2 = x2 + 1, py2 = y2;  // f
+      px1 = x1, py1 = y2 + 1;  // e
+      px2 = x2, py2 = y2 + 1;  // f
       return;
     case 3:                    // W
-      px1 = x1, py1 = y1 - 1;  // g
-      px2 = x2, py2 = y1 - 1;  // h
+      px1 = x1 - 1, py1 = y1;  // g
+      px2 = x1 - 1, py2 = y2;  // h
       return;
   }
 }

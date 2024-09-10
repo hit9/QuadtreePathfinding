@@ -133,7 +133,7 @@ class QuadtreeMap {
   // ~~~~~~~~~~~~~ Graphs Maintaining ~~~~~~~~~~~~~~~~~
 
   // Build the underlying quadtree right after construction.
-  // This will call BuildTree() for the underlying quadtree and add all existing obstacles.
+  // This will call tree.Build() for the underlying quadtree and add all existing obstacles.
   void Build();
 
   // Update should be called after any cell (x,y)'s value is changed.

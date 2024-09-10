@@ -15,6 +15,7 @@ enum Terrain {
 int grid[N][N] = {
     // 8x8
     // clang-format off
+    // ----------------------> x
     {1, 1, 1, 1, 1, 1, 1, 1},
     {4, 4, 4, 4, 4, 1, 1, 1},
     {1, 2, 2, 2, 4, 2, 1, 1},
@@ -30,7 +31,8 @@ int main(void) {
   int w = 8, h = 8;
 
   // Setup a QuadtreeMapX.
-  qdpf::TerrainTypesChecker terrainChecker = [](int x, int y) { return grid[x][y]; };
+  // (Note that the y is the row, x is the column)
+  qdpf::TerrainTypesChecker terrainChecker = [](int x, int y) { return grid[y][x]; };
   auto distance = qdpf::EuclideanDistance<10>;
   qdpf::QuadtreeMapXSettings settings{
       {10, Terrain::Land},                   // e.g. soldiers

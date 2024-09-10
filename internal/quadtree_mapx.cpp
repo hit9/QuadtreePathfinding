@@ -180,8 +180,8 @@ void QuadtreeMapXImpl::buildClearanceFields() {
     cf->Build();
 
     // Let's update each cell.
-    for (int x = 0; x < h; ++x) {
-      for (int y = 0; y < w; ++y) cf->Update(x, y);
+    for (int y = 0; y < h; ++y) {
+      for (int x = 0; x < w; ++x) cf->Update(x, y);
     }
 
     // Finally, call Compute for the initial clearance field.

@@ -39,7 +39,7 @@ class NaiveGridMap {
 
   // Build on a an existing 2D grid map.
   void Build();
-  void Update(int x, int y);
+  void Update(int x, int y, int maxd = 8);
 
  private:
   const int w, h, s;
