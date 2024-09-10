@@ -43,10 +43,10 @@ void Visualizer::renderQuadtreeNodes() {
   auto mp = getCurrentQuadtreeMapByAgent();
   if (mp != nullptr) {
     qdpf::internal::QdNodeVisitor c1 = [this](const qdpf::internal::QdNode* node) {
-      int x = node->y1 * map.gridSize;
-      int y = node->x1 * map.gridSize;
-      int w = (node->y2 - node->y1 + 1) * map.gridSize;
-      int h = (node->x2 - node->x1 + 1) * map.gridSize;
+      int x = node->x1 * map.gridSize;
+      int y = node->y1 * map.gridSize;
+      int w = (node->x2 - node->x1 + 1) * map.gridSize;
+      int h = (node->y2 - node->y1 + 1) * map.gridSize;
       // Outer liner rectangle (border width 2)
       SDL_Rect rect1 = {x, y, w, h};
       SDL_Rect rect2 = {x + 1, y + 1, w - 2, h - 2};
@@ -64,8 +64,8 @@ void Visualizer::renderGates() {
     // Gates.
     qdpf::internal::GateVisitor visitor = [this, &mp](const qdpf::internal::Gate* gate) {
       auto [x1, y1] = mp->UnpackXY(gate->a);
-      int x3 = y1 * map.gridSize + 1;
-      int y3 = x1 * map.gridSize + 1;
+      int x3 = x1 * map.gridSize + 1;
+      int y3 = y1 * map.gridSize + 1;
       SDL_Rect rect = {x3, y3, map.gridSize - 2, map.gridSize - 2};
       renderFillRect(rect, LightPurple);
     };
@@ -142,10 +142,10 @@ void Visualizer::renderHighlightedNodes() {
 void Visualizer::renderHighlightedNodesAstar() {
   for (auto [node, cost] : astar.nodePath) {
     int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
-    int h = (x2 - x1 + 1) * map.gridSize;
-    int w = (y2 - y1 + 1) * map.gridSize;
-    int x = y1 * map.gridSize;
-    int y = x1 * map.gridSize;
+    int w = (x2 - x1 + 1) * map.gridSize;
+    int h = (y2 - y1 + 1) * map.gridSize;
+    int x = x1 * map.gridSize;
+    int y = y1 * map.gridSize;
     SDL_Rect rect = {x, y, w, h};
     SDL_Rect inner = {x + 1, y + 1, w - 2, h - 2};
     renderFillRect(inner, LightOrange);
@@ -157,10 +157,10 @@ void Visualizer::renderHighlightedNodesFlowField() {
     auto [next, cost] = p;
     // highlight node with background orange
     int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
-    int h = (x2 - x1 + 1) * map.gridSize;
-    int w = (y2 - y1 + 1) * map.gridSize;
-    int x = y1 * map.gridSize;
-    int y = x1 * map.gridSize;
+    int w = (x2 - x1 + 1) * map.gridSize;
+    int h = (y2 - y1 + 1) * map.gridSize;
+    int x = x1 * map.gridSize;
+    int y = y1 * map.gridSize;
     SDL_Rect rect = {x, y, w, h};
     SDL_Rect inner = {x + 1, y + 1, w - 2, h - 2};
     renderFillRect(inner, LightOrange);
@@ -211,10 +211,10 @@ void Visualizer::renderPathfindingFlowField() {
   auto drawQrangeRectangle = [this]() {
     // render the qrange rect
     SDL_Rect qrange{
-        flowfield.qrange.y1 * map.gridSize,
         flowfield.qrange.x1 * map.gridSize,
-        (flowfield.qrange.y2 - flowfield.qrange.y1 + 1) * map.gridSize,
+        flowfield.qrange.y1 * map.gridSize,
         (flowfield.qrange.x2 - flowfield.qrange.x1 + 1) * map.gridSize,
+        (flowfield.qrange.y2 - flowfield.qrange.y1 + 1) * map.gridSize,
     };
     SDL_Rect inner{qrange.x + 1, qrange.y + 1, qrange.w - 2, qrange.h - 2};
     renderDrawRect(qrange, Green);
@@ -300,14 +300,14 @@ void Visualizer::renderPathFindingFlowFieldFinalField() {
     if (u == v) continue;
     if (IsInsideRectangle(x, y, flowfield.qrange)) {
       int dx = (x1 - x), dy = (y1 - y);
-      int d = (dx + 1) * 3 + (dy + 1);
+      int d = (dy + 1) * 3 + (dx + 1);
       if (!(d >= 0 && d <= 8 && d != 4)) continue;
       int k = ARROWS_DIRECTIONS[d];
       int w = arrows.w[k], h = arrows.h, offset = arrows.offset[k];
       w = std::min(w, map.gridSize);
       h = std::min(h, map.gridSize);
-      SDL_Rect dst = {y * map.gridSize + std::max(0, map.gridSize / 2 - w / 2),
-                      x * map.gridSize + std::max(0, map.gridSize / 2 - h / 2), w, h};
+      SDL_Rect dst = {x * map.gridSize + std::max(0, map.gridSize / 2 - w / 2),
+                      y * map.gridSize + std::max(0, map.gridSize / 2 - h / 2), w, h};
       SDL_Rect src = {offset, 0, w, h};
       renderCopy(arrows.texture, src, dst);
     }

@@ -2,7 +2,7 @@
 // Source code: https://github.com/hit9/clearance-field
 // Author: hit9[At]icloud.com, License: BSD
 
-// Version: 0.2.0
+// Version: 0.3.0
 
 // Contents
 // ~~~~~~~~
@@ -12,6 +12,10 @@
 // 4. BrushfireClearanceField implementer.
 // 5. Ref:
 // https://web.archive.org/web/20190411040123/http://aigamedev.com/open/article/clearance-based-pathfinding/
+//
+//
+// Changes:
+// v0.3.0: inverts the coordinates.
 
 #ifndef CLEARANCE_FIELD_HPP
 #define CLEARANCE_FIELD_HPP
@@ -187,10 +191,7 @@ class TrueClearanceField : public ClearanceFieldBase {
 
   // Returns the pre-calculated minimum distance from cell (x,y) to the nearest obstacle at the
   // right-bottom directions.
-  // Returns a number > u or just inf if the distance is larger than u.
-  // That is, if you provided a upper bound u, then if the value is inf, which means the minimum
-  // distance will be larger than u, but the accurate value is unknown and not maintained. But if
-  // the value is not inf, which means the value is the extact minimum distance.
+  // Returns a number > u or just inf if the actual distance is larger than u.
   // We won't check whether the (x,y) is out of boundry.
   int Get(int x, int y) const override;
 
@@ -225,10 +226,7 @@ class BrushfireClearanceField : public ClearanceFieldBase {
   void Build() override;
 
   // Returns the pre-calculated minimum distance from cell (x,y) to the nearest obstacle around.
-  // Returns a number > u or just inf if the distance is larger than u.
-  // That is, if you provided a upper bound u, then if the value is inf, which means the minimum
-  // distance will be larger than u, but the accurate value is unknown and not maintained. But if
-  // the value is not inf, which means the value is the extact minimum distance.
+  // Returns a number > u or just inf if the actual distance is larger than u.
   // We won't check whether the (x,y) is out of boundry.
   int Get(int x, int y) const override;
 

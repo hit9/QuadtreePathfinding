@@ -4,6 +4,8 @@
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
 // Changes:
+// 2024/09/10 v0.4.0: **Breaking change !!**: Invert the coordinates, to match the
+//                     main stream conventions.
 // 2024/09/09 v0.3.6: Supports custom clearance field (+BrushfireClearanceField).
 // 2024/09/08 v0.3.5: Add comparasions with naive A* and flowfield on visualizer.
 // 2024/09/05 v0.3.4: Fix bug and drop use persistent vector for astar.
@@ -34,12 +36,12 @@
 // Coordinates
 // ~~~~~~~~~~~
 //    0      w
-//  0 +---------------> y
+//  0 +---------------> x
 //    |
 // h  |
 //    |
 //    v
-//    x
+//    y
 
 #ifndef QDPF_HPP
 #define QDPF_HPP

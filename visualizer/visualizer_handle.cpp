@@ -125,8 +125,8 @@ void Visualizer::handleStartDrawWater() {
 void Visualizer::pushTerrainChanges(const Cell& cell) {
   auto [x, y] = cell;
   // invert between land and changeTo.
-  auto to = (map.grids[x][y] == Terrain::Land) ? changeTo : Terrain::Land;
-  if (IsInsideRectangle(x, y, 0, 0, map.h - 1, map.w - 1) && !map.changes[x][y]) {
+  auto to = (map.grids[y][x] == Terrain::Land) ? changeTo : Terrain::Land;
+  if (IsInsideRectangle(x, y, 0, 0, map.w - 1, map.h - 1) && !map.changes[y][x]) {
     changingTerrainCells.push_back(cell);
     map.WantChangeTerrain(cell, to);
   }
@@ -182,7 +182,7 @@ const qdpf::internal::QuadtreeMap* Visualizer::getCurrentQuadtreeMapByAgent() co
 
 // returns cell at the position for (x,y) in the camera.
 Cell Visualizer::getCellAtPixelPosition(int x, int y) const {
-  return {(y + camera->y) / map.gridSize, (x + camera->x) / map.gridSize};
+  return {(x + camera->x) / map.gridSize, (y + camera->y) / map.gridSize};
 }
 
 void Visualizer::handleAstarInputBegin() {

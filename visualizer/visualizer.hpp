@@ -81,9 +81,9 @@ struct Map {
   const int w = 32, h = 32;
   // grid size in pixels
   const int gridSize = 18;
-  // the value of grids[x][y] is a terrain type integer.
+  // the value of grids[y][x] is a terrain type integer.
   int grids[N][N];
-  // CHANGES[x][y] stores the terrain value that cell (x,y) is going to change to.
+  // CHANGES[y][x] stores the terrain value that cell (x,y) is going to change to.
   // 0 for no changes.
   int changes[N][N];
   // step to pick gate cells.
@@ -231,7 +231,7 @@ struct ArrowFont {
 // 7 H ↘
 const char ARROWS_CHAR[9] = "ABCDEFGH";
 
-// (dx+1)*3+(dy+1) => index in ARROWS_CHAR
+// (dy+1)*3+(dx+1) => index in ARROWS_CHAR
 const int ARROWS_DIRECTIONS[9] = {
     4,   // 0  ↖,
     2,   // 1   ↑

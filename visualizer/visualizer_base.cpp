@@ -24,26 +24,26 @@ Map::Map(int w, int h, int gridSize, int step) : w(w), h(h), gridSize(gridSize),
   memset(grids, 0, sizeof grids);
   memset(changes, 0, sizeof changes);
 
-  qdpf::Rectangle center{2 * h / 7, 2 * w / 7, h * 5 / 7, w * 5 / 7};
+  qdpf::Rectangle center{2 * w / 7, 2 * h / 7, w * 5 / 7, h * 5 / 7};
   qdpf::Rectangle wall1{center.x2 + 4, center.y1, center.x2 + 4, center.y2 + 4};
   qdpf::Rectangle wall2{center.x1, center.y2 + 4, center.x2 + 4, center.y2 + 4};
   qdpf::Rectangle wall3{center.x1 - 4, center.y1 - 4, center.x1 - 4, center.y2};
   qdpf::Rectangle wall4{center.x1 - 4, center.y1 - 4, center.x2, center.y1 - 4};
 
-  for (int x = 0; x < h; ++x) {
-    for (int y = 0; y < w; ++y) {
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
       if (IsInsideRectangle(x, y, center))
-        grids[x][y] = Terrain::Water;
+        grids[y][x] = Terrain::Water;
       else if (IsInsideRectangle(x, y, wall1))
-        grids[x][y] = Terrain::Building;
+        grids[y][x] = Terrain::Building;
       else if (IsInsideRectangle(x, y, wall2))
-        grids[x][y] = Terrain::Building;
+        grids[y][x] = Terrain::Building;
       else if (IsInsideRectangle(x, y, wall3))
-        grids[x][y] = Terrain::Building;
+        grids[y][x] = Terrain::Building;
       else if (IsInsideRectangle(x, y, wall4))
-        grids[x][y] = Terrain::Building;
+        grids[y][x] = Terrain::Building;
       else
-        grids[x][y] = Terrain::Land;
+        grids[y][x] = Terrain::Land;
     }
   }
 }
@@ -70,7 +70,7 @@ void Map::Build() {
       {3 * COST_UNIT, Terrain::Land | Terrain::Water},
   };
   auto distance = qdpf::EuclideanDistance<COST_UNIT>;
-  auto terrianChecker = [this](int x, int y) { return grids[x][y]; };
+  auto terrianChecker = [this](int x, int y) { return grids[y][x]; };
   auto clearanceFieldKind = (options.clearanceFieldFlag == 0)
                                 ? qdpf::ClearanceFieldKind::TrueClearanceField
                                 : qdpf::ClearanceFieldKind::BrushfireClearanceField;
@@ -80,7 +80,7 @@ void Map::Build() {
   spdlog::info("Build quadtree maps done");
 
   // Build naive map.
-  auto isObstacle = [this](int x, int y) { return grids[x][y] != Terrain::Land; };
+  auto isObstacle = [this](int x, int y) { return grids[y][x] != Terrain::Land; };
   naiveMap = new qdpf::naive::NaiveGridMap(w, h, isObstacle, distance);
   naiveMap->Build();
   spdlog::info("Build naive map done");
@@ -88,13 +88,13 @@ void Map::Build() {
 
 void Map::WantChangeTerrain(const Cell& cell, Terrain to) {
   auto [x, y] = cell;
-  changes[x][y] = to;
+  changes[y][x] = to;
 }
 
 void Map::ApplyChangeTerrain(const std::vector<Cell>& cells) {
   for (auto [x, y] : cells) {
-    grids[x][y] = changes[x][y];
-    changes[x][y] = 0;
+    grids[y][x] = changes[y][x];
+    changes[y][x] = 0;
     qmx->Update(x, y);
     naiveMap->Update(x, y);
   }
@@ -102,9 +102,9 @@ void Map::ApplyChangeTerrain(const std::vector<Cell>& cells) {
 }
 
 void Map::ClearAllTerrains() {
-  for (int x = 0; x < h; ++x) {
-    for (int y = 0; y < w; ++y) {
-      grids[x][y] = Terrain::Land;
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      grids[y][x] = Terrain::Land;
       qmx->Update(x, y);
       naiveMap->Update(x, y);
     }

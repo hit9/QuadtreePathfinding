@@ -42,10 +42,10 @@ void Visualizer::renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color&
 
 void Visualizer::renderDrawLineBetweenCells(int x1, int y1, int x2, int y2,
                                             const SDL_Color& color) {
-  auto px1 = y1 * map.gridSize;
-  auto py1 = x1 * map.gridSize;
-  auto px2 = y2 * map.gridSize;
-  auto py2 = x2 * map.gridSize;
+  auto px1 = x1 * map.gridSize;
+  auto py1 = y1 * map.gridSize;
+  auto px2 = x2 * map.gridSize;
+  auto py2 = y2 * map.gridSize;
   auto centerx1 = px1 + map.gridSize / 2;
   auto centery1 = py1 + map.gridSize / 2;
   auto centerx2 = px2 + map.gridSize / 2;
@@ -65,14 +65,14 @@ void Visualizer::renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL
 }
 
 void Visualizer::renderFillCell(int x, int y, const SDL_Color& color) {
-  SDL_Rect cell{y * map.gridSize + 1, x * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
+  SDL_Rect cell{x * map.gridSize + 1, y * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2};
   renderFillRect(cell, color);
 }
 
 void Visualizer::renderFillAgent(int x, int y, const SDL_Color& color) {
   int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
 
-  int px = y * map.gridSize, py = x * map.gridSize;
+  int px = x * map.gridSize, py = y * map.gridSize;
 
   SDL_Rect outer;
 

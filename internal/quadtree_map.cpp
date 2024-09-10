@@ -107,7 +107,7 @@ int QuadtreeMap::DistanceBetweenNodes(QdNode *aNode, QdNode *bNode) const {
 // ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Visits and Reads ~~~~~~~~~~~~~~~~~
 
 bool QuadtreeMap::IsObstacle(int x, int y) const {
-  if (!(x >= 0 && x < h && y >= 0 && y < w)) return true;
+  if (!(x >= 0 && x < w && y >= 0 && y < h)) return true;
   return isObstacle(x, y);
 }
 
@@ -163,8 +163,8 @@ void QuadtreeMap::Build() {
 
   std::vector<quadtree::BatchOperationItem<bool>> items;
 
-  for (int x = 0; x < h; x++) {
-    for (int y = 0; y < w; y++) {
+  for (int y = 0; y < h; y++) {  // iterates by row firstly
+    for (int x = 0; x < w; x++) {
       // On the first build, we care only about the obstacles.
       // the grid map will be splited into multiple sections,
       // and gates will be created for the first time.
@@ -178,8 +178,8 @@ void QuadtreeMap::Build() {
 void QuadtreeMap::Update(int x, int y) {
   // ndebug, let's do nothing, don't crash the program.
   // since the (x,y) is passed in by a user-level programmer.
-  if (!(x >= 0 && x < h)) return;
-  if (!(y >= 0 && y < w)) return;
+  if (!(x >= 0 && x < w)) return;
+  if (!(y >= 0 && y < h)) return;
 
   // Special case:
   //   When the (x,y) always locates at a single-cell 1x1 node before and after the tree
@@ -397,12 +397,12 @@ void QuadtreeMap::handleNewNode(QdNode *aNode) {
 // In the diagram below, '(e,f),(g,h),(i,j),(kl)' are (a,b)'s positions for each direction
 // (4,5,6,7).
 //
-//         y1    y2
+//         x1    x2
 //     4  f|     |h   5
-//       --e-----g--    x1
+//       --e-----g--    y1
 //         |     |
 //         |     |
-//       --k-----i--    x2
+//       --k-----i--    y2
 //     7  l|     |j   6
 void QuadtreeMap::getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a, int &b) const {
   int x1 = aNode->x1, y1 = aNode->y1, x2 = aNode->x2, y2 = aNode->y2;
@@ -411,13 +411,13 @@ void QuadtreeMap::getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a
       a = PackXY(x1, y1), b = PackXY(x1 - 1, y1 - 1);
       return;
     case 5:  // g,h
-      a = PackXY(x1, y2), b = PackXY(x1 - 1, y2 + 1);
+      a = PackXY(x2, y1), b = PackXY(x2 + 1, y1 - 1);
       return;
     case 6:  // i,j
       a = PackXY(x2, y2), b = PackXY(x2 + 1, y2 + 1);
       return;
     case 7:  // k,l
-      a = PackXY(x2, y1), b = PackXY(x2 + 1, y1 - 1);
+      a = PackXY(x1, y2), b = PackXY(x1 - 1, y2 + 1);
       return;
   }
 }
@@ -427,13 +427,13 @@ void QuadtreeMap::getNeighbourCellsDiagonal(int direction, QdNode *aNode, int &a
 // Where the target gate cells locate like diagram below:
 //
 //            N:0
-//         y1    y2
+//         x1    x2
 //         |     |
 //         a     b
-//       -g+-----+c-    x1
+//       -g+-----+c-    y1
 //   W:3   |     |        E:1
 //         |     |
-//       -h+-----+d-    x2
+//       -h+-----+d-    y2
 //         e     f
 //         |     |
 //           S:2
@@ -442,24 +442,24 @@ void QuadtreeMap::getNeighbourCellsHV(int direction, QdNode *aNode, QdNode *bNod
   int x1, y1, x2, y2, d;
   switch (direction) {
     case 0:  // N
-      x1 = aNode->x1, y1 = std::max(aNode->y1, bNode->y1), y2 = std::min(aNode->y2, bNode->y2);
-      d = stepf == nullptr ? step : stepf(y2 - y1 + 1);
-      for (int y = y1; y <= y2; y += d) ncs.push_back({PackXY(x1, y), PackXY(x1 - 1, y)});
+      y1 = aNode->y1, x1 = std::max(aNode->x1, bNode->x1), x2 = std::min(aNode->x2, bNode->x2);
+      d = stepf == nullptr ? step : stepf(x2 - x1 + 1);
+      for (int x = x1; x <= x2; x += d) ncs.push_back({PackXY(x, y1), PackXY(x, y1 - 1)});
       break;
     case 1:  // E
-      y2 = aNode->y2, x1 = std::max(aNode->x1, bNode->x1), x2 = std::min(aNode->x2, bNode->x2);
-      d = stepf == nullptr ? step : stepf(x2 - x1 + 1);
-      for (int x = x1; x <= x2; x += d) ncs.push_back({PackXY(x, y2), PackXY(x, y2 + 1)});
-      break;
-    case 2:  // S
       x2 = aNode->x2, y1 = std::max(aNode->y1, bNode->y1), y2 = std::min(aNode->y2, bNode->y2);
       d = stepf == nullptr ? step : stepf(y2 - y1 + 1);
       for (int y = y1; y <= y2; y += d) ncs.push_back({PackXY(x2, y), PackXY(x2 + 1, y)});
       break;
-    case 3:  // W
-      y1 = aNode->y1, x1 = std::max(aNode->x1, bNode->x1), x2 = std::min(aNode->x2, bNode->x2);
+    case 2:  // S
+      y2 = aNode->y2, x1 = std::max(aNode->x1, bNode->x1), x2 = std::min(aNode->x2, bNode->x2);
       d = stepf == nullptr ? step : stepf(x2 - x1 + 1);
-      for (int x = x1; x <= x2; x += d) ncs.push_back({PackXY(x, y1), PackXY(x, y1 - 1)});
+      for (int x = x1; x <= x2; x += d) ncs.push_back({PackXY(x, y2), PackXY(x, y2 + 1)});
+      break;
+    case 3:  // W
+      x1 = aNode->x1, y1 = std::max(aNode->y1, bNode->y1), y2 = std::min(aNode->y2, bNode->y2);
+      d = stepf == nullptr ? step : stepf(y2 - y1 + 1);
+      for (int y = y1; y <= y2; y += d) ncs.push_back({PackXY(x1, y), PackXY(x1 - 1, y)});
       break;
   }
 }

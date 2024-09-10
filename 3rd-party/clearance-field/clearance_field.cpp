@@ -18,14 +18,14 @@ namespace clearance_field {
 //      7| 6(S)| 5
 static const int DEFAULT_DIRECTIONS[8][3] = {
     // {dx, dy, IsDiagonal}
-    {0, -1, 0},   // 0, W, HV
+    {-1, 0, 0},   // 0, W, HV
     {-1, -1, 1},  // 1, NW, Diagonal
-    {-1, 0, 0},   // 2, N, HV
-    {-1, 1, 1},   // 3, NE, Diagonal
-    {0, 1, 0},    // 4, E, HV
+    {0, -1, 0},   // 2, N, HV
+    {1, -1, 1},   // 3, NE, Diagonal
+    {1, 0, 0},    // 4, E, HV
     {1, 1, 1},    // 5, ES, Diagonal
-    {1, 0, 0},    // 6, S, HV
-    {1, -1, 1},   // 7, SW, Diagonal
+    {0, 1, 0},    // 6, S, HV
+    {-1, 1, 1},   // 7, SW, Diagonal
 };
 
 ////////////////////////////////////
@@ -42,8 +42,8 @@ LPAClearanceFieldAlgorithm::LPAClearanceFieldAlgorithm(int w, int h, int u,
       isObstacle(isObstacle),
       predecessorsVisitor(predecessorsVisitor),
       successorVisitor(successorVisitor) {
-  g.resize(h, std::vector<int>(w, inf));
-  rhs.resize(h, std::vector<int>(w, inf));
+  g.resize(w, std::vector<int>(h, inf));
+  rhs.resize(w, std::vector<int>(h, inf));
 }
 
 LPAClearanceFieldAlgorithm::K LPAClearanceFieldAlgorithm::k(int x, int y) const {
@@ -57,7 +57,7 @@ void LPAClearanceFieldAlgorithm::Update(int x, int y) {
 
   // update (x,y)'s rhs value by its predecessor (x1,y1).
   NeighbourCellVisitor update = [this, x, y](int x1, int y1, int cost) {
-    if (x1 >= 0 && x1 < h && y1 >= 0 && y1 < w) {
+    if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h) {
       rhs[x][y] = std::min(rhs[x][y], g[x1][y1] + cost);
     }
   };
@@ -72,7 +72,7 @@ void LPAClearanceFieldAlgorithm::Update(int x, int y) {
     predecessorsVisitor(x, y, update);
   }
 
-  // requeue (x,y) if g and h is inconsistent
+  // requeue (x,y) if g and rhs is inconsistent
   q.erase(k0);
   if (g[x][y] != rhs[x][y]) q.insert({k(x, y), {x, y}});
 }
@@ -85,7 +85,7 @@ int LPAClearanceFieldAlgorithm::Compute() {
 
   // update (x,y)'s successor (x1,y1)
   CellVisitor update = [this, &x, &y](int x1, int y1) {
-    if (x1 >= 0 && x1 < h && y1 >= 0 && y1 < w) {
+    if (x1 >= 0 && x1 < w && y1 >= 0 && y1 < h) {
       Update(x1, y1);
     }
   };
@@ -107,7 +107,7 @@ int LPAClearanceFieldAlgorithm::Compute() {
     }
 
     // A cell's g value can only be updated in the q's consuming progress.
-    if (updatedCellVisitor != nullptr && x < h && y < w) updatedCellVisitor(x, y);
+    if (updatedCellVisitor != nullptr && x < w && y < h) updatedCellVisitor(x, y);
 
     // if the (x,y) is in consistent and g value >= bound u.
     // there's no need to propagate it to its successors.
@@ -191,7 +191,7 @@ TrueClearanceField::TrueClearanceField(int w, int h, int u, int costUnit, int di
   //       |-----------X
   //       XXXXXXXXXXXXX
   ObstacleChecker obstacleChecker = [this, w, h](int x, int y) {
-    if (x == h || y == w) return true;
+    if (x == w || y == h) return true;
     return originalIsObstacle(x, y);
   };
 
@@ -230,10 +230,10 @@ TrueClearanceField::~TrueClearanceField() {
 void TrueClearanceField::Build() {
   assert(lpa != nullptr);
   // right wall of the larger map.
-  for (int x = 0; x <= h; ++x) lpa->Update(x, w);
+  for (int y = 0; y <= h; ++y) lpa->Update(w, y);
   // bottom wall of the larger map.
-  // avoid visiting the right-bottom corner (h,w) twice
-  for (int y = 0; y < w; ++y) lpa->Update(h, y);
+  // avoid visiting the right-bottom corner (w,h) twice
+  for (int x = 0; x < w; ++x) lpa->Update(x, h);
   // initial the map.
   lpa->Compute();
 }
@@ -259,7 +259,7 @@ BrushfireClearanceField::BrushfireClearanceField(int w, int h, int u, int costUn
   //       XXXXXXXXXXXXX
   ObstacleChecker obstacleChecker = [this, w, h](int x, int y) {
     if (x == 0 || y == 0) return true;
-    if (x == h + 1 || y == w + 1) return true;
+    if (x == w + 1 || y == h + 1) return true;
     return originalIsObstacle(x - 1, y - 1);
   };
 
@@ -281,19 +281,19 @@ BrushfireClearanceField::~BrushfireClearanceField() {
 void BrushfireClearanceField::Build() {
   assert(lpa != nullptr);
   // left wall of the larger map.
-  for (int x = 0; x <= h + 1; ++x) lpa->Update(x, 0);
+  for (int y = 0; y <= h + 1; ++y) lpa->Update(0, y);
 
   // top wall of the larger map.
   // avoid visiting the left-top corner (0,0) twice.
-  for (int y = 1; y <= w + 1; ++y) lpa->Update(0, y);
+  for (int x = 1; x <= w + 1; ++x) lpa->Update(x, 0);
 
   // right wall of the larger map.
   // avoid visiting the right-top corner (0, w+1) twice
-  for (int x = 1; x <= h + 1; ++x) lpa->Update(x, w + 1);
+  for (int y = 1; y <= h + 1; ++y) lpa->Update(w + 1, y);
 
   // bottom wall of the larger map.
-  // avoid visiting the left-bottom (h+1,0) and right-bottom (h+1,w+1) corners twice.
-  for (int y = 1; y < w + 1; ++y) lpa->Update(h + 1, y);
+  // avoid visiting the left-bottom (0,h+1) and right-bottom (w+1,h+1) corners twice.
+  for (int x = 1; x < w + 1; ++x) lpa->Update(x, h + 1);
 
   // initial the map.
   lpa->Compute();

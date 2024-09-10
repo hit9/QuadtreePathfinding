@@ -14,6 +14,7 @@ enum Terrain {
 int grid[N][N] = {
     // 8x8
     // clang-format off
+    // ----------------------> x
     {1, 1, 1, 1, 1, 1, 1, 1},
     {1, 1, 1, 1, 1, 1, 1, 1},
     {1, 1, 1, 1, 1, 1, 1, 1},
@@ -41,7 +42,8 @@ int main(void) {
   int w = 8, h = 8;
 
   // Setup a QuadtreeMapX.
-  qdpf::TerrainTypesChecker terrainChecker = [](int x, int y) { return grid[x][y]; };
+  // (Note that the y is the row, x is the column)
+  qdpf::TerrainTypesChecker terrainChecker = [](int x, int y) { return grid[y][x]; };
   auto distance = qdpf::EuclideanDistance<10>;
   qdpf::QuadtreeMapXSettings settings{
       {10, Terrain::Land},                   // e.g. soldiers
@@ -124,7 +126,7 @@ int main(void) {
   }
 
   // Let's draw a flow field.
-  // direction encoding: (dx+1)*3+(dy+1)
+  // direction encoding: (dy+1)*3+(dx+1)
   int direction_fields[N][N];
   memset(direction_fields, 0xff, sizeof direction_fields);  // -1
 
@@ -133,12 +135,12 @@ int main(void) {
     auto [x, y] = cell;
     auto [xNext, yNext] = nextCell;
     int dx = xNext - x, dy = yNext - y;
-    int d = (dx + 1) * 3 + (dy + 1);
+    int d = (dy + 1) * 3 + (dx + 1);
     if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) direction_fields[x][y] = d;
   };
 
-  for (int x = 0; x < N; ++x) {
-    for (int y = 0; y < N; ++y) {
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
       int d = direction_fields[x][y];
       if (d >= 0)
         std::cout << std::setw(6) << DIRECTION_REPL[d];

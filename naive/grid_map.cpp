@@ -9,17 +9,18 @@
 namespace qdpf {
 namespace naive {
 
+// Array of { dx, dy }
 const int DIRECTIONS[8][2]{
     // right,right-bottom,bottom,left-bottom
-    {0, 1},
-    {1, 1},
     {1, 0},
-    {1, -1},
-    // left,left-top,top,top-right
-    {0, -1},
-    {-1, -1},
-    {-1, 0},
+    {1, 1},
+    {0, 1},
     {-1, 1},
+    // left,left-top,top,top-right
+    {-1, 0},
+    {-1, -1},
+    {0, -1},
+    {1, -1},
 };
 
 NaiveGridMap::NaiveGridMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance)
@@ -38,7 +39,7 @@ NaiveGridMap::NaiveGridMap(int w, int h, ObstacleChecker isObstacle, DistanceCal
 }
 
 bool NaiveGridMap::IsObstacle(int x, int y) const {
-  if (!(x >= 0 && x < h && y >= 0 && y < w)) return true;
+  if (!(x >= 0 && x < w && y >= 0 && y < h)) return true;
   return isObstacle(x, y);
 }
 
@@ -65,14 +66,16 @@ Cell NaiveGridMap::UnpackXY(int v) const {
 }
 
 void NaiveGridMap::Build() {
-  for (int x = 0; x < h; ++x) {
-    for (int y = 0; y < w; ++y) {
-      Update(x, y);
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      // We can check only the right | bottom directions
+      // Since we're iterating from left-top to right-bottom.
+      Update(x, y, 4);
     }
   }
 }
 
-void NaiveGridMap::Update(int x, int y) {
+void NaiveGridMap::Update(int x, int y, int maxd) {
   int u = PackXY(x, y);
 
   if (isObstacle(x, y)) {
@@ -80,8 +83,7 @@ void NaiveGridMap::Update(int x, int y) {
     g.ClearEdgeTo(u);
     g.ClearEdgeFrom(u);
   } else {
-    // we can check only the right | bottom directions
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < maxd; ++i) {
       const auto& d = directions[i];
       int dx = d[0], dy = d[1], cost = d[2];
       int x1 = x + dx, y1 = y + dy;
