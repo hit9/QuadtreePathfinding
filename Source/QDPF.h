@@ -49,11 +49,11 @@
 #include <cmath>
 #include <tuple>
 
-#include "Internal/base.hpp"
-#include "Internal/pathfinder_astar.hpp"
-#include "Internal/pathfinder_flowfield.hpp"
-#include "Internal/quadtree_map.hpp"
-#include "Internal/quadtree_mapx.hpp"
+#include "Internal/Base.h"
+#include "Internal/PathfinderAstar.h"
+#include "Internal/PathfinderFlowfield.h"
+#include "Internal/QuadtreeMap.h"
+#include "Internal/QuadtreeMapX.h"
 
 namespace qdpf
 {

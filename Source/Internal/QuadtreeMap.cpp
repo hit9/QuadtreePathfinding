@@ -1,7 +1,7 @@
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // License: BSD. Chao Wang, hit9[At]icloud.com.
 
-#include "quadtree_map.hpp"
+#include "QuadtreeMap.h"
 
 #include <cassert>
 #include <cstdlib>

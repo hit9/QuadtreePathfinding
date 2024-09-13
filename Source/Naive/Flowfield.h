@@ -8,9 +8,9 @@
 #ifndef QDPF_NAIVE_FLOWFIELD_HPP
 #define QDPF_NAIVE_FLOWFIELD_HPP
 
-#include "../Internal/base.hpp"
-#include "../Internal/pathfinder_flowfield.hpp"
-#include "grid_map.hpp"
+#include "../Internal/Base.h"
+#include "../Internal/PathfinderFlowfield.h"
+#include "GridMap.h"
 
 namespace qdpf
 {

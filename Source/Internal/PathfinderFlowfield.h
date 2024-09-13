@@ -10,9 +10,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "base.hpp"
-#include "pathfinder_helper.hpp"
-#include "quadtree_map.hpp"
+#include "Base.h"
+#include "PathfinderHelper.h"
+#include "QuadtreeMap.h"
 
 // FlowFieldPathFinder
 // ~~~~~~~~~~~~~~~~~~~

@@ -12,7 +12,7 @@
 #include <unordered_map>
 
 #include "ClearanceField/ClearanceField.h"
-#include "quadtree_map.hpp"
+#include "QuadtreeMap.h"
 
 namespace qdpf
 {

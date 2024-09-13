@@ -1,16 +1,16 @@
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // License: BSD. Chao Wang, hit9[At]icloud.com.
 
-#include "quadtree_mapx.hpp"
+#include "QuadtreeMap.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <unordered_set>
 
-#include "base.hpp"
+#include "Base.h"
 #include "ClearanceField/ClearanceField.h"
-#include "quadtree_map.hpp"
+#include "QuadtreeMapX.h"
 
 namespace qdpf
 {

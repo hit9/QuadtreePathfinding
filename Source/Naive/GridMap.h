@@ -8,9 +8,9 @@
 #ifndef QDPF_NAIVE_MAP_HPP
 #define QDPF_NAIVE_MAP_HPP
 
-#include "../Internal/base.hpp"
-#include "../Internal/graph.hpp"
-#include "../Internal/quadtree_map.hpp"
+#include "../Internal/Base.h"
+#include "../Internal/Graph.h"
+#include "../Internal/QuadtreeMap.h"
 
 namespace qdpf
 {

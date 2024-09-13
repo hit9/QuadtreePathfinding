@@ -10,8 +10,8 @@
 
 #include <functional>
 
-#include "../Internal/base.hpp"
-#include "grid_map.hpp"
+#include "../Internal/Base.h"
+#include "GridMap.h"
 
 namespace qdpf
 {

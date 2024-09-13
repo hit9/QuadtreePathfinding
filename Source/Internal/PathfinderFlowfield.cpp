@@ -1,13 +1,13 @@
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // License: BSD. Chao Wang, hit9[At]icloud.com.
 
-#include "pathfinder_flowfield.hpp"
+#include "PathfinderFlowfield.h"
 
 #include <cassert>
 #include <cstdlib>
 #include <queue>
 
-#include "base.hpp"
+#include "Base.h"
 
 namespace qdpf
 {

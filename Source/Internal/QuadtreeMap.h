@@ -6,8 +6,8 @@
 
 #include <functional> // for std::function
 
-#include "base.hpp"
-#include "graph.hpp"
+#include "Base.h"
+#include "Graph.h"
 #include "Quadtree-hpp/Quadtree.hpp"
 
 // QuadtreeMap

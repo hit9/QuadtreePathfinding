@@ -4,8 +4,8 @@
 #ifndef QDPF_INTERNAL_PATHFINDER_HELPER_HPP
 #define QDPF_INTERNAL_PATHFINDER_HELPER_HPP
 
-#include "graph.hpp"
-#include "quadtree_map.hpp"
+#include "Graph.h"
+#include "QuadtreeMap.h"
 
 // PathFinderHelper
 // ~~~~~~~~~~~~~~~

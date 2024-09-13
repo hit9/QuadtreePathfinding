@@ -9,10 +9,10 @@
 #include <utility>	  // for std::pair
 #include <vector>	  // for std::vector
 
-#include "base.hpp"
-#include "graph.hpp"
-#include "pathfinder_helper.hpp"
-#include "quadtree_map.hpp"
+#include "Base.h"
+#include "Graph.h"
+#include "PathfinderHelper.h"
+#include "QuadtreeMap.h"
 
 // AStarPathFinder
 // ~~~~~~~~~~~~~~~
