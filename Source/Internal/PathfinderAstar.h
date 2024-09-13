@@ -18,7 +18,7 @@
 // ~~~~~~~~~~~~~~~
 // Implements A* pathfinder on a agent-size and terrain-types relateless quadtree map.
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Internal
 	{
@@ -183,6 +183,6 @@ namespace qdpf
 		}
 
 	} // namespace Internal
-} // namespace qdpf
+} // namespace QDPF
 
 #endif

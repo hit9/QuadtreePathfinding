@@ -8,7 +8,7 @@
 #include "../Internal/Base.h"
 #include "../Internal/PathfinderFlowfield.h"
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Naive
 	{
@@ -78,4 +78,4 @@ namespace qdpf
 		}
 
 	} // namespace Naive
-} // namespace qdpf
+} // namespace QDPF

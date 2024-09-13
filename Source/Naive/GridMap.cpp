@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cstdlib>
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Naive
 	{
@@ -124,4 +124,4 @@ namespace qdpf
 		}
 
 	} // namespace Naive
-} // namespace qdpf
+} // namespace QDPF

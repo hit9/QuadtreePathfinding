@@ -12,7 +12,7 @@
 #include "ClearanceField/ClearanceField.h"
 #include "QuadtreeMapX.h"
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Internal
 	{
@@ -266,4 +266,4 @@ namespace qdpf
 		}
 
 	} // namespace Internal
-} // namespace qdpf
+} // namespace QDPF

@@ -3,7 +3,7 @@
 
 #include "QDPF.h"
 
-namespace qdpf
+namespace QDPF
 {
 
 	//////////////////////////////////////
@@ -116,4 +116,4 @@ namespace qdpf
 		return impl.ComputeFinalFlowField(finalFlowfield, gateFlowField);
 	}
 
-} // namespace qdpf
+} // namespace QDPF

@@ -12,7 +12,7 @@
 // ~~~~~~
 // Directed graph abstraction.
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Internal
 	{
@@ -228,5 +228,5 @@ namespace qdpf
 		}
 
 	} // namespace Internal
-} // namespace qdpf
+} // namespace QDPF
 #endif

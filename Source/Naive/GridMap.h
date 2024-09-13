@@ -12,7 +12,7 @@
 #include "../Internal/Graph.h"
 #include "../Internal/QuadtreeMap.h"
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Naive
 	{
@@ -56,6 +56,6 @@ namespace qdpf
 		};
 
 	} // namespace Naive
-} // namespace qdpf
+} // namespace QDPF
 
 #endif

@@ -55,7 +55,7 @@
 #include "Internal/QuadtreeMap.h"
 #include "Internal/QuadtreeMapX.h"
 
-namespace qdpf
+namespace QDPF
 {
 
 	using Internal::inf;
@@ -449,6 +449,6 @@ namespace qdpf
 		Internal::FlowFieldPathFinderImpl impl;
 	};
 
-} // namespace qdpf
+} // namespace QDPF
 
 #endif

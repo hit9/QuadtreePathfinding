@@ -15,7 +15,7 @@
 // 1. 2d grid map maintained by a quadtree.
 // 2. It's **relateless** to agent sizes and terrains.
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Internal
 	{
@@ -191,6 +191,6 @@ namespace qdpf
 		};
 
 	} // namespace Internal
-} // namespace qdpf
+} // namespace QDPF
 
 #endif

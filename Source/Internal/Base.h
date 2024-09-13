@@ -9,7 +9,7 @@
 #include <utility> // for std::pair
 #include <vector>
 
-namespace qdpf
+namespace QDPF
 {
 	namespace Internal
 	{
@@ -236,6 +236,6 @@ namespace qdpf
 		using DefaultedVectorBool = DefaultedVector<unsigned char, DefaultValue>;
 
 	} // namespace Internal
-} // namespace qdpf
+} // namespace QDPF
 
 #endif
