@@ -176,17 +176,17 @@ namespace qdpf
 			Gates1Map gates1;
 
 			// ~~~~~~~~~~~~~~~~ Internals ~~~~~~~~~~~~~~~
-			void forEachGateInNode(QdNode* node, std::function<void(Gate*)>& visitor) const;
-			void handleNewNode(QdNode* aNode);
-			void handleRemovedNode(QdNode* aNode);
-			void connectCellsInGateGraphs(int u, int v);
-			void connectGateCellsInNodeToNewGateCell(QdNode* aNode, int a);
-			void disconnectCellInGateGraphs(int u);
-			void connectNodesOnNodeGraph(QdNode* aNode, QdNode* bNode);
-			void disconnectNodeFromNodeGraph(QdNode* aNode);
-			void createGate(QdNode* aNode, int a, QdNode* bNode, int b);
-			void getNeighbourCellsDiagonal(int direction, QdNode* aNode, int& a, int& b) const;
-			void getNeighbourCellsHV(int direction, QdNode* aNode, QdNode* bNode,
+			void ForEachGateInNode(QdNode* node, std::function<void(Gate*)>& visitor) const;
+			void HandleNewNode(QdNode* aNode);
+			void HandleRemovedNode(QdNode* aNode);
+			void ConnectCellsInGateGraphs(int u, int v);
+			void ConnectGateCellsInNodeToNewGateCell(QdNode* aNode, int a);
+			void DisconnectCellInGateGraphs(int u);
+			void ConnectNodesOnNodeGraph(QdNode* aNode, QdNode* bNode);
+			void DisconnectNodeFromNodeGraph(QdNode* aNode);
+			void CreateGate(QdNode* aNode, int a, QdNode* bNode, int b);
+			void GetNeighbourCellsDiagonal(int direction, QdNode* aNode, int& a, int& b) const;
+			void GetNeighbourCellsHV(int direction, QdNode* aNode, QdNode* bNode,
 				std::vector<std::pair<int, int>>& ncs) const;
 		};
 

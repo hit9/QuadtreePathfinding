@@ -45,8 +45,8 @@ namespace qdpf
 				return (w <= this->maxNodeWidth && h <= this->maxNodeHeight) && (n == 0 || (w * h == n));
 			});
 			// handleRemovedNode and handleNewNode maintain the sections and gates on quadtree adjustments.
-			tree.SetAfterLeafRemovedCallback([this](QdNode* node) { handleRemovedNode(node); });
-			tree.SetAfterLeafCreatedCallback([this](QdNode* node) { handleNewNode(node); });
+			tree.SetAfterLeafRemovedCallback([this](QdNode* node) { HandleRemovedNode(node); });
+			tree.SetAfterLeafCreatedCallback([this](QdNode* node) { HandleNewNode(node); });
 		}
 
 		QuadtreeMap::~QuadtreeMap()
@@ -160,7 +160,7 @@ namespace qdpf
 				// Won't allow user to modify gate's content.
 				visitor(const_cast<const Gate*>(gate));
 			};
-			forEachGateInNode(const_cast<QdNode*>(node), visitor1);
+			ForEachGateInNode(const_cast<QdNode*>(node), visitor1);
 		}
 
 		void QuadtreeMap::Nodes(QdNodeVisitor& visitor) const
@@ -248,16 +248,16 @@ namespace qdpf
 			if (before1x1 && after1x1)
 			{
 				if (b)
-					handleRemovedNode(node);
+					HandleRemovedNode(node);
 				else
-					handleNewNode(node);
+					HandleNewNode(node);
 			}
 		}
 
 		// ~~~~~~~~~~~~~ QuadtreeMap::Impl :: Internals ~~~~~~~~~~~~~~~~~
 
 		// visits each gate of a given node.
-		void QuadtreeMap::forEachGateInNode(QdNode* node, std::function<void(Gate*)>& visitor) const
+		void QuadtreeMap::ForEachGateInNode(QdNode* node, std::function<void(Gate*)>& visitor) const
 		{
 			if (gates1[node].Size() == 0)
 				return;
@@ -271,7 +271,7 @@ namespace qdpf
 		}
 
 		// Connects given two cells in the gate graphs by establishing bidirectional edges between them.
-		void QuadtreeMap::connectCellsInGateGraphs(int u, int v)
+		void QuadtreeMap::ConnectCellsInGateGraphs(int u, int v)
 		{
 			int dist = Distance(u, v);
 			g2.AddEdge(u, v, dist);
@@ -281,12 +281,12 @@ namespace qdpf
 		// Connects bidirectional edges between the new gate cell a and all other existing gate cells in
 		// this node. The given node must not be an obstacle node. Hint: all cells inside a non-obstacle
 		// node are reachable to each other.
-		void QuadtreeMap::connectGateCellsInNodeToNewGateCell(QdNode* aNode, int a)
+		void QuadtreeMap::ConnectGateCellsInNodeToNewGateCell(QdNode* aNode, int a)
 		{
 			for (auto& [u, m] : gates1[aNode].GetUnderlyingUnorderedMap())
 			{
 				if (u != a)
-					connectCellsInGateGraphs(u, a);
+					ConnectCellsInGateGraphs(u, a);
 			}
 		}
 
@@ -298,7 +298,7 @@ namespace qdpf
 		// Steps:
 		// 1. Connect edges with existing gate cells inside each node.
 		// 2. Connects a and b and add the created gate into management.
-		void QuadtreeMap::createGate(QdNode* aNode, int a, QdNode* bNode, int b)
+		void QuadtreeMap::CreateGate(QdNode* aNode, int a, QdNode* bNode, int b)
 		{
 			// idempotent: if aNode[a][b] => bNode exist
 			auto gt1 = gates1[aNode][a][b];
@@ -311,11 +311,11 @@ namespace qdpf
 				return;
 
 			// bidirection edges between new gate cell and existing gate cells inside each node.
-			connectGateCellsInNodeToNewGateCell(aNode, a);
-			connectGateCellsInNodeToNewGateCell(bNode, b);
+			ConnectGateCellsInNodeToNewGateCell(aNode, a);
+			ConnectGateCellsInNodeToNewGateCell(bNode, b);
 
 			// connects a and b.
-			connectCellsInGateGraphs(a, b);
+			ConnectCellsInGateGraphs(a, b);
 
 			// creates a gate and maintain into container gates and gates.
 			auto gate1 = new Gate(aNode, bNode, a, b); // a => b
@@ -329,14 +329,14 @@ namespace qdpf
 		}
 
 		// Disconnects all edges connecting with given gate cell u.
-		void QuadtreeMap::disconnectCellInGateGraphs(int u)
+		void QuadtreeMap::DisconnectCellInGateGraphs(int u)
 		{
 			g2.ClearEdgeTo(u);
 			g2.ClearEdgeFrom(u);
 		}
 
 		//  Connects given two nodes on the node graph.
-		void QuadtreeMap::connectNodesOnNodeGraph(QdNode* aNode, QdNode* bNode)
+		void QuadtreeMap::ConnectNodesOnNodeGraph(QdNode* aNode, QdNode* bNode)
 		{
 			// use the distance betwen the two nodes's center cells
 			int dist = DistanceBetweenNodes(aNode, bNode);
@@ -345,7 +345,7 @@ namespace qdpf
 		}
 
 		// Disconnects the given node from the node graphs.
-		void QuadtreeMap::disconnectNodeFromNodeGraph(QdNode* aNode)
+		void QuadtreeMap::DisconnectNodeFromNodeGraph(QdNode* aNode)
 		{
 			g1.ClearEdgeTo(aNode);
 			g1.ClearEdgeFrom(aNode);
@@ -355,18 +355,18 @@ namespace qdpf
 		// 1. (node graphs) Remove all edges connected aNode (from and to aNode).
 		// 2. (gate graphs) Remove all edges connected to any gate cells in aNode (from and to).
 		// 3. (gates) Remove all gates inside the node.
-		void QuadtreeMap::handleRemovedNode(QdNode* aNode)
+		void QuadtreeMap::HandleRemovedNode(QdNode* aNode)
 		{
-			disconnectNodeFromNodeGraph(aNode);
+			DisconnectNodeFromNodeGraph(aNode);
 
 			// we first collect all gates in this node.
 			std::vector<Gate*>		   aNodeGates;
 			std::function<void(Gate*)> visitor = [&aNodeGates](Gate* gate) { aNodeGates.push_back(gate); };
-			forEachGateInNode(aNode, visitor);
+			ForEachGateInNode(aNode, visitor);
 
 			// for each gate cell a inside aNode, disconnect a from the gate graph.
 			for (auto gate : aNodeGates)
-				disconnectCellInGateGraphs(gate->a);
+				DisconnectCellInGateGraphs(gate->a);
 
 			// remove the dual gate in each adjacent node b.
 			for (const auto aGate : aNodeGates)
@@ -386,7 +386,7 @@ namespace qdpf
 				{
 					// that is, b is the gate cell which only points to a.
 					// disconncts it from the gate graph.
-					disconnectCellInGateGraphs(b);
+					DisconnectCellInGateGraphs(b);
 					gates1[bNode].Erase(b);
 				}
 
@@ -407,7 +407,7 @@ namespace qdpf
 		// 1. find all neighbour leaf nodes around this node.
 		// 2. pick some neighbour cells to create gates.
 		// 3. and finally establish the edges in all graphs.
-		void QuadtreeMap::handleNewNode(QdNode* aNode)
+		void QuadtreeMap::HandleNewNode(QdNode* aNode)
 		{
 			// ignores if it's a obstacle node.
 			if (aNode->objects.size())
@@ -436,13 +436,13 @@ namespace qdpf
 				{
 					auto bNode = neighbours[d][0];
 					// connects a and b on the node graph.
-					connectNodesOnNodeGraph(aNode, bNode);
+					ConnectNodesOnNodeGraph(aNode, bNode);
 					// connects a and b on the gate graph:
 					// for each diagonal direction, there is at most one neighbour node.
 					// and we just need to pick only one pair of cells to create a connection.
 					int a, b;
-					getNeighbourCellsDiagonal(d, aNode, a, b);
-					createGate(aNode, a, bNode, b);
+					GetNeighbourCellsDiagonal(d, aNode, a, b);
+					CreateGate(aNode, a, bNode, b);
 				}
 			}
 
@@ -453,16 +453,16 @@ namespace qdpf
 				for (auto bNode : neighbours[d])
 				{
 					// connects a and b on the node graph.
-					connectNodesOnNodeGraph(aNode, bNode);
+					ConnectNodesOnNodeGraph(aNode, bNode);
 					// connects a and b on the gate graph:
 					// this is more complex than the diagonal's case.
 					// for each HV direction, there may be multiple neighbour nodes.
 					// and for each neighbour, we pick multiple pairs of adjacent cells to create connections.
 					// the following ncs is to collect picked gate cells, a vector of {x,y} pairs.
 					ncs.clear();
-					getNeighbourCellsHV(d, aNode, bNode, ncs);
+					GetNeighbourCellsHV(d, aNode, bNode, ncs);
 					for (auto [a, b] : ncs)
-						createGate(aNode, a, bNode, b);
+						CreateGate(aNode, a, bNode, b);
 				}
 			}
 		}
@@ -479,7 +479,7 @@ namespace qdpf
 		//         |     |
 		//       --k-----i--    y2
 		//     7  l|     |j   6
-		void QuadtreeMap::getNeighbourCellsDiagonal(int direction, QdNode* aNode, int& a, int& b) const
+		void QuadtreeMap::GetNeighbourCellsDiagonal(int direction, QdNode* aNode, int& a, int& b) const
 		{
 			int x1 = aNode->x1, y1 = aNode->y1, x2 = aNode->x2, y2 = aNode->y2;
 			switch (direction)
@@ -514,7 +514,7 @@ namespace qdpf
 		//         e     f
 		//         |     |
 		//           S:2
-		void QuadtreeMap::getNeighbourCellsHV(int direction, QdNode* aNode, QdNode* bNode,
+		void QuadtreeMap::GetNeighbourCellsHV(int direction, QdNode* aNode, QdNode* bNode,
 			std::vector<std::pair<int, int>>& ncs) const
 		{
 			int x1, y1, x2, y2, d;
