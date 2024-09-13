@@ -351,96 +351,96 @@ private:
 	// ~~~~~~ misc ~~~~~~~
 	ArrowFont arrows;
 
-	void reset();
-	int	 initSDL();
-	int	 initImgui();
-	int	 initArrowsFont();
-	void destroyArrowsFont();
-	void destroyImgui();
-	void destroySDL();
+	void Reset();
+	int	 InitSDL();
+	int	 InitImgui();
+	int	 InitArrowsFont();
+	void DestroyArrowsFont();
+	void DestroyImgui();
+	void DestroySDL();
 
 	// ~~~~~~ render the world ~~~~~~~
-	void renderWorld();
-	void renderGrids();
-	void renderQuadtreeNodes();
-	void renderGates();
-	void renderGateGraph();
-	void renderNodeGraph();
-	void renderHighlightedNodes();
-	void renderHighlightedNodesAstar();
-	void renderHighlightedNodesFlowField();
-	void renderPathfindingDispatch();
-	void renderPathfindingAStar();
-	void renderPathfindingAStarNaive();
-	void renderPathfindingFlowField();
-	void renderPathFindingFlowFieldGateField();
-	void renderPathFindingFlowFieldFinalField();
-	void renderPathFindingFlowFieldGateNextsLines();
-	void renderDrawRect(const SDL_Rect& rect, const SDL_Color& color);
-	void renderFillRect(const SDL_Rect& rect, const SDL_Color& color);
-	void renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color);
-	void renderDrawLineBetweenCells(int x1, int y1, int x2, int y2, const SDL_Color& color);
-	void renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst);
-	void renderFillCell(int x, int y, const SDL_Color& color);
-	void renderFillAgent(int x, int y);
-	void renderFillAgent(int x, int y, const SDL_Color& color);
-	void setMessageHint(std::string_view message, const ImVec4& color);
+	void RenderWorld();
+	void RenderGrids();
+	void RenderQuadtreeNodes();
+	void RenderGates();
+	void RenderGateGraph();
+	void RenderNodeGraph();
+	void RenderHighlightedNodes();
+	void RenderHighlightedNodesAstar();
+	void RenderHighlightedNodesFlowField();
+	void RenderPathfindingDispatch();
+	void RenderPathfindingAStar();
+	void RenderPathfindingAStarNaive();
+	void RenderPathfindingFlowField();
+	void RenderPathFindingFlowFieldGateField();
+	void RenderPathFindingFlowFieldFinalField();
+	void RenderPathFindingFlowFieldGateNextsLines();
+	void RenderDrawRect(const SDL_Rect& rect, const SDL_Color& color);
+	void RenderFillRect(const SDL_Rect& rect, const SDL_Color& color);
+	void RenderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color);
+	void RenderDrawLineBetweenCells(int x1, int y1, int x2, int y2, const SDL_Color& color);
+	void RenderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst);
+	void RenderFillCell(int x, int y, const SDL_Color& color);
+	void RenderFillAgent(int x, int y);
+	void RenderFillAgent(int x, int y, const SDL_Color& color);
+	void SetMessageHint(std::string_view message, const ImVec4& color);
 
 	// ~~~~~~ render the panel ~~~~~~~
-	void renderImguiPanel();
-	void renderImguiPanelSectionCommon();
-	void renderImguiPanelSectionPathFinding();
-	void renderImguiPanelSectionPathFindingAStar();
-	void renderImguiPanelSectionPathFindingFlowField();
-	void renderImguiPanelSectionAgent();
+	void RenderImguiPanel();
+	void RenderImguiPanelSectionCommon();
+	void RenderImguiPanelSectionPathFinding();
+	void RenderImguiPanelSectionPathFindingAStar();
+	void RenderImguiPanelSectionPathFindingFlowField();
+	void RenderImguiPanelSectionAgent();
 
 	// ~~~~ camera ~~~~~
-	bool cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
+	bool CropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
 		bool marginToCameraCoordinates = true);
 
 	// ~~~~ astar ~~~~~~~
-	void computeAstarNodePath();
-	void computeAstarGatePath();
-	void computeAstarFinalPath();
-	void handleAstarInputBegin();
-	void handleFlowFieldInputQueryRangeBegin();
-	void computeAStarNaive();
-	void computeFlowFieldNaive();
+	void ComputeAstarNodePath();
+	void ComputeAstarGatePath();
+	void ComputeAstarFinalPath();
+	void HandleAstarInputBegin();
+	void HandleFlowFieldInputQueryRangeBegin();
+	void ComputeAStarNaive();
+	void ComputeFlowFieldNaive();
 
 	// ~~~~~ flowfield ~~~~~~
-	void computeNodeFlowField();
-	void computeGateFlowField();
-	void computeFinalFlowField();
-	void handlePlayFlowFieldTestPath();
+	void ComputeNodeFlowField();
+	void ComputeGateFlowField();
+	void ComputeFinalFlowField();
+	void HandlePlayFlowFieldTestPath();
 
 	// ~~~~ interaction ~~~~~~~
-	void handleInputs();
-	void handleInputsShortcuts(SDL_Event& e);
-	void handleInputsForCrameMovementsByKeyBoard(SDL_Event& e);
-	void handleInputsForCrameMovementsByMouse(SDL_Event& e);
-	void handleInputsDispatchByState(SDL_Event& e);
-	void handleInputsChangeTerrains(SDL_Event& e);
-	void handleInputsAStarSetStart(SDL_Event& e);
-	void handleInputsAStarSetTarget(SDL_Event& e);
-	void handleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e);
-	void handleInputsFlowFieldSetQrangeRightBottom(SDL_Event& e);
-	void handleInputsFlowFieldSetTarget(SDL_Event& e);
-	void handleInputsFlowFieldSetTestStart(SDL_Event& e);
+	void HandleInputs();
+	void HandleInputsShortcuts(SDL_Event& e);
+	void HandleInputsForCrameMovementsByKeyBoard(SDL_Event& e);
+	void HandleInputsForCrameMovementsByMouse(SDL_Event& e);
+	void HandleInputsDispatchByState(SDL_Event& e);
+	void HandleInputsChangeTerrains(SDL_Event& e);
+	void HandleInputsAStarSetStart(SDL_Event& e);
+	void HandleInputsAStarSetTarget(SDL_Event& e);
+	void HandleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e);
+	void HandleInputsFlowFieldSetQrangeRightBottom(SDL_Event& e);
+	void HandleInputsFlowFieldSetTarget(SDL_Event& e);
+	void HandleInputsFlowFieldSetTestStart(SDL_Event& e);
 
 	// ~~~~~~~~ handlers ~~~~~~~~~~~
-	void handleLogics();
-	void handleStartDrawBuildings();
-	void handleStartDrawWater();
-	void pushTerrainChanges(const Cell&);
-	void applyTerrainChanges();
-	void handleSwitchPathFinderHandler(PathFinderFlag to);
-	void handleChangeAgentSize(int to);
-	void handleChangeAgentCompability(int to);
-	void handleClearAllTerrains();
+	void HandleLogics();
+	void HandleStartDrawBuildings();
+	void HandleStartDrawWater();
+	void PushTerrainChanges(const Cell&);
+	void ApplyTerrainChanges();
+	void HandleSwitchPathFinderHandler(PathFinderFlag to);
+	void HandleChangeAgentSize(int to);
+	void HandleChangeAgentCompability(int to);
+	void HandleClearAllTerrains();
 
 	// ~~~~~~ util ~~~~~~~
-	std::pair<int, int>				   getCellAtPixelPosition(int x, int y) const;
-	const QDPF::Internal::QuadtreeMap* getCurrentQuadtreeMapByAgent() const;
+	std::pair<int, int>				   GetCellAtPixelPosition(int x, int y) const;
+	const QDPF::Internal::QuadtreeMap* GetCurrentQuadtreeMapByAgent() const;
 };
 
 #endif

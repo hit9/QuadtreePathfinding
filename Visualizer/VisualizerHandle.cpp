@@ -60,7 +60,7 @@ void Visualizer::Start()
 	while (!stop)
 	{
 		// quit on -1
-		handleInputs();
+		HandleInputs();
 		if (stop)
 			break;
 
@@ -68,7 +68,7 @@ void Visualizer::Start()
 		if (camera != nullptr)
 			camera->Update();
 
-		handleLogics();
+		HandleLogics();
 
 		// starting a new imgui frame
 		ImGui_ImplSDLRenderer2_NewFrame();
@@ -76,7 +76,7 @@ void Visualizer::Start()
 		ImGui::NewFrame();
 
 		// render imgui panel to imgui's buffer.
-		renderImguiPanel();
+		RenderImguiPanel();
 		ImGui::Render();
 
 		// clears SDL buffer (white background)
@@ -84,7 +84,7 @@ void Visualizer::Start()
 		SDL_RenderClear(renderer);
 
 		// render the world
-		renderWorld();
+		RenderWorld();
 
 		// pass the imgui's render buffer to SDL's renderer.
 		SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
@@ -97,7 +97,7 @@ void Visualizer::Start()
 }
 
 // reset path finder compution results.
-void Visualizer::reset()
+void Visualizer::Reset()
 {
 	state = State::Idle;
 	astar.Reset();
@@ -107,32 +107,32 @@ void Visualizer::reset()
 	changeTo = Terrain::Building;
 	changingTerrainCells.clear();
 	showClearAllTerrainsConfirm = false;
-	setMessageHint("Reset done!", ImGreen);
+	SetMessageHint("Reset done!", ImGreen);
 }
 
-void Visualizer::setMessageHint(std::string_view message, const ImVec4& color)
+void Visualizer::SetMessageHint(std::string_view message, const ImVec4& color)
 {
 	messageHint = message;
 	messageHintColor = color;
 }
 
-void Visualizer::handleStartDrawBuildings()
+void Visualizer::HandleStartDrawBuildings()
 {
-	reset();
+	Reset();
 	state = State::DrawingBuildings;
 	changeTo = Terrain::Building;
-	setMessageHint("click or drag mouse to draw buildings!", ImGreen);
+	SetMessageHint("click or drag mouse to draw buildings!", ImGreen);
 }
 
-void Visualizer::handleStartDrawWater()
+void Visualizer::HandleStartDrawWater()
 {
-	reset();
+	Reset();
 	state = State::DrawingWaters;
 	changeTo = Terrain::Water;
-	setMessageHint("click or drag mouse to draw water!", ImGreen);
+	SetMessageHint("click or drag mouse to draw water!", ImGreen);
 }
 
-void Visualizer::pushTerrainChanges(const Cell& cell)
+void Visualizer::PushTerrainChanges(const Cell& cell)
 {
 	auto [x, y] = cell;
 	// invert between land and changeTo.
@@ -144,7 +144,7 @@ void Visualizer::pushTerrainChanges(const Cell& cell)
 	}
 }
 
-void Visualizer::applyTerrainChanges()
+void Visualizer::ApplyTerrainChanges()
 {
 	if (changingTerrainCells.empty())
 		return;
@@ -152,88 +152,88 @@ void Visualizer::applyTerrainChanges()
 	changingTerrainCells.clear();
 }
 
-void Visualizer::handleSwitchPathFinderHandler(PathFinderFlag to)
+void Visualizer::HandleSwitchPathFinderHandler(PathFinderFlag to)
 {
 	if (to == pathfinderFlag)
 		return;
-	reset();
+	Reset();
 	pathfinderFlag = to;
-	setMessageHint("Old states reset done and pathfinder switched.", ImGreen);
+	SetMessageHint("Old states reset done and pathfinder switched.", ImGreen);
 }
 
-void Visualizer::handleChangeAgentSize(int to)
+void Visualizer::HandleChangeAgentSize(int to)
 {
 	if (agent.size == to)
 		return;
-	reset();
+	Reset();
 	auto oldAgentSize = agent.size;
 	agent.size = to;
-	if (getCurrentQuadtreeMapByAgent() == nullptr)
+	if (GetCurrentQuadtreeMapByAgent() == nullptr)
 	{
-		setMessageHint("Failed to change agent size, stay unchanged!", ImRed);
+		SetMessageHint("Failed to change agent size, stay unchanged!", ImRed);
 		agent.size = oldAgentSize;
 	}
 	else
-		setMessageHint("Agent size changed (current quadtree map switched)!", ImGreen);
+		SetMessageHint("Agent size changed (current quadtree map switched)!", ImGreen);
 }
 
-void Visualizer::handleChangeAgentCompability(int to)
+void Visualizer::HandleChangeAgentCompability(int to)
 {
 	if (agent.capability == to)
 		return;
-	reset();
+	Reset();
 	auto oldCapability = agent.capability;
 	agent.capability = to;
-	if (getCurrentQuadtreeMapByAgent() == nullptr)
+	if (GetCurrentQuadtreeMapByAgent() == nullptr)
 	{
-		setMessageHint("Failed to change agent capability, stay unchanged!", ImRed);
+		SetMessageHint("Failed to change agent capability, stay unchanged!", ImRed);
 		agent.size = oldCapability;
 	}
 	else
-		setMessageHint("Agent capability changed (current quadtree map switched)!", ImGreen);
+		SetMessageHint("Agent capability changed (current quadtree map switched)!", ImGreen);
 }
 
-void Visualizer::handleClearAllTerrains()
+void Visualizer::HandleClearAllTerrains()
 {
-	reset();
+	Reset();
 	map.ClearAllTerrains();
-	setMessageHint("Map is cleared.", ImGreen);
+	SetMessageHint("Map is cleared.", ImGreen);
 }
 
 // Returns the pointer the internal quadtree map of which current agent is using.
-const QDPF::Internal::QuadtreeMap* Visualizer::getCurrentQuadtreeMapByAgent() const
+const QDPF::Internal::QuadtreeMap* Visualizer::GetCurrentQuadtreeMapByAgent() const
 {
 	return map.qmx->Get(agent.size, agent.capability);
 }
 
 // returns cell at the position for (x,y) in the camera.
-Cell Visualizer::getCellAtPixelPosition(int x, int y) const
+Cell Visualizer::GetCellAtPixelPosition(int x, int y) const
 {
 	return { (x + camera->x) / map.gridSize, (y + camera->y) / map.gridSize };
 }
 
-void Visualizer::handleAstarInputBegin()
+void Visualizer::HandleAstarInputBegin()
 {
 	if (pathfinderFlag != PathFinderFlag::AStar)
 	{
 		pathfinderFlag = PathFinderFlag::AStar;
 	}
 	if (state != State::Idle)
-		reset();
+		Reset();
 	state = State::AStarWaitStart;
-	setMessageHint("A*: waiting to click a start cell", ImGreen);
+	SetMessageHint("A*: waiting to click a start cell", ImGreen);
 }
 
-void Visualizer::computeAstarNodePath()
+void Visualizer::ComputeAstarNodePath()
 {
 	if (state != State::AStarWaitCompution)
 	{
-		setMessageHint("invalid state", ImRed);
+		SetMessageHint("invalid state", ImRed);
 		return;
 	}
 	if (0 != astar.ResetPf(agent.size, agent.capability))
 	{
-		setMessageHint("internal error: astar reset failure", ImRed);
+		SetMessageHint("internal error: astar reset failure", ImRed);
 		return;
 	}
 
@@ -249,29 +249,29 @@ void Visualizer::computeAstarNodePath()
 	state = State::AStarNodePathComputed;
 	if (cost == -1)
 	{
-		setMessageHint("A*: unreachable!", ImRed);
+		SetMessageHint("A*: unreachable!", ImRed);
 		return;
 	}
 
 	auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
 	astar.timeCost += timeCost;
 
-	setMessageHint(fmt::format("A*: Node path computed! cost {}us (cumulative {}us); Next we can "
+	SetMessageHint(fmt::format("A*: Node path computed! cost {}us (cumulative {}us); Next we can "
 							   "click button < Compute Gate Path >.",
 					   timeCost.count(), astar.timeCost.count()),
 		ImGreen);
 }
 
-void Visualizer::computeAstarGatePath()
+void Visualizer::ComputeAstarGatePath()
 {
 	if (state != State::AStarWaitCompution && state != State::AStarNodePathComputed)
 	{
-		setMessageHint("invalid state", ImRed);
+		SetMessageHint("invalid state", ImRed);
 		return;
 	}
 	if (0 != astar.ResetPf(agent.size, agent.capability))
 	{
-		setMessageHint("internal error: astar reset failure", ImRed);
+		SetMessageHint("internal error: astar reset failure", ImRed);
 		return;
 	}
 
@@ -287,29 +287,29 @@ void Visualizer::computeAstarGatePath()
 	state = State::AStarGatePathComputed;
 	if (cost == -1)
 	{
-		setMessageHint("A*: unreachable!", ImRed);
+		SetMessageHint("A*: unreachable!", ImRed);
 		return;
 	}
 	auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
 	astar.timeCost += timeCost;
 
-	setMessageHint(fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us (cumulative "
+	SetMessageHint(fmt::format("A*: Gate path computed! useNodePath: {}  cost {}us (cumulative "
 							   "{}us); Next we can click button "
 							   "< Compute Final Path >.",
 					   astar.nodePath.size() > 0, timeCost.count(), astar.timeCost.count()),
 		ImGreen);
 }
 
-void Visualizer::computeAstarFinalPath()
+void Visualizer::ComputeAstarFinalPath()
 {
 	if (state != State::AStarGatePathComputed)
 	{
-		setMessageHint("invalid state", ImRed);
+		SetMessageHint("invalid state", ImRed);
 		return;
 	}
 	if (astar.gatePath.empty())
 	{
-		setMessageHint("A*: empty gate route cells!", ImRed);
+		SetMessageHint("A*: empty gate route cells!", ImRed);
 		return;
 	}
 	if (astar.finalPath.size())
@@ -342,23 +342,23 @@ void Visualizer::computeAstarFinalPath()
 	auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
 	astar.timeCost += timeCost;
 
-	setMessageHint(fmt::format("A*: final path computed! cost {}us (cumulative {}us); Click button "
+	SetMessageHint(fmt::format("A*: final path computed! cost {}us (cumulative {}us); Click button "
 							   "< Reset > to clear these results.",
 					   timeCost.count(), astar.timeCost.count()),
 		ImGreen);
 }
 
-void Visualizer::computeAStarNaive()
+void Visualizer::ComputeAStarNaive()
 {
 	if (state != State::AStarFinalPathComputed)
 	{
-		setMessageHint("invalid state; please compute astar on quadtree maps first.", ImRed);
+		SetMessageHint("invalid state; please compute astar on quadtree maps first.", ImRed);
 		return;
 	}
 
 	if (agent.size != COST_UNIT || agent.capability != Terrain::Land)
 	{
-		setMessageHint("NaiveAstar works only for agent {1x1,Land}", ImRed);
+		SetMessageHint("NaiveAstar works only for agent {1x1,Land}", ImRed);
 		return;
 	}
 
@@ -373,7 +373,7 @@ void Visualizer::computeAStarNaive()
 	endAt = std::chrono::high_resolution_clock::now();
 	if (-1 == ret)
 	{
-		setMessageHint("Naive A*: failed!", ImRed);
+		SetMessageHint("Naive A*: failed!", ImRed);
 		return;
 	}
 
@@ -382,21 +382,21 @@ void Visualizer::computeAStarNaive()
 	astarNaive.timeCost = std::chrono::microseconds(0);
 	astarNaive.timeCost += timeCost;
 
-	setMessageHint(fmt::format("NaiveAstar: path computed ,cost {}us", timeCost.count()), ImGreen);
+	SetMessageHint(fmt::format("NaiveAstar: path computed ,cost {}us", timeCost.count()), ImGreen);
 }
 
-void Visualizer::computeFlowFieldNaive()
+void Visualizer::ComputeFlowFieldNaive()
 {
 	if (state != State::FlowFieldFinalLevelComputed)
 	{
-		setMessageHint("invalid state; please compute final flow field on quadtree maps first.",
+		SetMessageHint("invalid state; please compute final flow field on quadtree maps first.",
 			ImRed);
 		return;
 	}
 
 	if (agent.size != COST_UNIT || agent.capability != Terrain::Land)
 	{
-		setMessageHint("NaiveFlowField works only for agent {1x1,Land}", ImRed);
+		SetMessageHint("NaiveFlowField works only for agent {1x1,Land}", ImRed);
 		return;
 	}
 
@@ -411,7 +411,7 @@ void Visualizer::computeFlowFieldNaive()
 		flowfieldNaive.finalFlowField);
 	if (-1 == ret)
 	{
-		setMessageHint("Naive FlowField: failed!", ImRed);
+		SetMessageHint("Naive FlowField: failed!", ImRed);
 		return;
 	}
 
@@ -421,32 +421,32 @@ void Visualizer::computeFlowFieldNaive()
 	flowfieldNaive.timeCost = std::chrono::microseconds(0);
 	flowfieldNaive.timeCost += timeCost;
 
-	setMessageHint(fmt::format("NaiveFlowField: path computed ,cost {}us", timeCost.count()),
+	SetMessageHint(fmt::format("NaiveFlowField: path computed ,cost {}us", timeCost.count()),
 		ImGreen);
 }
 
-void Visualizer::handleFlowFieldInputQueryRangeBegin()
+void Visualizer::HandleFlowFieldInputQueryRangeBegin()
 {
 	if (pathfinderFlag != PathFinderFlag::FlowField)
 	{
 		pathfinderFlag = PathFinderFlag::FlowField;
 	}
 	if (state != State::Idle)
-		reset();
+		Reset();
 	state = State::FlowFieldWaitQrangeLeftTop;
-	setMessageHint("FlowField: waiting to click a left-top cell", ImGreen);
+	SetMessageHint("FlowField: waiting to click a left-top cell", ImGreen);
 }
 
-void Visualizer::computeNodeFlowField()
+void Visualizer::ComputeNodeFlowField()
 {
 	if (state != State::FlowFieldWaitCompution)
 	{
-		setMessageHint("invalid state", ImRed);
+		SetMessageHint("invalid state", ImRed);
 		return;
 	}
 	if (0 != flowfield.ResetPf(agent.size, agent.capability))
 	{
-		setMessageHint("internal error: flowfield reset failure", ImRed);
+		SetMessageHint("internal error: flowfield reset failure", ImRed);
 		return;
 	}
 
@@ -462,31 +462,31 @@ void Visualizer::computeNodeFlowField()
 	state = State::FlowFieldNodeLevelComputed;
 	if (ret == -1)
 	{
-		setMessageHint("FlowField: unreachable!", ImRed);
+		SetMessageHint("FlowField: unreachable!", ImRed);
 		return;
 	}
 
 	auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
 	flowfield.timeCost += timeCost;
 
-	setMessageHint(fmt::format("FlowField: Node flowfield computed! cost {}us (cumulative {}us); "
+	SetMessageHint(fmt::format("FlowField: Node flowfield computed! cost {}us (cumulative {}us); "
 							   "Next we can click button < "
 							   "Compute Gate Flow Field  >.",
 					   timeCost.count(), flowfield.timeCost.count()),
 		ImGreen);
 }
 
-void Visualizer::computeGateFlowField()
+void Visualizer::ComputeGateFlowField()
 {
 	if (state != State::FlowFieldWaitCompution && state != State::FlowFieldNodeLevelComputed)
 	{
-		setMessageHint("invalid state", ImRed);
+		SetMessageHint("invalid state", ImRed);
 		return;
 	}
 
 	if (0 != flowfield.ResetPf(agent.size, agent.capability))
 	{
-		setMessageHint("internal error: flowfield reset failure", ImRed);
+		SetMessageHint("internal error: flowfield reset failure", ImRed);
 		return;
 	}
 
@@ -503,14 +503,14 @@ void Visualizer::computeGateFlowField()
 
 	if (-1 == ret)
 	{
-		setMessageHint("FlowField: unreachable!", ImRed);
+		SetMessageHint("FlowField: unreachable!", ImRed);
 		return;
 	}
 
 	auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
 	flowfield.timeCost += timeCost;
 
-	setMessageHint(
+	SetMessageHint(
 		fmt::format("Flowfield:: Gate flow field computed! useNodeFlowField: {}  cost {}us "
 					"(cumulative {}us); Next "
 					"we can click button "
@@ -520,11 +520,11 @@ void Visualizer::computeGateFlowField()
 		ImGreen);
 }
 
-void Visualizer::computeFinalFlowField()
+void Visualizer::ComputeFinalFlowField()
 {
 	if (state != State::FlowFieldGateLevelComputed)
 	{
-		setMessageHint("invalid state", ImRed);
+		SetMessageHint("invalid state", ImRed);
 		return;
 	}
 
@@ -540,32 +540,32 @@ void Visualizer::computeFinalFlowField()
 
 	if (-1 == ret)
 	{
-		setMessageHint("FlowField: unreachable!", ImRed);
+		SetMessageHint("FlowField: unreachable!", ImRed);
 		return;
 	}
 
 	auto timeCost = std::chrono::duration_cast<std::chrono::microseconds>(endAt - startAt);
 	flowfield.timeCost += timeCost;
 
-	setMessageHint(
+	SetMessageHint(
 		fmt::format("Flowfield:: Final flow field computed!  cost {}us  (cumulative {}us)",
 			timeCost.count(), flowfield.timeCost.count()),
 		ImGreen);
 }
 
-void Visualizer::handleLogics()
+void Visualizer::HandleLogics()
 {
 	switch (state)
 	{
 		case State::FlowFieldFinalLevelComputed:
-			handlePlayFlowFieldTestPath();
+			HandlePlayFlowFieldTestPath();
 			break;
 		default:
 			break;
 	}
 }
 
-void Visualizer::handlePlayFlowFieldTestPath()
+void Visualizer::HandlePlayFlowFieldTestPath()
 {
 	// (x2,y2) is the target
 	int x2 = flowfield.x2, y2 = flowfield.y2;

@@ -4,7 +4,7 @@
 
 #include "Visualizer.h"
 
-void Visualizer::handleInputs()
+void Visualizer::HandleInputs()
 {
 	SDL_Event e;
 	auto&	  io = ImGui::GetIO();
@@ -24,20 +24,20 @@ void Visualizer::handleInputs()
 			isMouseDown = false;
 
 		// shortcuts (in front of imgui)
-		handleInputsShortcuts(e);
-		handleInputsForCrameMovementsByKeyBoard(e);
+		HandleInputsShortcuts(e);
+		HandleInputsForCrameMovementsByKeyBoard(e);
 
-		// ImGui didn't handle this event, turn it to SDL.
+		// ImGui didn't Handle this event, turn it to SDL.
 		if (!io.WantCaptureMouse && !io.WantCaptureKeyboard)
 		{
-			handleInputsForCrameMovementsByMouse(e);
-			handleInputsDispatchByState(e);
+			HandleInputsForCrameMovementsByMouse(e);
+			HandleInputsDispatchByState(e);
 		}
 	}
 }
 
 // returns -1 for stop the whole window.
-void Visualizer::handleInputsShortcuts(SDL_Event& e)
+void Visualizer::HandleInputsShortcuts(SDL_Event& e)
 {
 	// shortcuts
 	if (e.type == SDL_KEYDOWN)
@@ -51,19 +51,19 @@ void Visualizer::handleInputsShortcuts(SDL_Event& e)
 				break;
 				// ESC
 			case SDLK_ESCAPE:
-				reset();
+				Reset();
 				break;
 			case SDLK_b:
-				handleStartDrawBuildings();
+				HandleStartDrawBuildings();
 				break;
 			case SDLK_w:
-				handleStartDrawWater();
+				HandleStartDrawWater();
 				break;
 		}
 	}
 }
 
-void Visualizer::handleInputsForCrameMovementsByMouse(SDL_Event& e)
+void Visualizer::HandleInputsForCrameMovementsByMouse(SDL_Event& e)
 {
 	switch (e.type)
 	{
@@ -80,7 +80,7 @@ void Visualizer::handleInputsForCrameMovementsByMouse(SDL_Event& e)
 	}
 }
 
-void Visualizer::handleInputsForCrameMovementsByKeyBoard(SDL_Event& e)
+void Visualizer::HandleInputsForCrameMovementsByKeyBoard(SDL_Event& e)
 {
 	switch (e.type)
 	{
@@ -105,130 +105,130 @@ void Visualizer::handleInputsForCrameMovementsByKeyBoard(SDL_Event& e)
 	}
 }
 
-void Visualizer::handleInputsDispatchByState(SDL_Event& e)
+void Visualizer::HandleInputsDispatchByState(SDL_Event& e)
 {
 	switch (state)
 	{
 		case State::DrawingBuildings:
 			[[fallthrough]];
 		case State::DrawingWaters:
-			handleInputsChangeTerrains(e);
+			HandleInputsChangeTerrains(e);
 			break;
 		case State::AStarWaitStart:
-			handleInputsAStarSetStart(e);
+			HandleInputsAStarSetStart(e);
 			break;
 		case State::AStarWaitTarget:
-			handleInputsAStarSetTarget(e);
+			HandleInputsAStarSetTarget(e);
 			break;
 		case State::FlowFieldWaitQrangeLeftTop:
-			handleInputsFlowFieldSetQrangeLeftTop(e);
+			HandleInputsFlowFieldSetQrangeLeftTop(e);
 			break;
 		case State::FlowFieldWaitQrangeRightBottom:
-			handleInputsFlowFieldSetQrangeRightBottom(e);
+			HandleInputsFlowFieldSetQrangeRightBottom(e);
 			break;
 		case State::FlowFieldWaitTarget:
-			handleInputsFlowFieldSetTarget(e);
+			HandleInputsFlowFieldSetTarget(e);
 			break;
 		case State::FlowFieldFinalLevelComputed:
 			// reset test path's star:
-			handleInputsFlowFieldSetTestStart(e);
+			HandleInputsFlowFieldSetTestStart(e);
 			break;
 		default:
 			break; // avoid warning.
 	}
 }
 
-void Visualizer::handleInputsChangeTerrains(SDL_Event& e)
+void Visualizer::HandleInputsChangeTerrains(SDL_Event& e)
 {
 	switch (e.type)
 	{
 		case SDL_MOUSEBUTTONUP:
-			applyTerrainChanges();
+			ApplyTerrainChanges();
 			break;
 		case SDL_MOUSEMOTION:
 			if (isMouseDown)
-				pushTerrainChanges(getCellAtPixelPosition(e.button.x, e.button.y));
+				PushTerrainChanges(GetCellAtPixelPosition(e.button.x, e.button.y));
 			break;
 		case SDL_MOUSEBUTTONDOWN:
-			pushTerrainChanges(getCellAtPixelPosition(e.button.x, e.button.y));
+			PushTerrainChanges(GetCellAtPixelPosition(e.button.x, e.button.y));
 			break;
 	}
 }
 
-void Visualizer::handleInputsAStarSetStart(SDL_Event& e)
+void Visualizer::HandleInputsAStarSetStart(SDL_Event& e)
 {
 	if (e.type == SDL_MOUSEBUTTONDOWN)
 	{
-		auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+		auto cell = GetCellAtPixelPosition(e.button.x, e.button.y);
 		astar.x1 = cell.first;
 		astar.y1 = cell.second;
 		state = State::AStarWaitTarget;
-		setMessageHint("A*: waiting to click a target cell", ImGreen);
+		SetMessageHint("A*: waiting to click a target cell", ImGreen);
 	}
 }
 
-void Visualizer::handleInputsAStarSetTarget(SDL_Event& e)
+void Visualizer::HandleInputsAStarSetTarget(SDL_Event& e)
 {
 	if (e.type == SDL_MOUSEBUTTONDOWN)
 	{
-		auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+		auto cell = GetCellAtPixelPosition(e.button.x, e.button.y);
 		astar.x2 = cell.first;
 		astar.y2 = cell.second;
 		state = State::AStarWaitCompution;
-		setMessageHint("A*: waiting to click a compution button", ImGreen);
+		SetMessageHint("A*: waiting to click a compution button", ImGreen);
 	}
 }
 
-void Visualizer::handleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e)
+void Visualizer::HandleInputsFlowFieldSetQrangeLeftTop(SDL_Event& e)
 {
 	if (e.type == SDL_MOUSEBUTTONDOWN)
 	{
-		auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+		auto cell = GetCellAtPixelPosition(e.button.x, e.button.y);
 		flowfield.Reset();
 		flowfieldNaive.Reset();
 		flowfield.qrange.x1 = cell.first;
 		flowfield.qrange.y1 = cell.second;
 		state = State::FlowFieldWaitQrangeRightBottom;
-		setMessageHint("FlowField: waiting to click a right-bottom cell", ImGreen);
+		SetMessageHint("FlowField: waiting to click a right-bottom cell", ImGreen);
 	}
 }
-void Visualizer::handleInputsFlowFieldSetQrangeRightBottom(SDL_Event& e)
+void Visualizer::HandleInputsFlowFieldSetQrangeRightBottom(SDL_Event& e)
 {
 	if (e.type == SDL_MOUSEBUTTONDOWN)
 	{
-		auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+		auto cell = GetCellAtPixelPosition(e.button.x, e.button.y);
 		flowfield.qrange.x2 = cell.first;
 		flowfield.qrange.y2 = cell.second;
 		state = State::FlowFieldWaitTarget;
-		setMessageHint("FlowField: waiting to click a target cell", ImGreen);
+		SetMessageHint("FlowField: waiting to click a target cell", ImGreen);
 	}
 }
 
-void Visualizer::handleInputsFlowFieldSetTarget(SDL_Event& e)
+void Visualizer::HandleInputsFlowFieldSetTarget(SDL_Event& e)
 {
 	if (e.type == SDL_MOUSEBUTTONDOWN)
 	{
-		auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+		auto cell = GetCellAtPixelPosition(e.button.x, e.button.y);
 		flowfield.x2 = cell.first;
 		flowfield.y2 = cell.second;
 		state = State::FlowFieldWaitCompution;
-		setMessageHint("FlowField: waiting to click a compution button", ImGreen);
+		SetMessageHint("FlowField: waiting to click a compution button", ImGreen);
 	}
 }
 
-void Visualizer::handleInputsFlowFieldSetTestStart(SDL_Event& e)
+void Visualizer::HandleInputsFlowFieldSetTestStart(SDL_Event& e)
 {
 	if (e.type == SDL_MOUSEBUTTONDOWN)
 	{
-		auto cell = getCellAtPixelPosition(e.button.x, e.button.y);
+		auto cell = GetCellAtPixelPosition(e.button.x, e.button.y);
 		if (!flowfield.finalFlowField.Exist(cell))
 		{
-			setMessageHint("FlowField: test path start invalid", ImRed);
+			SetMessageHint("FlowField: test path start invalid", ImRed);
 			return;
 		}
 		auto& testPaths = showNaiveFlowFieldResults ? flowfieldNaive.testPaths : flowfield.testPaths;
 		testPaths.resize(flowfield.testPaths.size() + 1);
 		testPaths.back().push_back(cell);
-		setMessageHint("FlowField: playing test path ...", ImGreen);
+		SetMessageHint("FlowField: playing test path ...", ImGreen);
 	}
 }

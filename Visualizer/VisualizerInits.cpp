@@ -19,17 +19,17 @@ Visualizer::~Visualizer()
 
 int Visualizer::Init()
 {
-	if (0 != initSDL())
+	if (0 != InitSDL())
 		return -1;
-	if (0 != initImgui())
+	if (0 != InitImgui())
 	{
-		destroySDL();
+		DestroySDL();
 		return -1;
 	}
-	if (0 != initArrowsFont())
+	if (0 != InitArrowsFont())
 	{
-		destroyImgui();
-		destroySDL();
+		DestroyImgui();
+		DestroySDL();
 		return -1;
 	}
 	spdlog::info("Visualizer Init done.");
@@ -44,7 +44,7 @@ int Visualizer::Init()
 	return 0;
 }
 
-int Visualizer::initSDL()
+int Visualizer::InitSDL()
 {
 	// Init SDL.
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
@@ -100,7 +100,7 @@ int Visualizer::initSDL()
 	return 0;
 }
 
-int Visualizer::initImgui()
+int Visualizer::InitImgui()
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -118,7 +118,7 @@ int Visualizer::initImgui()
 	return 0;
 }
 
-int Visualizer::initArrowsFont()
+int Visualizer::InitArrowsFont()
 {
 	// Open font arrows.
 	std::string arrowsFontPath = options.fontsPath + "/Arrows.ttf";
@@ -166,12 +166,12 @@ int Visualizer::initArrowsFont()
 
 void Visualizer::Destroy()
 {
-	destroyArrowsFont();
-	destroyImgui();
-	destroySDL();
+	DestroyArrowsFont();
+	DestroyImgui();
+	DestroySDL();
 }
 
-void Visualizer::destroyArrowsFont()
+void Visualizer::DestroyArrowsFont()
 {
 	if (arrows.font != nullptr)
 	{
@@ -185,7 +185,7 @@ void Visualizer::destroyArrowsFont()
 	}
 }
 
-void Visualizer::destroySDL()
+void Visualizer::DestroySDL()
 {
 	// deinit SDL.
 	if (renderer)
@@ -198,7 +198,7 @@ void Visualizer::destroySDL()
 	SDL_Quit();
 }
 
-void Visualizer::destroyImgui()
+void Visualizer::DestroyImgui()
 {
 	// deinit ImGui.
 	ImGui_ImplSDLRenderer2_Shutdown();

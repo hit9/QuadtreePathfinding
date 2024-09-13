@@ -3,18 +3,18 @@
 
 using QDPF::Internal::IsInsideRectangle;
 
-void Visualizer::renderWorld()
+void Visualizer::RenderWorld()
 {
-	renderHighlightedNodes();
-	renderGates();
-	renderGateGraph();
-	renderNodeGraph();
-	renderGrids();
-	renderQuadtreeNodes();
-	renderPathfindingDispatch();
+	RenderHighlightedNodes();
+	RenderGates();
+	RenderGateGraph();
+	RenderNodeGraph();
+	RenderGrids();
+	RenderQuadtreeNodes();
+	RenderPathfindingDispatch();
 }
 
-void Visualizer::renderGrids()
+void Visualizer::RenderGrids()
 {
 	// (i,j) is the cell's position.
 	// (x,y) is the grid in pixel (in SDL coordinates).
@@ -24,7 +24,7 @@ void Visualizer::renderGrids()
 		{
 			SDL_Rect grid = { x, y, map.gridSize, map.gridSize };
 			SDL_Rect gridInner = { grid.x + 1, grid.y + 1, grid.w - 2, grid.h - 2 };
-			renderDrawRect(grid, LightGray);
+			RenderDrawRect(grid, LightGray);
 			if (hideTerrainRenderings)
 				continue;
 			// Its terrain value or changing to value
@@ -34,10 +34,10 @@ void Visualizer::renderGrids()
 			switch (v)
 			{
 				case Terrain::Building:
-					renderFillRect(gridInner, Red);
+					RenderFillRect(gridInner, Red);
 					break;
 				case Terrain::Water:
-					renderFillRect(gridInner, Blue);
+					RenderFillRect(gridInner, Blue);
 					break;
 			}
 		}
@@ -45,11 +45,11 @@ void Visualizer::renderGrids()
 }
 
 // render quadtree nodes of current map.
-void Visualizer::renderQuadtreeNodes()
+void Visualizer::RenderQuadtreeNodes()
 {
 	if (hideNodeBorders)
 		return;
-	auto mp = getCurrentQuadtreeMapByAgent();
+	auto mp = GetCurrentQuadtreeMapByAgent();
 	if (mp != nullptr)
 	{
 		QDPF::Internal::QdNodeVisitor c1 = [this](const QDPF::Internal::QdNode* node) {
@@ -60,18 +60,18 @@ void Visualizer::renderQuadtreeNodes()
 			// Outer liner rectangle (border width 2)
 			SDL_Rect rect1 = { x, y, w, h };
 			SDL_Rect rect2 = { x + 1, y + 1, w - 2, h - 2 };
-			renderDrawRect(rect1, Black);
-			renderDrawRect(rect2, Black);
+			RenderDrawRect(rect1, Black);
+			RenderDrawRect(rect2, Black);
 		};
 		mp->Nodes(c1);
 	}
 }
 
-void Visualizer::renderGates()
+void Visualizer::RenderGates()
 {
 	if (hideGateCellHighlights)
 		return;
-	auto mp = getCurrentQuadtreeMapByAgent();
+	auto mp = GetCurrentQuadtreeMapByAgent();
 	if (mp != nullptr)
 	{
 		// Gates.
@@ -80,37 +80,37 @@ void Visualizer::renderGates()
 			int		 x3 = x1 * map.gridSize + 1;
 			int		 y3 = y1 * map.gridSize + 1;
 			SDL_Rect rect = { x3, y3, map.gridSize - 2, map.gridSize - 2 };
-			renderFillRect(rect, LightPurple);
+			RenderFillRect(rect, LightPurple);
 		};
 
 		mp->Gates(visitor);
 	}
 }
 
-void Visualizer::renderGateGraph()
+void Visualizer::RenderGateGraph()
 {
 	if (!showGateGraph)
 		return;
 
-	auto mp = getCurrentQuadtreeMapByAgent();
+	auto mp = GetCurrentQuadtreeMapByAgent();
 	if (mp != nullptr)
 	{
 		auto&							 graph = mp->GetGateGraph();
 		QDPF::Internal::EdgeVisitor<int> visitor = [this, mp](int u, int v, int cost) {
 			auto [x1, y1] = mp->UnpackXY(u);
 			auto [x2, y2] = mp->UnpackXY(v);
-			renderDrawLineBetweenCells(x1, y1, x2, y2, Blue);
+			RenderDrawLineBetweenCells(x1, y1, x2, y2, Blue);
 		};
 		graph.ForEachEdge(visitor);
 	}
 }
 
-void Visualizer::renderNodeGraph()
+void Visualizer::RenderNodeGraph()
 {
 	if (!showNodeGraph)
 		return;
 
-	auto mp = getCurrentQuadtreeMapByAgent();
+	auto mp = GetCurrentQuadtreeMapByAgent();
 	if (mp != nullptr)
 	{
 		auto&												 graph = mp->GetNodeGraph();
@@ -118,26 +118,26 @@ void Visualizer::renderNodeGraph()
 			[this, mp](QDPF::Internal::QdNode* u, QDPF::Internal::QdNode* v, int cost) {
 				auto x1 = (u->x1 + u->x2) / 2, y1 = (u->y1 + u->y2) / 2;
 				auto x2 = (v->x1 + v->x2) / 2, y2 = (v->y1 + v->y2) / 2;
-				renderDrawLineBetweenCells(x1, y1, x2, y2, Red);
+				RenderDrawLineBetweenCells(x1, y1, x2, y2, Red);
 			};
 		graph.ForEachEdge(visitor);
 	}
 }
 
-void Visualizer::renderPathfindingDispatch()
+void Visualizer::RenderPathfindingDispatch()
 {
 	switch (pathfinderFlag)
 	{
 		case PathFinderFlag::AStar:
-			renderPathfindingAStar();
+			RenderPathfindingAStar();
 			return;
 		case PathFinderFlag::FlowField:
-			renderPathfindingFlowField();
+			RenderPathfindingFlowField();
 			return;
 	}
 }
 
-void Visualizer::renderHighlightedNodes()
+void Visualizer::RenderHighlightedNodes()
 {
 	// render highlighted nodes with background at first.
 	switch (state)
@@ -147,22 +147,22 @@ void Visualizer::renderHighlightedNodes()
 		case State::AStarGatePathComputed:
 			[[fallthrough]];
 		case State::AStarFinalPathComputed:
-			renderHighlightedNodesAstar();
+			RenderHighlightedNodesAstar();
 			break;
 		case State::FlowFieldNodeLevelComputed:
-			renderHighlightedNodesFlowField();
+			RenderHighlightedNodesFlowField();
 			[[fallthrough]];
 		case State::FlowFieldGateLevelComputed:
 			[[fallthrough]];
 		case State::FlowFieldFinalLevelComputed:
-			renderHighlightedNodesFlowField();
+			RenderHighlightedNodesFlowField();
 			break;
 		default:
 			break; // avoiding warning
 	}
 }
 
-void Visualizer::renderHighlightedNodesAstar()
+void Visualizer::RenderHighlightedNodesAstar()
 {
 	for (auto [node, cost] : astar.nodePath)
 	{
@@ -173,11 +173,11 @@ void Visualizer::renderHighlightedNodesAstar()
 		int		 y = y1 * map.gridSize;
 		SDL_Rect rect = { x, y, w, h };
 		SDL_Rect inner = { x + 1, y + 1, w - 2, h - 2 };
-		renderFillRect(inner, LightOrange);
+		RenderFillRect(inner, LightOrange);
 	}
 }
 
-void Visualizer::renderHighlightedNodesFlowField()
+void Visualizer::RenderHighlightedNodesFlowField()
 {
 	for (auto& [node, p] : flowfield.nodeFlowField.GetUnderlyingMap())
 	{
@@ -190,24 +190,24 @@ void Visualizer::renderHighlightedNodesFlowField()
 		int		 y = y1 * map.gridSize;
 		SDL_Rect rect = { x, y, w, h };
 		SDL_Rect inner = { x + 1, y + 1, w - 2, h - 2 };
-		renderFillRect(inner, LightOrange);
+		RenderFillRect(inner, LightOrange);
 	}
 }
 
-void Visualizer::renderPathfindingAStar()
+void Visualizer::RenderPathfindingAStar()
 {
 	int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
 
 	switch (state)
 	{
 		case State::AStarWaitTarget:
-			renderFillCell(astar.x1, astar.y1, Green); // start
+			RenderFillCell(astar.x1, astar.y1, Green); // start
 			break;
 		case State::AStarWaitCompution:
 			[[fallthrough]];
 		case State::AStarNodePathComputed:
-			renderFillCell(astar.x1, astar.y1, Green); // start
-			renderFillCell(astar.x2, astar.y2, Green); // target
+			RenderFillCell(astar.x1, astar.y1, Green); // start
+			RenderFillCell(astar.x2, astar.y2, Green); // target
 			// NOTE: nodepath already render in renderHighlightedNodesAstar.
 			break;
 		case State::AStarGatePathComputed:
@@ -215,33 +215,33 @@ void Visualizer::renderPathfindingAStar()
 			// start and target are included in gate path.
 			for (const auto [x, y, _] : astar.gatePath)
 			{
-				renderFillCell(x, y, Green);
+				RenderFillCell(x, y, Green);
 			}
 			break;
 		case State::AStarFinalPathComputed: //
 			for (const auto [x, y] : astar.finalPath)
 			{
-				renderFillAgent(x, y);
+				RenderFillAgent(x, y);
 			}
 
-			renderPathfindingAStarNaive();
+			RenderPathfindingAStarNaive();
 			break;
 		default:
 			return; // do nothing
 	}
 }
 
-void Visualizer::renderPathfindingAStarNaive()
+void Visualizer::RenderPathfindingAStarNaive()
 {
 	if (astarNaive.path.empty())
 		return;
 	for (const auto [x, y] : astarNaive.path)
 	{
-		renderFillAgent(x, y, DarkGreen);
+		RenderFillAgent(x, y, DarkGreen);
 	}
 }
 
-void Visualizer::renderPathfindingFlowField()
+void Visualizer::RenderPathfindingFlowField()
 {
 	auto drawQrangeRectangle = [this]() {
 		// render the qrange rect
@@ -252,19 +252,19 @@ void Visualizer::renderPathfindingFlowField()
 			(flowfield.qrange.y2 - flowfield.qrange.y1 + 1) * map.gridSize,
 		};
 		SDL_Rect inner{ qrange.x + 1, qrange.y + 1, qrange.w - 2, qrange.h - 2 };
-		renderDrawRect(qrange, Green);
-		renderDrawRect(inner, Green);
+		RenderDrawRect(qrange, Green);
+		RenderDrawRect(inner, Green);
 	};
 
 	switch (state)
 	{
 		case State::FlowFieldWaitQrangeRightBottom:
-			renderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green); // qrange.left-top
+			RenderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green); // qrange.left-top
 			return;
 		case State::FlowFieldWaitTarget:
 			drawQrangeRectangle();
-			renderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green); // qrange.left-top
-			renderFillCell(flowfield.qrange.x2, flowfield.qrange.y2, Green); // qrange.right-bottom
+			RenderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green); // qrange.left-top
+			RenderFillCell(flowfield.qrange.x2, flowfield.qrange.y2, Green); // qrange.right-bottom
 			return;
 		case State::FlowFieldWaitCompution:
 			[[fallthrough]];
@@ -272,20 +272,20 @@ void Visualizer::renderPathfindingFlowField()
 			// NOTE the highlighting of the node field are already done in
 			// renderHighlightedNodesFlowField
 			drawQrangeRectangle();
-			renderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green); // qrange.left-top
-			renderFillCell(flowfield.qrange.x2, flowfield.qrange.y2, Green); // qrange.right-bottom
-			renderFillCell(flowfield.x2, flowfield.y2, Green);				 // target
+			RenderFillCell(flowfield.qrange.x1, flowfield.qrange.y1, Green); // qrange.left-top
+			RenderFillCell(flowfield.qrange.x2, flowfield.qrange.y2, Green); // qrange.right-bottom
+			RenderFillCell(flowfield.x2, flowfield.y2, Green);				 // target
 			return;
 		case State::FlowFieldGateLevelComputed:
 			drawQrangeRectangle();
-			renderPathFindingFlowFieldGateField();
-			renderPathFindingFlowFieldGateNextsLines();
+			RenderPathFindingFlowFieldGateField();
+			RenderPathFindingFlowFieldGateNextsLines();
 			return;
 		case State::FlowFieldFinalLevelComputed:
 			drawQrangeRectangle();
-			renderPathFindingFlowFieldGateNextsLines();
-			renderFillCell(flowfield.x2, flowfield.y2, Green); // target
-			renderPathFindingFlowFieldFinalField();
+			RenderPathFindingFlowFieldGateNextsLines();
+			RenderFillCell(flowfield.x2, flowfield.y2, Green); // target
+			RenderPathFindingFlowFieldFinalField();
 			return;
 		default:
 
@@ -293,7 +293,7 @@ void Visualizer::renderPathfindingFlowField()
 	}
 }
 
-void Visualizer::renderPathFindingFlowFieldGateField()
+void Visualizer::RenderPathFindingFlowFieldGateField()
 {
 	// draw gate cells on the flowfield.
 	for (auto& [gate, p] : flowfield.gateFlowField.GetUnderlyingMap())
@@ -301,11 +301,11 @@ void Visualizer::renderPathFindingFlowFieldGateField()
 		auto [next, cost] = p;
 		auto [x, y] = gate;
 		auto [xNext, yNext] = next;
-		renderFillCell(x, y, Green);
+		RenderFillCell(x, y, Green);
 	}
 }
 
-void Visualizer::renderPathFindingFlowFieldGateNextsLines()
+void Visualizer::RenderPathFindingFlowFieldGateNextsLines()
 {
 	if (showNaiveFlowFieldResults)
 		return;
@@ -316,11 +316,11 @@ void Visualizer::renderPathFindingFlowFieldGateNextsLines()
 		auto [next, cost] = p;
 		auto [x, y] = gate;
 		auto [xNext, yNext] = next;
-		renderDrawLineBetweenCells(x, y, xNext, yNext, Black);
+		RenderDrawLineBetweenCells(x, y, xNext, yNext, Black);
 	}
 }
 
-void Visualizer::renderPathFindingFlowFieldFinalField()
+void Visualizer::RenderPathFindingFlowFieldFinalField()
 {
 	const auto& testPaths =
 		showNaiveFlowFieldResults ? flowfieldNaive.testPaths : flowfield.testPaths;
@@ -331,7 +331,7 @@ void Visualizer::renderPathFindingFlowFieldFinalField()
 		{
 			for (auto [x, y] : testPath)
 			{
-				renderFillAgent(x, y);
+				RenderFillAgent(x, y);
 			}
 		}
 	}
@@ -359,7 +359,7 @@ void Visualizer::renderPathFindingFlowFieldFinalField()
 			SDL_Rect dst = { x * map.gridSize + std::max(0, map.gridSize / 2 - w / 2),
 				y * map.gridSize + std::max(0, map.gridSize / 2 - h / 2), w, h };
 			SDL_Rect src = { offset, 0, w, h };
-			renderCopy(arrows.texture, src, dst);
+			RenderCopy(arrows.texture, src, dst);
 		}
 	}
 }

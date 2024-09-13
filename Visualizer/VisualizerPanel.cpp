@@ -2,7 +2,7 @@
 
 #include "Visualizer.h"
 
-void Visualizer::renderImguiPanel()
+void Visualizer::RenderImguiPanel()
 {
 	// window's background
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.7f));
@@ -26,24 +26,24 @@ void Visualizer::renderImguiPanel()
 	ImGui::Spacing();
 
 	// Sections.
-	renderImguiPanelSectionCommon();
+	RenderImguiPanelSectionCommon();
 	ImGui::Spacing();
-	renderImguiPanelSectionAgent();
+	RenderImguiPanelSectionAgent();
 	ImGui::Spacing();
-	renderImguiPanelSectionPathFinding();
+	RenderImguiPanelSectionPathFinding();
 
 	ImGui::End();
 
 	ImGui::PopStyleColor();
 }
 
-void Visualizer::renderImguiPanelSectionCommon()
+void Visualizer::RenderImguiPanelSectionCommon()
 {
 	ImGui::SeparatorText("Common");
 
 	// Reset.
 	if (ImGui::Button("Reset < ESC >"))
-		reset();
+		Reset();
 	if (ImGui::IsItemHovered())
 	{
 		ImGui::BeginTooltip();
@@ -56,7 +56,7 @@ void Visualizer::renderImguiPanelSectionCommon()
 	ImGui::PushStyleColor(ImGuiCol_Button, ImRed);
 	if (ImGui::Button("Building < B > "))
 	{
-		handleStartDrawBuildings();
+		HandleStartDrawBuildings();
 	}
 	ImGui::PopStyleColor(3); // rollback color
 	if (ImGui::IsItemHovered())
@@ -72,7 +72,7 @@ void Visualizer::renderImguiPanelSectionCommon()
 	ImGui::PushStyleColor(ImGuiCol_Button, ImBlue);
 	if (ImGui::Button("Water < W >"))
 	{
-		handleStartDrawWater();
+		HandleStartDrawWater();
 	}
 	ImGui::PopStyleColor(3); // rollback color
 	if (ImGui::IsItemHovered())
@@ -105,7 +105,7 @@ void Visualizer::renderImguiPanelSectionCommon()
 			ImGui::Separator();
 			if (ImGui::Button("Yes"))
 			{
-				handleClearAllTerrains();
+				HandleClearAllTerrains();
 				showClearAllTerrainsConfirm = false;
 				ImGui::CloseCurrentPopup();
 			}
@@ -207,74 +207,74 @@ void Visualizer::renderImguiPanelSectionCommon()
 	}
 }
 
-void Visualizer::renderImguiPanelSectionAgent()
+void Visualizer::RenderImguiPanelSectionAgent()
 {
 	ImGui::SeparatorText("Agent");
 
 	ImGui::Text("Size: ");
 	ImGui::SameLine();
 	if (ImGui::RadioButton("1x1", agent.size == 1 * COST_UNIT))
-		handleChangeAgentSize(COST_UNIT);
+		HandleChangeAgentSize(COST_UNIT);
 	ImGui::SameLine();
 	if (ImGui::RadioButton("2x2", agent.size == 2 * COST_UNIT))
-		handleChangeAgentSize(2 * COST_UNIT);
+		HandleChangeAgentSize(2 * COST_UNIT);
 	ImGui::SameLine();
 	if (ImGui::RadioButton("3x3", agent.size == 3 * COST_UNIT))
-		handleChangeAgentSize(3 * COST_UNIT);
+		HandleChangeAgentSize(3 * COST_UNIT);
 
 	ImGui::Text("Capability: ");
 	ImGui::SameLine();
 	if (ImGui::RadioButton("Land", agent.capability == Terrain::Land))
-		handleChangeAgentCompability(Terrain::Land);
+		HandleChangeAgentCompability(Terrain::Land);
 	ImGui::SameLine();
 	if (ImGui::RadioButton("Water", agent.capability == Terrain::Water))
-		handleChangeAgentCompability(Terrain::Water);
+		HandleChangeAgentCompability(Terrain::Water);
 	ImGui::SameLine();
 	if (ImGui::RadioButton("Land | Water", agent.capability == (Terrain::Land | Terrain::Water)))
-		handleChangeAgentCompability(Terrain::Land | Terrain::Water);
+		HandleChangeAgentCompability(Terrain::Land | Terrain::Water);
 }
 
-void Visualizer::renderImguiPanelSectionPathFinding()
+void Visualizer::RenderImguiPanelSectionPathFinding()
 {
 	ImGui::SeparatorText("Pathfinding");
 
 	if (ImGui::RadioButton("A*", pathfinderFlag == PathFinderFlag::AStar))
-		handleSwitchPathFinderHandler(PathFinderFlag::AStar);
+		HandleSwitchPathFinderHandler(PathFinderFlag::AStar);
 	ImGui::SameLine();
 	if (ImGui::RadioButton("FlowField", pathfinderFlag == PathFinderFlag::FlowField))
-		handleSwitchPathFinderHandler(PathFinderFlag::FlowField);
+		HandleSwitchPathFinderHandler(PathFinderFlag::FlowField);
 
 	switch (pathfinderFlag)
 	{
 		case PathFinderFlag::AStar:
-			return renderImguiPanelSectionPathFindingAStar();
+			return RenderImguiPanelSectionPathFindingAStar();
 		case PathFinderFlag::FlowField:
-			return renderImguiPanelSectionPathFindingFlowField();
+			return RenderImguiPanelSectionPathFindingFlowField();
 	}
 }
 
-void Visualizer::renderImguiPanelSectionPathFindingAStar()
+void Visualizer::RenderImguiPanelSectionPathFindingAStar()
 {
 	ImGui::Text("Compution:");
 
 	if (ImGui::Button("Set Start and Target"))
 	{
-		handleAstarInputBegin();
+		HandleAstarInputBegin();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Compute Node Path"))
 	{
-		computeAstarNodePath();
+		ComputeAstarNodePath();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Compute Gate Path"))
 	{
-		computeAstarGatePath();
+		ComputeAstarGatePath();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Compute Final Path"))
 	{
-		computeAstarFinalPath();
+		ComputeAstarFinalPath();
 	}
 
 	if (state == State::AStarFinalPathComputed)
@@ -282,7 +282,7 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar()
 		ImGui::Text("Compare:");
 		if (ImGui::Button("Compare with Naive A*"))
 		{
-			computeAStarNaive();
+			ComputeAStarNaive();
 		}
 		if (astarNaive.path.size() && astar.finalPath.size())
 		{
@@ -292,13 +292,13 @@ void Visualizer::renderImguiPanelSectionPathFindingAStar()
 	}
 }
 
-void Visualizer::renderImguiPanelSectionPathFindingFlowField()
+void Visualizer::RenderImguiPanelSectionPathFindingFlowField()
 {
 	ImGui::Text("Compution:");
 
 	if (ImGui::Button("Set Start Rectangle and Target"))
 	{
-		handleFlowFieldInputQueryRangeBegin();
+		HandleFlowFieldInputQueryRangeBegin();
 	}
 
 	if (ImGui::IsItemHovered())
@@ -314,19 +314,19 @@ void Visualizer::renderImguiPanelSectionPathFindingFlowField()
 
 	if (ImGui::Button("Compute Node FlowField"))
 	{
-		computeNodeFlowField();
+		ComputeNodeFlowField();
 	}
 
 	ImGui::SameLine();
 
 	if (ImGui::Button("Compute Gate FlowField"))
 	{
-		computeGateFlowField();
+		ComputeGateFlowField();
 	}
 
 	if (ImGui::Button("Compute Final FlowField"))
 	{
-		computeFinalFlowField();
+		ComputeFinalFlowField();
 	}
 
 	ImGui::Text("Debug:");
@@ -359,7 +359,7 @@ void Visualizer::renderImguiPanelSectionPathFindingFlowField()
 		ImGui::Text("Compare:");
 		if (ImGui::Button("Compare with Naive FlowField"))
 		{
-			computeFlowFieldNaive();
+			ComputeFlowFieldNaive();
 		}
 		if (flowfieldNaive.finalFlowField.Size() && flowfield.finalFlowField.Size())
 		{

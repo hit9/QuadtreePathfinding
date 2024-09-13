@@ -11,27 +11,27 @@ private:
 
 // Visualizer utils
 
-void Visualizer::renderDrawRect(const SDL_Rect& rect, const SDL_Color& color)
+void Visualizer::RenderDrawRect(const SDL_Rect& rect, const SDL_Color& color)
 {
 	SDL_Rect overlap;
-	if (cropRectByCamera(rect, overlap))
+	if (CropRectByCamera(rect, overlap))
 	{
 		SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 		SDL_RenderDrawRect(renderer, &overlap);
 	}
 }
 
-void Visualizer::renderFillRect(const SDL_Rect& rect, const SDL_Color& color)
+void Visualizer::RenderFillRect(const SDL_Rect& rect, const SDL_Color& color)
 {
 	SDL_Rect overlap;
-	if (cropRectByCamera(rect, overlap))
+	if (CropRectByCamera(rect, overlap))
 	{
 		SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 		SDL_RenderFillRect(renderer, &overlap);
 	}
 }
 
-void Visualizer::renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color)
+void Visualizer::RenderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color& color)
 {
 	// TODO: how to crop? May we need the Cohen-Sutherland..
 	CohenSutherland clip;
@@ -45,7 +45,7 @@ void Visualizer::renderDrawLine(int x1, int y1, int x2, int y2, const SDL_Color&
 	SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 }
 
-void Visualizer::renderDrawLineBetweenCells(int x1, int y1, int x2, int y2,
+void Visualizer::RenderDrawLineBetweenCells(int x1, int y1, int x2, int y2,
 	const SDL_Color& color)
 {
 	auto px1 = x1 * map.gridSize;
@@ -56,13 +56,13 @@ void Visualizer::renderDrawLineBetweenCells(int x1, int y1, int x2, int y2,
 	auto centery1 = py1 + map.gridSize / 2;
 	auto centerx2 = px2 + map.gridSize / 2;
 	auto centery2 = py2 + map.gridSize / 2;
-	renderDrawLine(centerx1, centery1, centerx2, centery2, color);
+	RenderDrawLine(centerx1, centery1, centerx2, centery2, color);
 }
 
-void Visualizer::renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst)
+void Visualizer::RenderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL_Rect& dst)
 {
 	SDL_Rect dstOverlap;
-	if (!cropRectByCamera(dst, dstOverlap, false))
+	if (!CropRectByCamera(dst, dstOverlap, false))
 		return;
 	// find the crop region in src
 	SDL_Rect srcOverlap = { src.x + dstOverlap.x - dst.x, src.y + dstOverlap.y - dst.y, dstOverlap.w,
@@ -72,13 +72,13 @@ void Visualizer::renderCopy(SDL_Texture* texture, const SDL_Rect& src, const SDL
 	SDL_RenderCopy(renderer, texture, &srcOverlap, &dstOverlap);
 }
 
-void Visualizer::renderFillCell(int x, int y, const SDL_Color& color)
+void Visualizer::RenderFillCell(int x, int y, const SDL_Color& color)
 {
 	SDL_Rect cell{ x * map.gridSize + 1, y * map.gridSize + 1, map.gridSize - 2, map.gridSize - 2 };
-	renderFillRect(cell, color);
+	RenderFillRect(cell, color);
 }
 
-void Visualizer::renderFillAgent(int x, int y, const SDL_Color& color)
+void Visualizer::RenderFillAgent(int x, int y, const SDL_Color& color)
 {
 	int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
 
@@ -99,18 +99,18 @@ void Visualizer::renderFillAgent(int x, int y, const SDL_Color& color)
 	}
 
 	SDL_Rect inner{ outer.x + 1, outer.y + 1, outer.w - 2, outer.h - 2 };
-	renderDrawRect(outer, Black);
-	renderFillRect(inner, color);
+	RenderDrawRect(outer, Black);
+	RenderFillRect(inner, color);
 }
 
-void Visualizer::renderFillAgent(int x, int y)
+void Visualizer::RenderFillAgent(int x, int y)
 {
-	renderFillAgent(x, y, Green);
+	RenderFillAgent(x, y, Green);
 }
 
 // Crop given rect by camera, and converts to the coordinates relative to the camera's left-top
 // corner. The results are stored into overlap. Returns false if no overlaping.
-bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
+bool Visualizer::CropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
 	bool marginToCameraCoordinates)
 {
 	QDPF::Rectangle c{ camera->x, camera->y, camera->x + camera->w - 1, camera->y + camera->h - 1 };
