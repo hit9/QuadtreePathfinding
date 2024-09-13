@@ -4,6 +4,7 @@
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
 // Changes:
+// 2024/09/13 v0.5.0: **Breaking change !!**: Use UE coding style
 // 2024/09/10 v0.4.0: **Breaking change !!**: Invert the coordinates, to match the
 //                     main stream conventions.
 // 2024/09/09 v0.3.6: Supports custom clearance field (+BrushfireClearanceField).
