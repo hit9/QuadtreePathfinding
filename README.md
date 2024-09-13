@@ -77,15 +77,15 @@ Visualizer
 Install SDL and build:
 
 ```bash
-make -C visualizer install
-make -C visualizer cmake
-make -C visualizer build
+make -C Visualizer install
+make -C Visualizer cmake
+make -C Visualizer build
 ```
 
-Run the visualizer:
+Run the Visualizer:
 
 ```bash
-./visualizer/build/QuadtreePathfindingVisualizer -w 100 -h 60 -step 1
+./Visualizer/Build/QuadtreePathfindingVisualizer -w 100 -h 60 -step 1
 ```
 
 Problems Unsolved (Plan)
