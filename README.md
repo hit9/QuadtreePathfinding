@@ -26,8 +26,8 @@ Colors:
 
 | <!-- -->                                                          |  <!-- -->                                                                         |
 | ------------------------------------------------------------------| ------------------------------------------------------------------|
-| agent-size=2, capability= Land  ![](misc/quadtree-pathfinding1.gif) |  agent-size=2, capability= Land \| Water ![](misc/quadtree-pathfinding2.gif)                  |
-| agent-size=2, lager map ![](misc/quadtree-pathfinding3.gif)    | agent-size=2, flowfield ![](misc/quadtree-pathfinding4.gif)  |
+| agent-size=2, capability= Land  ![](Misc/quadtree-pathfinding1.gif) |  agent-size=2, capability= Land \| Water ![](Misc/quadtree-pathfinding2.gif)                  |
+| agent-size=2, lager map ![](Misc/quadtree-pathfinding3.gif)    | agent-size=2, flowfield ![](Misc/quadtree-pathfinding4.gif)  |
 
 
 Concepts and Mechanisms
@@ -59,32 +59,23 @@ Code Example
 Source Files
 ------------
 
-To use it, copy away these files:
+To use it, copy away files under `Source` folder
 
-```bash
-3rd-party/
-internal/         # the internal sources
-qdpf.cpp
-qdpf.hpp          # Public API
-```
-
-API list can be found at [qdpf.hpp](qdpf.hpp).
+API list can be found at [QDPF.h](QDPF.h).
 
 Visualizer
 ----------
 
-Install SDL and build:
+Install conan, and build:
 
 ```bash
-make -C visualizer install
-make -C visualizer cmake
-make -C visualizer build
+make -C Visualizer
 ```
 
-Run the visualizer:
+Run the Visualizer:
 
 ```bash
-./visualizer/build/quadtree-pathfinding-visualizer -w 100 -h 60 -step 1
+./Visualizer/Build/QuadtreePathfindingVisualizer -w 100 -h 60 -step 1
 ```
 
 Problems Unsolved (Plan)
