@@ -59,17 +59,9 @@ Code Example
 Source Files
 ------------
 
-To use it, copy away these files:
+To use it, copy away files under `Source` folder
 
-```bash
-Source/*.h
-Source/*.cpp
-Source/Internal/*.h
-Source/Internal/*.cpp
-Source/3rdParty/*
-```
-
-API list can be found at [qdpf.hpp](qdpf.hpp).
+API list can be found at [QDPF.h](QDPF.h).
 
 Visualizer
 ----------
