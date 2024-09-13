@@ -113,19 +113,19 @@ namespace qdpf
 		void QuadtreeMapXImpl::Build()
 		{
 			// Creates a quadtree map for each pair of {agentSize, terrainTypes}.
-			createQuadtreeMaps();
+			CreateQuadtreeMaps();
 			// Creates a clearance field for each terrainTypes.
-			createClearanceFields();
+			CreateClearanceFields();
 			// Initial the clearance fields.
-			buildClearanceFields();
+			BuildClearanceFields();
 			// Build the quadtree maps on existing terrains.
-			buildQuadtreeMaps();
+			BuildQuadtreeMaps();
 			// Bind them via a queue.
-			bindClearanceFieldAndQuadtreeMaps();
+			BindClearanceFieldAndQuadtreeMaps();
 		}
 
 		// Creates a clearance field for each terrainTypes integer.
-		void QuadtreeMapXImpl::createClearanceFields()
+		void QuadtreeMapXImpl::CreateClearanceFields()
 		{
 			// find the max value of agentSize.
 			int maxAgentSize = 0;
@@ -144,14 +144,14 @@ namespace qdpf
 			// for each unique terrainTypes, build a clearance field.
 			for (auto terrainTypes : st)
 			{
-				createClearanceFieldForTerrainTypes(maxAgentSize, costUnit, costUnitDiagonal, terrainTypes);
+				CreateClearanceFieldForTerrainTypes(maxAgentSize, costUnit, costUnitDiagonal, terrainTypes);
 			}
 		}
 
 		// Creates a clearance field for given terrainTypes integer.
 		// We will create a clearance field, and bound it to all quadtree maps related to the given
 		// terrainTypes integer.
-		void QuadtreeMapXImpl::createClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit,
+		void QuadtreeMapXImpl::CreateClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit,
 			int costUnitDiagonal,
 			int terrainTypes)
 		{
@@ -186,16 +186,16 @@ namespace qdpf
 		}
 
 		// Creates a quadtree map for each setting.
-		void QuadtreeMapXImpl::createQuadtreeMaps()
+		void QuadtreeMapXImpl::CreateQuadtreeMaps()
 		{
 			for (auto [agentSize, terrainTypes] : settings)
 			{
-				createQuadtreeMapsForSetting(agentSize, terrainTypes);
+				CreateQuadtreeMapsForSetting(agentSize, terrainTypes);
 			}
 		}
 
 		// Build each of clearance field.
-		void QuadtreeMapXImpl::buildClearanceFields()
+		void QuadtreeMapXImpl::BuildClearanceFields()
 		{
 			for (auto [_, cf] : cfs)
 			{
@@ -215,7 +215,7 @@ namespace qdpf
 		}
 
 		// Creates a quadtree map for given setting { agentSize, terrainTypes }.
-		void QuadtreeMapXImpl::createQuadtreeMapsForSetting(int agentSize, int terrainTypes)
+		void QuadtreeMapXImpl::CreateQuadtreeMapsForSetting(int agentSize, int terrainTypes)
 		{
 			// rarely happens, but ensure that we won't reset an allocated map, which makes
 			// memory leakings.
@@ -241,7 +241,7 @@ namespace qdpf
 
 		// Build each quadtree map with existing obstacles (different for different terrains).
 		// This should be most slow step of the whole Build().
-		void QuadtreeMapXImpl::buildQuadtreeMaps()
+		void QuadtreeMapXImpl::BuildQuadtreeMaps()
 		{
 			for (auto [_, d] : maps)
 			{
@@ -253,7 +253,7 @@ namespace qdpf
 		// Bind the clearance field of terrainTypes to all quadtree maps of the same collection of
 		// terrainTypes. In detail is: bind a listener for each quadtree map to listen updates from the
 		// related clearance field, and the bridge is a queue named "dirties".
-		void QuadtreeMapXImpl::bindClearanceFieldAndQuadtreeMaps()
+		void QuadtreeMapXImpl::BindClearanceFieldAndQuadtreeMaps()
 		{
 			for (auto [terrainTypes, cf] : cfs)
 			{

@@ -90,18 +90,18 @@ namespace qdpf
 			std::unordered_map<int, std::vector<std::pair<int, int>>> dirties;
 
 			// ~~~~~ clearance fields ~~~~~~~
-			void createClearanceFields();
-			void createClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
+			void CreateClearanceFields();
+			void CreateClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
 				int terrainTypes);
-			void buildClearanceFields();
+			void BuildClearanceFields();
 
 			// ~~~~~ quadtree maps ~~~~~~~
-			void createQuadtreeMaps();
-			void createQuadtreeMapsForSetting(int agentSize, int terrainTypes);
-			void buildQuadtreeMaps();
+			void CreateQuadtreeMaps();
+			void CreateQuadtreeMapsForSetting(int agentSize, int terrainTypes);
+			void BuildQuadtreeMaps();
 
 			// ~~~~~ bind them ~~~~~~~
-			void bindClearanceFieldAndQuadtreeMaps();
+			void BindClearanceFieldAndQuadtreeMaps();
 		};
 
 	} // namespace internal
