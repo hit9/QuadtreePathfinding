@@ -26,8 +26,8 @@ Colors:
 
 | <!-- -->                                                          |  <!-- -->                                                                         |
 | ------------------------------------------------------------------| ------------------------------------------------------------------|
-| agent-size=2, capability= Land  ![](misc/quadtree-pathfinding1.gif) |  agent-size=2, capability= Land \| Water ![](misc/quadtree-pathfinding2.gif)                  |
-| agent-size=2, lager map ![](misc/quadtree-pathfinding3.gif)    | agent-size=2, flowfield ![](misc/quadtree-pathfinding4.gif)  |
+| agent-size=2, capability= Land  ![](Misc/quadtree-pathfinding1.gif) |  agent-size=2, capability= Land \| Water ![](Misc/quadtree-pathfinding2.gif)                  |
+| agent-size=2, lager map ![](Misc/quadtree-pathfinding3.gif)    | agent-size=2, flowfield ![](Misc/quadtree-pathfinding4.gif)  |
 
 
 Concepts and Mechanisms
@@ -62,10 +62,11 @@ Source Files
 To use it, copy away these files:
 
 ```bash
-3rd-party/
-internal/         # the internal sources
-qdpf.cpp
-qdpf.hpp          # Public API
+Source/*.h
+Source/*.cpp
+Source/Internal/*.h
+Source/Internal/*.cpp
+Source/3rdParty/*
 ```
 
 API list can be found at [qdpf.hpp](qdpf.hpp).
@@ -84,7 +85,7 @@ make -C visualizer build
 Run the visualizer:
 
 ```bash
-./visualizer/build/quadtree-pathfinding-visualizer -w 100 -h 60 -step 1
+./visualizer/build/QuadtreePathfindingVisualizer -w 100 -h 60 -step 1
 ```
 
 Problems Unsolved (Plan)
