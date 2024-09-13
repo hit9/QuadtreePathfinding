@@ -14,7 +14,7 @@
 
 namespace qdpf
 {
-	namespace naive
+	namespace Naive
 	{
 
 		using Internal::Cell;
@@ -55,7 +55,7 @@ namespace qdpf
 			int directions[8][3];
 		};
 
-	} // namespace naive
+	} // namespace Naive
 } // namespace qdpf
 
 #endif

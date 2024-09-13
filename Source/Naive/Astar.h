@@ -16,7 +16,7 @@
 namespace qdpf
 {
 
-	namespace naive
+	namespace Naive
 	{
 
 		using Internal::Cell;
@@ -34,7 +34,7 @@ namespace qdpf
 			int Compute(const NaiveGridMap* m, int x1, int y1, int x2, int y2, Path& path);
 		};
 
-	} // namespace naive
+	} // namespace Naive
 
 } // namespace qdpf
 #endif

@@ -9,7 +9,7 @@
 
 namespace qdpf
 {
-	namespace naive
+	namespace Naive
 	{
 
 		using Internal::AStar;
@@ -55,5 +55,5 @@ namespace qdpf
 			return Compute(m, x1, y1, x2, y2, collector);
 		}
 
-	} // namespace naive
+	} // namespace Naive
 } // namespace qdpf

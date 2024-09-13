@@ -14,7 +14,7 @@
 
 namespace qdpf
 {
-	namespace naive
+	namespace Naive
 	{
 
 		using Internal::FinalFlowField;
@@ -29,7 +29,7 @@ namespace qdpf
 				FinalFlowField& field);
 		};
 
-	} // namespace naive
+	} // namespace Naive
 } // namespace qdpf
 
 #endif

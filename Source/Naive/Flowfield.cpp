@@ -10,7 +10,7 @@
 
 namespace qdpf
 {
-	namespace naive
+	namespace Naive
 	{
 
 		using Internal::FlowFieldAlgorithm;
@@ -77,5 +77,5 @@ namespace qdpf
 			return 0;
 		}
 
-	} // namespace naive
+	} // namespace Naive
 } // namespace qdpf

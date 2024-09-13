@@ -8,7 +8,7 @@
 
 namespace qdpf
 {
-	namespace naive
+	namespace Naive
 	{
 
 		// Array of { dx, dy }
@@ -123,5 +123,5 @@ namespace qdpf
 			}
 		}
 
-	} // namespace naive
+	} // namespace Naive
 } // namespace qdpf
