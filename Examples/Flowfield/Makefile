@@ -12,7 +12,7 @@ build:
 	make -C Build
 
 run:
-	./Build/quadtree-pathfinding-example-astar
+	./Build/QuadtreePathfindingExampleFlowField
 
 .PHONY: build
 

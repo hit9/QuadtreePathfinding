@@ -9,10 +9,10 @@
 #include <string>
 #include <utility>
 
-#include "Naive/astar.hpp"
-#include "Naive/flowfield.hpp"
-#include "Naive/grid_map.hpp"
-#include "qdpf.hpp"
+#include "Naive/Astar.h"
+#include "Naive/Flowfield.h"
+#include "Naive/GridMap.h"
+#include "QDPF.h"
 
 enum Terrain
 {
