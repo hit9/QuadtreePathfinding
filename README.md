@@ -53,8 +53,8 @@ Concepts and Mechanisms
 Code Example
 ------------
 
-- [A* PathFinder](examples/astar)
-- [FlowField PathFinder](examples/flowfield)
+- [A* PathFinder](Examples/Astar)
+- [FlowField PathFinder](Examples/Flowfield)
 
 Source Files
 ------------
