@@ -2,5 +2,6 @@
 CMakeUserPresets.json
 .cache
 build
+Build
 .env
 imgui.ini

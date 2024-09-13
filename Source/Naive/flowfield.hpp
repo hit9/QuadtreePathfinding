@@ -8,25 +8,28 @@
 #ifndef QDPF_NAIVE_FLOWFIELD_HPP
 #define QDPF_NAIVE_FLOWFIELD_HPP
 
-#include "../internal/base.hpp"
-#include "../internal/pathfinder_flowfield.hpp"
+#include "../Internal/base.hpp"
+#include "../Internal/pathfinder_flowfield.hpp"
 #include "grid_map.hpp"
 
-namespace qdpf {
-namespace naive {
+namespace qdpf
+{
+	namespace naive
+	{
 
-using internal::FinalFlowField;
-using internal::Rectangle;
+		using internal::FinalFlowField;
+		using internal::Rectangle;
 
-class NaiveFlowFieldPathFinder {
- public:
-  // Computes a flowfield inside given rectangle range.
-  // Returns -1 if unreachable.
-  int Compute(const NaiveGridMap* m, int x2, int y2, const Rectangle& qrange,
-              FinalFlowField& field);
-};
+		class NaiveFlowFieldPathFinder
+		{
+		public:
+			// Computes a flowfield inside given rectangle range.
+			// Returns -1 if unreachable.
+			int Compute(const NaiveGridMap* m, int x2, int y2, const Rectangle& qrange,
+				FinalFlowField& field);
+		};
 
-}  // namespace naive
-}  // namespace qdpf
+	} // namespace naive
+} // namespace qdpf
 
 #endif

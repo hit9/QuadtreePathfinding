@@ -10,28 +10,31 @@
 
 #include <functional>
 
-#include "../internal/base.hpp"
+#include "../Internal/base.hpp"
 #include "grid_map.hpp"
 
-namespace qdpf {
+namespace qdpf
+{
 
-namespace naive {
+	namespace naive
+	{
 
-using internal::Cell;
+		using internal::Cell;
 
-using Path = std::vector<Cell>;
-using PathCollector = std::function<void(int x, int y, int cost)>;
+		using Path = std::vector<Cell>;
+		using PathCollector = std::function<void(int x, int y, int cost)>;
 
-class NaiveAStarPathFinder {
- public:
-  // Find a shortest path from (x1,y1) to (x2,y2) on given map m.
-  // Returns 0 on success.
-  // Returns -1 on failure.
-  int Compute(const NaiveGridMap* m, int x1, int y1, int x2, int y2, PathCollector& collector);
-  int Compute(const NaiveGridMap* m, int x1, int y1, int x2, int y2, Path& path);
-};
+		class NaiveAStarPathFinder
+		{
+		public:
+			// Find a shortest path from (x1,y1) to (x2,y2) on given map m.
+			// Returns 0 on success.
+			// Returns -1 on failure.
+			int Compute(const NaiveGridMap* m, int x1, int y1, int x2, int y2, PathCollector& collector);
+			int Compute(const NaiveGridMap* m, int x1, int y1, int x2, int y2, Path& path);
+		};
 
-}  // namespace naive
+	} // namespace naive
 
-}  // namespace qdpf
+} // namespace qdpf
 #endif

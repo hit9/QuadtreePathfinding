@@ -11,95 +11,100 @@
 #include <initializer_list>
 #include <unordered_map>
 
-#include "clearance-field/clearance_field.hpp"
+#include "ClearanceField/ClearanceField.h"
 #include "quadtree_map.hpp"
 
-namespace qdpf {
-namespace internal {
+namespace qdpf
+{
+	namespace internal
+	{
 
-struct QuadtreeMapXSetting {
-  int AgentSize;
-  // OR result of terrain type integers.
-  int TerrainTypes;
-};
+		struct QuadtreeMapXSetting
+		{
+			int AgentSize;
+			// OR result of terrain type integers.
+			int TerrainTypes;
+		};
 
-// Supported clearance field kinds.
-// A clearance field must implement the interface clearance_field::IClearanceField;
-enum class ClearanceFieldKind {
-  TrueClearanceField = 0,
-  BrushfireClearanceField = 1,
-};
+		// Supported clearance field kinds.
+		// A clearance field must implement the interface ClearanceField::IClearanceField;
+		enum class ClearanceFieldKind
+		{
+			TrueClearanceField = 0,
+			BrushfireClearanceField = 1,
+		};
 
-using QuadtreeMapXSettings = std::initializer_list<QuadtreeMapXSetting>;
+		using QuadtreeMapXSettings = std::initializer_list<QuadtreeMapXSetting>;
 
-// TerrainTypesChecker is to check the terrain type value for given cell (x,y)
-using TerrainTypesChecker = std::function<int(int x, int y)>;
+		// TerrainTypesChecker is to check the terrain type value for given cell (x,y)
+		using TerrainTypesChecker = std::function<int(int x, int y)>;
 
-class QuadtreeMapXImpl {
- public:
-  QuadtreeMapXImpl(int w, int h, DistanceCalculator distance, TerrainTypesChecker terrainChecker,
-                   QuadtreeMapXSettings settings, int step = 1, StepFunction stepf = nullptr,
-                   int maxNodeWidth = -1, int maxNodeHeight = -1,
-                   ClearanceFieldKind clearanceFieldKind = ClearanceFieldKind::TrueClearanceField);
-  ~QuadtreeMapXImpl();
+		class QuadtreeMapXImpl
+		{
+		public:
+			QuadtreeMapXImpl(int w, int h, DistanceCalculator distance, TerrainTypesChecker terrainChecker,
+				QuadtreeMapXSettings settings, int step = 1, StepFunction stepf = nullptr,
+				int maxNodeWidth = -1, int maxNodeHeight = -1,
+				ClearanceFieldKind clearanceFieldKind = ClearanceFieldKind::TrueClearanceField);
+			~QuadtreeMapXImpl();
 
-  int W() const { return w; }
-  int H() const { return h; }
+			int W() const { return w; }
+			int H() const { return h; }
 
-  // Creates quadtree maps, clearance fields and call Update on existing grid map for each cell.
-  void Build();
+			// Creates quadtree maps, clearance fields and call Update on existing grid map for each cell.
+			void Build();
 
-  // Find a quadtree map by agent size and walkable terrain types.
-  // Returns nullptr on not found.
-  [[nodiscard]] const QuadtreeMap* Get(int agentSize, int walkableTerrainTypes) const;
+			// Find a quadtree map by agent size and walkable terrain types.
+			// Returns nullptr on not found.
+			[[nodiscard]] const QuadtreeMap* Get(int agentSize, int walkableTerrainTypes) const;
 
-  // Update should be called if cell (x,y)'s terrain is changed.
-  // If the (x,y) is out of bound, nothing happens.
-  void Update(int x, int y);
-  // Compute should be called after one or more Update calls, to apply the changes to all related
-  // quadtree maps.
-  void Compute();
+			// Update should be called if cell (x,y)'s terrain is changed.
+			// If the (x,y) is out of bound, nothing happens.
+			void Update(int x, int y);
+			// Compute should be called after one or more Update calls, to apply the changes to all related
+			// quadtree maps.
+			void Compute();
 
- private:
-  const int w, h, maxNodeWidth, maxNodeHeight;
-  const int step;
-  StepFunction stepf;
-  DistanceCalculator distance;
-  TerrainTypesChecker terrainChecker;
-  const QuadtreeMapXSettings settings;
-  const ClearanceFieldKind clearanceFieldKind;
+		private:
+			const int				   w, h, maxNodeWidth, maxNodeHeight;
+			const int				   step;
+			StepFunction			   stepf;
+			DistanceCalculator		   distance;
+			TerrainTypesChecker		   terrainChecker;
+			const QuadtreeMapXSettings settings;
+			const ClearanceFieldKind   clearanceFieldKind;
 
-  // ~~~~~~~ clearance fields ~~~~~~~~~~~
-  // cfs[terrainTypes] => cf.
-  std::unordered_map<int, clearance_field::IClearanceField*> cfs;
+			// ~~~~~~~ clearance fields ~~~~~~~~~~~
+			// cfs[terrainTypes] => cf.
+			std::unordered_map<int, ClearanceField::IClearanceField*> cfs;
 
-  // ~~~~~~~~~~~ quadtree maps ~~~~~~~~~~~
-  // maps[agentSize][terrainTypes] => map.
-  std::unordered_map<int, std::unordered_map<int, QuadtreeMap*>> maps;
-  // redundancy map for: maps1[terrainTypes] => list of quadtree map pointers.
-  std::unordered_map<int, std::vector<QuadtreeMap*>> maps1;
+			// ~~~~~~~~~~~ quadtree maps ~~~~~~~~~~~
+			// maps[agentSize][terrainTypes] => map.
+			std::unordered_map<int, std::unordered_map<int, QuadtreeMap*>> maps;
+			// redundancy map for: maps1[terrainTypes] => list of quadtree map pointers.
+			std::unordered_map<int, std::vector<QuadtreeMap*>> maps1;
 
-  // records the dirty cells where the clearance value changed.
-  // they are cleared after Compute().
-  // dirties[terrainTypes] => {(x,y), ...}
-  std::unordered_map<int, std::vector<std::pair<int, int>>> dirties;
+			// records the dirty cells where the clearance value changed.
+			// they are cleared after Compute().
+			// dirties[terrainTypes] => {(x,y), ...}
+			std::unordered_map<int, std::vector<std::pair<int, int>>> dirties;
 
-  // ~~~~~ clearance fields ~~~~~~~
-  void createClearanceFields();
-  void createClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
-                                           int terrainTypes);
-  void buildClearanceFields();
+			// ~~~~~ clearance fields ~~~~~~~
+			void createClearanceFields();
+			void createClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
+				int terrainTypes);
+			void buildClearanceFields();
 
-  // ~~~~~ quadtree maps ~~~~~~~
-  void createQuadtreeMaps();
-  void createQuadtreeMapsForSetting(int agentSize, int terrainTypes);
-  void buildQuadtreeMaps();
+			// ~~~~~ quadtree maps ~~~~~~~
+			void createQuadtreeMaps();
+			void createQuadtreeMapsForSetting(int agentSize, int terrainTypes);
+			void buildQuadtreeMaps();
 
-  // ~~~~~ bind them ~~~~~~~
-  void bindClearanceFieldAndQuadtreeMaps();
-};
+			// ~~~~~ bind them ~~~~~~~
+			void bindClearanceFieldAndQuadtreeMaps();
+		};
 
-}  // namespace internal
-}  // namespace qdpf
+	} // namespace internal
+} // namespace qdpf
 
 #endif
