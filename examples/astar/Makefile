@@ -1,18 +1,18 @@
 default: build
 
 cmake:
-	cmake -S . -B build \
+	cmake -S . -B Build \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 
 build:
-	@if [ ! -d build ]; then \
+	@if [ ! -d Build ]; then \
 		$(MAKE) cmake; \
 	fi
-	make -C build
+	make -C Build
 
 run:
-	./build/quadtree-pathfinding-example-astar
+	./Build/quadtree-pathfinding-example-astar
 
 .PHONY: build
 
