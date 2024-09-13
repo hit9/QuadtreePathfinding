@@ -3,7 +3,7 @@
 #include <chrono>
 
 #include "QDPF.h"
-#include "visualizer.hpp"
+#include "Visualizer.h"
 
 using qdpf::internal::IsInsideRectangle;
 
