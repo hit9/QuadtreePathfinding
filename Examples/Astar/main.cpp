@@ -34,19 +34,19 @@ int main(void)
 
 	// Setup a QuadtreeMapX.
 	// (Note that the y is the row, x is the column)
-	qdpf::TerrainTypesChecker  terrainChecker = [](int x, int y) { return grid[y][x]; };
-	auto					   distance = qdpf::EuclideanDistance<10>;
-	qdpf::QuadtreeMapXSettings settings{
+	QDPF::TerrainTypesChecker  terrainChecker = [](int x, int y) { return grid[y][x]; };
+	auto					   distance = QDPF::EuclideanDistance<10>;
+	QDPF::QuadtreeMapXSettings settings{
 		{ 10, Terrain::Land },					// e.g. soldiers
 		{ 20, Terrain::Land },					// e.g. tanks
 		{ 10, Terrain::Land | Terrain::Water }, // e.g. seals
 		{ 20, Terrain::Water },					// e.g. boats
 	};
-	qdpf::QuadtreeMapX mx(w, h, distance, terrainChecker, settings);
+	QDPF::QuadtreeMapX mx(w, h, distance, terrainChecker, settings);
 	mx.Build();
 
 	// Setup an A* path finder.
-	qdpf::AStarPathFinder pf(mx);
+	QDPF::AStarPathFinder pf(mx);
 
 	// Change terrain.
 	grid[6][6] = Terrain::Water;
@@ -65,7 +65,7 @@ int main(void)
 	// reachable.
 
 	std::cout << "node route path:" << std::endl;
-	qdpf::NodePath nodePath;
+	QDPF::NodePath nodePath;
 
 	if (pf.ComputeNodeRoutes(nodePath) == -1)
 	{
@@ -80,7 +80,7 @@ int main(void)
 
 	// Compute gate cell routes.
 	std::cout << "collect route gate cell path..." << std::endl;
-	qdpf::GatePath routes;
+	QDPF::GatePath routes;
 
 	// Using the computed nodePath will make the ComputeGateRoutes running much faster,
 	// but less optimal.
@@ -95,7 +95,7 @@ int main(void)
 
 	// Fill the detailed path (straight lines).
 	std::vector<std::pair<int, int>> path;
-	qdpf::CellCollector				 collector1 = [&path](int x, int y) {
+	QDPF::CellCollector				 collector1 = [&path](int x, int y) {
 		 if (path.size())
 		 {
 			 // skip duplicates end of previous route.
@@ -109,7 +109,7 @@ int main(void)
 	for (int i = 1; i < routes.size(); i++)
 	{
 		auto [x2, y2, _] = routes[i];
-		qdpf::ComputeStraightLine(x, y, x2, y2, collector1);
+		QDPF::ComputeStraightLine(x, y, x2, y2, collector1);
 		x = x2, y = y2;
 	}
 

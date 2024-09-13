@@ -11,7 +11,7 @@
 #include "QDPF.h"
 #include "Visualizer.h"
 
-using qdpf::Internal::IsInsideRectangle;
+using QDPF::Internal::IsInsideRectangle;
 
 std::string StateToString(State state)
 {
@@ -201,7 +201,7 @@ void Visualizer::handleClearAllTerrains()
 }
 
 // Returns the pointer the internal quadtree map of which current agent is using.
-const qdpf::Internal::QuadtreeMap* Visualizer::getCurrentQuadtreeMapByAgent() const
+const QDPF::Internal::QuadtreeMap* Visualizer::getCurrentQuadtreeMapByAgent() const
 {
 	return map.qmx->Get(agent.size, agent.capability);
 }
@@ -317,7 +317,7 @@ void Visualizer::computeAstarFinalPath()
 
 	std::chrono::high_resolution_clock::time_point startAt, endAt;
 
-	qdpf::CellCollector collector = [this](int x, int y) {
+	QDPF::CellCollector collector = [this](int x, int y) {
 		if (astar.finalPath.size())
 		{
 			auto [x2, y2] = astar.finalPath.back();
@@ -333,7 +333,7 @@ void Visualizer::computeAstarFinalPath()
 	for (int i = 1; i < astar.gatePath.size(); i++)
 	{
 		auto [x2, y2, _] = astar.gatePath[i];
-		qdpf::ComputeStraightLine(x, y, x2, y2, collector);
+		QDPF::ComputeStraightLine(x, y, x2, y2, collector);
 		x = x2, y = y2;
 	}
 	state = State::AStarFinalPathComputed;

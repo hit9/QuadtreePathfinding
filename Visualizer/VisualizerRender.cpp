@@ -1,7 +1,7 @@
 #include "QDPF.h"
 #include "Visualizer.h"
 
-using qdpf::Internal::IsInsideRectangle;
+using QDPF::Internal::IsInsideRectangle;
 
 void Visualizer::renderWorld()
 {
@@ -52,7 +52,7 @@ void Visualizer::renderQuadtreeNodes()
 	auto mp = getCurrentQuadtreeMapByAgent();
 	if (mp != nullptr)
 	{
-		qdpf::Internal::QdNodeVisitor c1 = [this](const qdpf::Internal::QdNode* node) {
+		QDPF::Internal::QdNodeVisitor c1 = [this](const QDPF::Internal::QdNode* node) {
 			int x = node->x1 * map.gridSize;
 			int y = node->y1 * map.gridSize;
 			int w = (node->x2 - node->x1 + 1) * map.gridSize;
@@ -75,7 +75,7 @@ void Visualizer::renderGates()
 	if (mp != nullptr)
 	{
 		// Gates.
-		qdpf::Internal::GateVisitor visitor = [this, &mp](const qdpf::Internal::Gate* gate) {
+		QDPF::Internal::GateVisitor visitor = [this, &mp](const QDPF::Internal::Gate* gate) {
 			auto [x1, y1] = mp->UnpackXY(gate->a);
 			int		 x3 = x1 * map.gridSize + 1;
 			int		 y3 = y1 * map.gridSize + 1;
@@ -96,7 +96,7 @@ void Visualizer::renderGateGraph()
 	if (mp != nullptr)
 	{
 		auto&							 graph = mp->GetGateGraph();
-		qdpf::Internal::EdgeVisitor<int> visitor = [this, mp](int u, int v, int cost) {
+		QDPF::Internal::EdgeVisitor<int> visitor = [this, mp](int u, int v, int cost) {
 			auto [x1, y1] = mp->UnpackXY(u);
 			auto [x2, y2] = mp->UnpackXY(v);
 			renderDrawLineBetweenCells(x1, y1, x2, y2, Blue);
@@ -114,8 +114,8 @@ void Visualizer::renderNodeGraph()
 	if (mp != nullptr)
 	{
 		auto&												 graph = mp->GetNodeGraph();
-		qdpf::Internal::EdgeVisitor<qdpf::Internal::QdNode*> visitor =
-			[this, mp](qdpf::Internal::QdNode* u, qdpf::Internal::QdNode* v, int cost) {
+		QDPF::Internal::EdgeVisitor<QDPF::Internal::QdNode*> visitor =
+			[this, mp](QDPF::Internal::QdNode* u, QDPF::Internal::QdNode* v, int cost) {
 				auto x1 = (u->x1 + u->x2) / 2, y1 = (u->y1 + u->y2) / 2;
 				auto x2 = (v->x1 + v->x2) / 2, y2 = (v->y1 + v->y2) / 2;
 				renderDrawLineBetweenCells(x1, y1, x2, y2, Red);

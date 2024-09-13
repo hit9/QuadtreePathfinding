@@ -113,10 +113,10 @@ void Visualizer::renderFillAgent(int x, int y)
 bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
 	bool marginToCameraCoordinates)
 {
-	qdpf::Rectangle c{ camera->x, camera->y, camera->x + camera->w - 1, camera->y + camera->h - 1 };
-	qdpf::Rectangle a{ rect.x, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1 };
-	qdpf::Rectangle d;
-	auto			b = qdpf::Internal::GetOverlap(c, a, d);
+	QDPF::Rectangle c{ camera->x, camera->y, camera->x + camera->w - 1, camera->y + camera->h - 1 };
+	QDPF::Rectangle a{ rect.x, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1 };
+	QDPF::Rectangle d;
+	auto			b = QDPF::Internal::GetOverlap(c, a, d);
 	if (!b)
 		return false;
 	overlap.x = d.x1, overlap.y = d.y1;

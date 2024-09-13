@@ -5,7 +5,7 @@
 #include "QDPF.h"
 #include "Visualizer.h"
 
-using qdpf::Internal::IsInsideRectangle;
+using QDPF::Internal::IsInsideRectangle;
 
 // ~~~~~~~~~~ Agent ~~~~~~~~~~
 
@@ -27,11 +27,11 @@ Map::Map(int w, int h, int gridSize, int step)
 	memset(grids, 0, sizeof grids);
 	memset(changes, 0, sizeof changes);
 
-	qdpf::Rectangle center{ 2 * w / 7, 2 * h / 7, w * 5 / 7, h * 5 / 7 };
-	qdpf::Rectangle wall1{ center.x2 + 4, center.y1, center.x2 + 4, center.y2 + 4 };
-	qdpf::Rectangle wall2{ center.x1, center.y2 + 4, center.x2 + 4, center.y2 + 4 };
-	qdpf::Rectangle wall3{ center.x1 - 4, center.y1 - 4, center.x1 - 4, center.y2 };
-	qdpf::Rectangle wall4{ center.x1 - 4, center.y1 - 4, center.x2, center.y1 - 4 };
+	QDPF::Rectangle center{ 2 * w / 7, 2 * h / 7, w * 5 / 7, h * 5 / 7 };
+	QDPF::Rectangle wall1{ center.x2 + 4, center.y1, center.x2 + 4, center.y2 + 4 };
+	QDPF::Rectangle wall2{ center.x1, center.y2 + 4, center.x2 + 4, center.y2 + 4 };
+	QDPF::Rectangle wall3{ center.x1 - 4, center.y1 - 4, center.x1 - 4, center.y2 };
+	QDPF::Rectangle wall4{ center.x1 - 4, center.y1 - 4, center.x2, center.y1 - 4 };
 
 	for (int y = 0; y < h; ++y)
 	{
@@ -65,7 +65,7 @@ void Map::Build()
 {
 	// Build QuadtreeMapX.
 	auto					   stepf = (step == -1) ? [](int z) -> int { return z / 8 + 1; } : nullptr;
-	qdpf::QuadtreeMapXSettings settings{
+	QDPF::QuadtreeMapXSettings settings{
 		{ COST_UNIT, Terrain::Land },
 		{ 2 * COST_UNIT, Terrain::Land },
 		{ 3 * COST_UNIT, Terrain::Land },
@@ -76,19 +76,19 @@ void Map::Build()
 		{ 2 * COST_UNIT, Terrain::Land | Terrain::Water },
 		{ 3 * COST_UNIT, Terrain::Land | Terrain::Water },
 	};
-	auto distance = qdpf::EuclideanDistance<COST_UNIT>;
+	auto distance = QDPF::EuclideanDistance<COST_UNIT>;
 	auto terrianChecker = [this](int x, int y) { return grids[y][x]; };
 	auto clearanceFieldKind = (options.clearanceFieldFlag == 0)
-		? qdpf::ClearanceFieldKind::TrueClearanceField
-		: qdpf::ClearanceFieldKind::BrushfireClearanceField;
-	qmx = new qdpf::QuadtreeMapX(w, h, distance, terrianChecker, settings, step, stepf, -1, -1,
+		? QDPF::ClearanceFieldKind::TrueClearanceField
+		: QDPF::ClearanceFieldKind::BrushfireClearanceField;
+	qmx = new QDPF::QuadtreeMapX(w, h, distance, terrianChecker, settings, step, stepf, -1, -1,
 		clearanceFieldKind);
 	qmx->Build();
 	spdlog::info("Build quadtree maps done");
 
 	// Build naive map.
 	auto isObstacle = [this](int x, int y) { return grids[y][x] != Terrain::Land; };
-	naiveMap = new qdpf::naive::NaiveGridMap(w, h, isObstacle, distance);
+	naiveMap = new QDPF::Naive::NaiveGridMap(w, h, isObstacle, distance);
 	naiveMap->Build();
 	spdlog::info("Build naive map done");
 }
@@ -133,9 +133,9 @@ void NaiveAStarContext::Reset()
 	path.clear();
 }
 
-void AStarContext::InitPf(qdpf::QuadtreeMapX* qmx)
+void AStarContext::InitPf(QDPF::QuadtreeMapX* qmx)
 {
-	pf = new qdpf::AStarPathFinder(*qmx);
+	pf = new QDPF::AStarPathFinder(*qmx);
 }
 
 AStarContext::~AStarContext()
@@ -184,9 +184,9 @@ FlowFieldContext::~FlowFieldContext()
 	pf = nullptr;
 }
 
-void FlowFieldContext::InitPf(qdpf::QuadtreeMapX* qmx)
+void FlowFieldContext::InitPf(QDPF::QuadtreeMapX* qmx)
 {
-	pf = new qdpf::FlowFieldPathFinder(*qmx);
+	pf = new QDPF::FlowFieldPathFinder(*qmx);
 }
 
 int FlowFieldContext::ResetPf(int agentSize, int capabilities)

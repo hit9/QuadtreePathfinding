@@ -80,7 +80,7 @@ struct Agent
 struct Map
 {
 	// qmx is never changed once set.
-	qdpf::QuadtreeMapX* qmx = nullptr;
+	QDPF::QuadtreeMapX* qmx = nullptr;
 	// width and height (in cell/grids)
 	const int w = 32, h = 32;
 	// grid size in pixels
@@ -94,7 +94,7 @@ struct Map
 	int step = -1;
 
 	// naive map for comparasion
-	qdpf::naive::NaiveGridMap* naiveMap = nullptr;
+	QDPF::Naive::NaiveGridMap* naiveMap = nullptr;
 
 	Map(int w, int h, int gridSize, int step = -1);
 	~Map();
@@ -107,7 +107,7 @@ struct Map
 
 struct NaiveAStarContext
 {
-	qdpf::naive::NaiveAStarPathFinder pf;
+	QDPF::Naive::NaiveAStarPathFinder pf;
 	// timecost of naive astar in us.
 	std::chrono::microseconds timeCost = std::chrono::microseconds(0);
 	// results of naive astar.
@@ -119,7 +119,7 @@ struct NaiveAStarContext
 struct AStarContext
 {
 	// never change once set.
-	qdpf::AStarPathFinder* pf = nullptr;
+	QDPF::AStarPathFinder* pf = nullptr;
 	bool				   isPfReset = false;
 
 	// start cell
@@ -131,12 +131,12 @@ struct AStarContext
 	std::chrono::microseconds timeCost = std::chrono::microseconds(0);
 
 	// ~~~~~~ results ~~~~~~
-	qdpf::NodePath	  nodePath;
-	qdpf::GatePath	  gatePath;
+	QDPF::NodePath	  nodePath;
+	QDPF::GatePath	  gatePath;
 	std::vector<Cell> finalPath;
 
 	~AStarContext();
-	void InitPf(qdpf::QuadtreeMapX* qmx);
+	void InitPf(QDPF::QuadtreeMapX* qmx);
 	void ClearResults();
 	void Reset();
 	int	 ResetPf(int agentSize, int capabilities);
@@ -152,11 +152,11 @@ struct FlowFieldItem
 
 struct NaiveFlowFieldContext
 {
-	qdpf::naive::NaiveFlowFieldPathFinder pf;
+	QDPF::Naive::NaiveFlowFieldPathFinder pf;
 	// timecost of naive flowfield in us.
 	std::chrono::microseconds timeCost = std::chrono::microseconds(0);
 	// results of naive flowfield
-	qdpf::FinalFlowField finalFlowField;
+	QDPF::FinalFlowField finalFlowField;
 
 	// ~~~~~ optional test path ~~~~~~
 	std::vector<std::vector<Cell>> testPaths;
@@ -166,20 +166,20 @@ struct NaiveFlowFieldContext
 
 struct FlowFieldContext
 {
-	qdpf::FlowFieldPathFinder* pf = nullptr;
+	QDPF::FlowFieldPathFinder* pf = nullptr;
 
 	// target cell.
 	int x2 = 0, y2 = 0;
 	// query rectangle.
-	qdpf::Rectangle qrange;
+	QDPF::Rectangle qrange;
 
 	// Cumulative call time
 	std::chrono::microseconds timeCost = std::chrono::microseconds(0);
 
 	// ~~~~~~ results ~~~~~~
-	qdpf::NodeFlowField	 nodeFlowField;
-	qdpf::GateFlowField	 gateFlowField;
-	qdpf::FinalFlowField finalFlowField;
+	QDPF::NodeFlowField	 nodeFlowField;
+	QDPF::GateFlowField	 gateFlowField;
+	QDPF::FinalFlowField finalFlowField;
 
 	bool isPfReset = false;
 
@@ -187,7 +187,7 @@ struct FlowFieldContext
 	std::vector<std::vector<Cell>> testPaths;
 
 	~FlowFieldContext();
-	void InitPf(qdpf::QuadtreeMapX* qmx);
+	void InitPf(QDPF::QuadtreeMapX* qmx);
 	int	 ResetPf(int agentSize, int capabilities);
 	void ClearResults();
 	void Reset();
@@ -292,7 +292,7 @@ enum class PathFinderFlag
 
 // Compare to Naive Astar and FlowField.
 using NaiveGraph =
-	qdpf::Internal::SimpleUnorderedMapDirectedGraph<Cell, qdpf::Internal::PairHasher<int, int>>;
+	QDPF::Internal::SimpleUnorderedMapDirectedGraph<Cell, QDPF::Internal::PairHasher<int, int>>;
 
 class Visualizer
 {
@@ -440,7 +440,7 @@ private:
 
 	// ~~~~~~ util ~~~~~~~
 	std::pair<int, int>				   getCellAtPixelPosition(int x, int y) const;
-	const qdpf::Internal::QuadtreeMap* getCurrentQuadtreeMapByAgent() const;
+	const QDPF::Internal::QuadtreeMap* getCurrentQuadtreeMapByAgent() const;
 };
 
 #endif

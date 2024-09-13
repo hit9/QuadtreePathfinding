@@ -45,19 +45,19 @@ int main(void)
 
 	// Setup a QuadtreeMapX.
 	// (Note that the y is the row, x is the column)
-	qdpf::TerrainTypesChecker  terrainChecker = [](int x, int y) { return grid[y][x]; };
-	auto					   distance = qdpf::EuclideanDistance<10>;
-	qdpf::QuadtreeMapXSettings settings{
+	QDPF::TerrainTypesChecker  terrainChecker = [](int x, int y) { return grid[y][x]; };
+	auto					   distance = QDPF::EuclideanDistance<10>;
+	QDPF::QuadtreeMapXSettings settings{
 		{ 10, Terrain::Land },					// e.g. soldiers
 		{ 20, Terrain::Land },					// e.g. tanks
 		{ 10, Terrain::Land | Terrain::Water }, // e.g. seals
 		{ 20, Terrain::Water },					// e.g. boats
 	};
-	qdpf::QuadtreeMapX mx(w, h, distance, terrainChecker, settings);
+	QDPF::QuadtreeMapX mx(w, h, distance, terrainChecker, settings);
 	mx.Build();
 
 	// Setup a flow-field path finder.
-	qdpf::FlowFieldPathFinder pf(mx);
+	QDPF::FlowFieldPathFinder pf(mx);
 
 	// Change terrain.
 	grid[6][6] = Terrain::Water;
@@ -67,7 +67,7 @@ int main(void)
 	// Resets the path finder.
 	// Find path to (7,7), agent size is 10, we can only walk on { Land }.
 	// Computes the flow fields for all cells inside the query range.
-	qdpf::Rectangle qrange{ 0, 0, 7, 7 };
+	QDPF::Rectangle qrange{ 0, 0, 7, 7 };
 	if (-1 == pf.Reset(7, 7, qrange, 10, Terrain::Land))
 	{
 		std::cout << "reset failed!" << std::endl;
@@ -77,7 +77,7 @@ int main(void)
 	// Computes the node flow field.
 	std::cout << "1st step: ComputeNodeFlowField..." << std::endl;
 
-	qdpf::NodeFlowField nodeFlowField;
+	QDPF::NodeFlowField nodeFlowField;
 	if (-1 == pf.ComputeNodeFlowField(nodeFlowField))
 	{
 		std::cout << "ComputeNodeFlowField failed!" << std::endl;
@@ -96,7 +96,7 @@ int main(void)
 
 	// Computes the gate flow field.
 	std::cout << "2nd step: ComputeGateFlowField..." << std::endl;
-	qdpf::GateFlowField gateFlowField;
+	QDPF::GateFlowField gateFlowField;
 	if (-1 == pf.ComputeGateFlowField(gateFlowField, nodeFlowField))
 	{
 		std::cout << "ComputeGateFlowField failed!" << std::endl;
@@ -116,7 +116,7 @@ int main(void)
 
 	// Computes the final flow field.
 	std::cout << "3rd step: ComputeCellFlowFieldInDestRectangle..." << std::endl;
-	qdpf::FinalFlowField finalFlowfield;
+	QDPF::FinalFlowField finalFlowfield;
 	if (-1 == pf.ComputeFinalFlowField(finalFlowfield, gateFlowField))
 	{
 		std::cout << "ComputeCellFlowFieldInDestRectangle failed!" << std::endl;
