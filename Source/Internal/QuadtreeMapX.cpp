@@ -14,7 +14,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		QuadtreeMapXImpl::QuadtreeMapXImpl(int w, int h, DistanceCalculator distance,
@@ -265,5 +265,5 @@ namespace qdpf
 			}
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf

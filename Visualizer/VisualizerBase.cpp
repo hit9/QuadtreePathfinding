@@ -5,7 +5,7 @@
 #include "QDPF.h"
 #include "Visualizer.h"
 
-using qdpf::internal::IsInsideRectangle;
+using qdpf::Internal::IsInsideRectangle;
 
 // ~~~~~~~~~~ Agent ~~~~~~~~~~
 

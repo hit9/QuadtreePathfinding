@@ -8,7 +8,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		void AStarPathFinderImpl::Reset(const QuadtreeMap* m, int x1, int y1, int x2, int y2)
@@ -171,5 +171,5 @@ namespace qdpf
 			return ComputeGateRoutes(collector, emptyNodePath);
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf

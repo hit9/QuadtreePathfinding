@@ -5,7 +5,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		//////////////////////////////////////
@@ -68,5 +68,5 @@ namespace qdpf
 			}
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf

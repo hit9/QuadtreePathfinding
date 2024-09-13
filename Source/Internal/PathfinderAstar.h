@@ -20,7 +20,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		//////////////////////////////////////
@@ -182,7 +182,7 @@ namespace qdpf
 			return f[t];
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf
 
 #endif

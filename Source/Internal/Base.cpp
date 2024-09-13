@@ -8,7 +8,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		int CountBits(unsigned int n)
@@ -91,5 +91,5 @@ namespace qdpf
 			return h;
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf

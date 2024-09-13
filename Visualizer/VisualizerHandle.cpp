@@ -11,7 +11,7 @@
 #include "QDPF.h"
 #include "Visualizer.h"
 
-using qdpf::internal::IsInsideRectangle;
+using qdpf::Internal::IsInsideRectangle;
 
 std::string StateToString(State state)
 {
@@ -201,7 +201,7 @@ void Visualizer::handleClearAllTerrains()
 }
 
 // Returns the pointer the internal quadtree map of which current agent is using.
-const qdpf::internal::QuadtreeMap* Visualizer::getCurrentQuadtreeMapByAgent() const
+const qdpf::Internal::QuadtreeMap* Visualizer::getCurrentQuadtreeMapByAgent() const
 {
 	return map.qmx->Get(agent.size, agent.capability);
 }

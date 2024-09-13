@@ -58,17 +58,17 @@
 namespace qdpf
 {
 
-	using internal::inf;
-	using internal::Rectangle;
+	using Internal::inf;
+	using Internal::Rectangle;
 
 	// the quadtree node.
-	using internal::QdNode;
+	using Internal::QdNode;
 
 	// CellCollector is the type of the function that collects cells on a path.
 	// The argument (x,y) is a cell in the grid map.
 	//
 	// Signature: std::function<void(int x, int y)>;
-	using CellCollector = internal::CellCollector;
+	using CellCollector = Internal::CellCollector;
 
 	// ComputeStraightLine computes the straight line from (x1,y1) to (x2,y2) based on Bresenham's line
 	// algorithm.
@@ -77,7 +77,7 @@ namespace qdpf
 	// Ref: https://members.chello.at/easyfilter/bresenham.html
 	//
 	// Signature: void ComputeStraightLine(int x1, int y1, int x2, int y2, CellCollector &collector);
-	using internal::ComputeStraightLine;
+	using Internal::ComputeStraightLine;
 
 	//////////////////////////////////////
 	/// QuadtreeMapX
@@ -94,7 +94,7 @@ namespace qdpf
 	// We can just use qdpf::EuclideanDistance<CostUnit> to build a euclidean distance calculator.
 	//
 	// Signature: std::function<int(int x1, int y1, int x2, int y2)>;
-	using DistanceCalculator = internal::DistanceCalculator;
+	using DistanceCalculator = Internal::DistanceCalculator;
 
 	// Euclidean distance calculator with a given cost unit.
 	template <int CostUnit>
@@ -111,7 +111,7 @@ namespace qdpf
 	//
 	// An example: [](int length) { return length / 8 + 1; }
 	// For this example, we use larger step on large rectangles, and smaller step on small rectangles.
-	using StepFunction = internal::StepFunction;
+	using StepFunction = Internal::StepFunction;
 
 	// QuadtreeMapXSetting is a struct to specific an agent size along with its terrain types
 	// capabilities.
@@ -128,7 +128,7 @@ namespace qdpf
 	//   int TerrainTypes;
 	// };
 	//
-	using QuadtreeMapXSetting = internal::QuadtreeMapXSetting;
+	using QuadtreeMapXSetting = Internal::QuadtreeMapXSetting;
 
 	// QuadtreeMapXSettings is a list of QuadtreeMapXSetting.
 	// std::initializer_list<QuadtreeMapXSetting>;
@@ -147,14 +147,14 @@ namespace qdpf
 	//      {2 * CostUnit, Terrain::Water},                  // e.g. boats
 	//  };
 	//
-	using QuadtreeMapXSettings = internal::QuadtreeMapXSettings;
+	using QuadtreeMapXSettings = Internal::QuadtreeMapXSettings;
 
 	// TerrainTypesChecker is to check the terrain type value for given cell (x,y).
 	// A terrain type value should be a positive integer, and must be power of 2 integer,
 	// e.g. 0b1, 0b10, 0b100 etc.
 	//
 	// Signature: std::function<int(int x, int y)>;
-	using TerrainTypesChecker = internal::TerrainTypesChecker;
+	using TerrainTypesChecker = Internal::TerrainTypesChecker;
 
 	// ClearanceFieldKind indicates which clerance field implementer to use.
 	// A ClearanceField stores the min distance to the nearest obstacles for each cells.
@@ -168,7 +168,7 @@ namespace qdpf
 	//    of the moving agent.
 	//
 	// for more details, go ahead at: https://github.com/hit9/clearance-field
-	using internal::ClearanceFieldKind;
+	using Internal::ClearanceFieldKind;
 
 	// QuadtreeMapX is a manager of multiple 2D grid maps maintained by quadtrees.
 	class QuadtreeMapX
@@ -211,10 +211,10 @@ namespace qdpf
 		// Returns nullptr if not found.
 		// If there are multiple maps support the given walkableTerrainTypes, the one with largest subset
 		// of terrain types support will be returned.
-		[[nodiscard]] const internal::QuadtreeMap* Get(int agentSize, int walkableTerrainTypes) const;
+		[[nodiscard]] const Internal::QuadtreeMap* Get(int agentSize, int walkableTerrainTypes) const;
 
 	private:
-		internal::QuadtreeMapXImpl impl;
+		Internal::QuadtreeMapXImpl impl;
 
 		// friend with all path finders.
 		friend class AStarPathFinder;
@@ -228,7 +228,7 @@ namespace qdpf
 	// NodeVisitor is the type of a function to visit quadtree nodes.
 	//
 	// Signature: std::function<void(const QdNode *node)>;
-	using NodeVisitor = internal::QdNodeVisitor;
+	using NodeVisitor = Internal::QdNodeVisitor;
 
 	//////////////////////////////////////
 	/// AStarPathFinder
@@ -237,7 +237,7 @@ namespace qdpf
 	// A vector to collect the node's path.
 	// Each item of the vector is a pair of { QdNode*, cost to target }.
 	// Signature: std::vector<std::pair<QdNode *, int>>
-	using NodePath = internal::NodePath;
+	using NodePath = Internal::NodePath;
 
 	// A vector to collect the gate route path.
 	// Each item: { x, y, cost }
@@ -245,7 +245,7 @@ namespace qdpf
 
 	// A function to collect the computed gate cell routes along with the cost to the target cell.
 	// Signature: std::function<void(int x, int y, int cost)>;
-	using GateRouteCollector = internal::GateRouteCollector;
+	using GateRouteCollector = Internal::GateRouteCollector;
 
 	// A* path finder (stateful).
 	class AStarPathFinder
@@ -318,7 +318,7 @@ namespace qdpf
 
 	private:
 		const QuadtreeMapX&			  mx;
-		internal::AStarPathFinderImpl impl;
+		Internal::AStarPathFinderImpl impl;
 	};
 
 	//////////////////////////////////////
@@ -334,7 +334,7 @@ namespace qdpf
 	// the cost's type is int.
 	//
 	// Note that the target node's next is itself.
-	using internal::NodeFlowField;
+	using Internal::NodeFlowField;
 
 	// Gate level flow field data container.
 	//
@@ -342,7 +342,7 @@ namespace qdpf
 	// { current {x, y} => struct{ next {x,y}, cost to target } }
 	//
 	// Note that the target cell's next is itself.
-	using internal::GateFlowField;
+	using Internal::GateFlowField;
 
 	// Final level flow field data container.
 	// This flow field is limited inside a query range rectangle.
@@ -351,7 +351,7 @@ namespace qdpf
 	// { current {x, y} => struct{ next {x,y}, cost to target } }
 	//
 	// Note that the target cell's next is itself.
-	using internal::FinalFlowField;
+	using Internal::FinalFlowField;
 
 	// FlowField (stateful)
 	class FlowFieldPathFinder
@@ -446,7 +446,7 @@ namespace qdpf
 
 	private:
 		const QuadtreeMapX&				  mx;
-		internal::FlowFieldPathFinderImpl impl;
+		Internal::FlowFieldPathFinderImpl impl;
 	};
 
 } // namespace qdpf

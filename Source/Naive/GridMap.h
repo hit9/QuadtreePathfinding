@@ -17,11 +17,11 @@ namespace qdpf
 	namespace naive
 	{
 
-		using internal::Cell;
-		using internal::DistanceCalculator;
-		using internal::ObstacleChecker;
-		using internal::PairHasher;
-		using NaiveGridGraph = internal::SimpleDirectedGraph;
+		using Internal::Cell;
+		using Internal::DistanceCalculator;
+		using Internal::ObstacleChecker;
+		using Internal::PairHasher;
+		using NaiveGridGraph = Internal::SimpleDirectedGraph;
 
 		class NaiveGridMap
 		{

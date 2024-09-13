@@ -16,7 +16,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		struct QuadtreeMapXSetting
@@ -104,7 +104,7 @@ namespace qdpf
 			void BindClearanceFieldAndQuadtreeMaps();
 		};
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf
 
 #endif

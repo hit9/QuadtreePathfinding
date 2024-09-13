@@ -12,9 +12,9 @@ namespace qdpf
 	namespace naive
 	{
 
-		using internal::AStar;
-		using internal::inf;
-		using internal::NeighbourVertexVisitor;
+		using Internal::AStar;
+		using Internal::inf;
+		using Internal::NeighbourVertexVisitor;
 
 		int NaiveAStarPathFinder::Compute(const NaiveGridMap* m, int x1, int y1, int x2, int y2,
 			PathCollector& collector)

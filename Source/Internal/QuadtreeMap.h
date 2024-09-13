@@ -17,7 +17,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		// ObstacleChecker is the type of the function that returns true if the given
@@ -190,7 +190,7 @@ namespace qdpf
 				std::vector<std::pair<int, int>>& ncs) const;
 		};
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf
 
 #endif

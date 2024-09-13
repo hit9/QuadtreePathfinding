@@ -116,7 +116,7 @@ bool Visualizer::cropRectByCamera(const SDL_Rect& rect, SDL_Rect& overlap,
 	qdpf::Rectangle c{ camera->x, camera->y, camera->x + camera->w - 1, camera->y + camera->h - 1 };
 	qdpf::Rectangle a{ rect.x, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1 };
 	qdpf::Rectangle d;
-	auto			b = qdpf::internal::GetOverlap(c, a, d);
+	auto			b = qdpf::Internal::GetOverlap(c, a, d);
 	if (!b)
 		return false;
 	overlap.x = d.x1, overlap.y = d.y1;

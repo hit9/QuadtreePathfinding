@@ -14,7 +14,7 @@ namespace qdpf
 		TerrainTypesChecker terrainChecker, QuadtreeMapXSettings settings,
 		int step, StepFunction stepf, int maxNodeWidth, int maxNodeHeight,
 		ClearanceFieldKind clearanceFieldKind)
-		: impl(internal::QuadtreeMapXImpl(w, h, distance, terrainChecker, settings, step, stepf,
+		: impl(Internal::QuadtreeMapXImpl(w, h, distance, terrainChecker, settings, step, stepf,
 			  maxNodeWidth, maxNodeHeight, clearanceFieldKind)) {}
 
 	void QuadtreeMapX::Build()
@@ -29,7 +29,7 @@ namespace qdpf
 	{
 		impl.Compute();
 	}
-	const internal::QuadtreeMap* QuadtreeMapX::Get(int agentSize, int terrainTypes) const
+	const Internal::QuadtreeMap* QuadtreeMapX::Get(int agentSize, int terrainTypes) const
 	{
 		return impl.Get(agentSize, terrainTypes);
 	}

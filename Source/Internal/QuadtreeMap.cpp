@@ -8,7 +8,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		Gate::Gate(QdNode* aNode, QdNode* bNode, int a, int b)
@@ -546,6 +546,6 @@ namespace qdpf
 					break;
 			}
 		}
-	} // namespace internal
+	} // namespace Internal
 
 } // namespace qdpf

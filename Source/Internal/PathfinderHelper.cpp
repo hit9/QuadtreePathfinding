@@ -7,7 +7,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		void PathFinderHelper::Reset(const QuadtreeMap* mPtr)
@@ -40,5 +40,5 @@ namespace qdpf
 			m->GetGateGraph().ForEachNeighbours(u, visitor);
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf

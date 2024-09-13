@@ -13,11 +13,11 @@ namespace qdpf
 	namespace naive
 	{
 
-		using internal::FlowFieldAlgorithm;
-		using internal::inf;
-		using internal::IsInsideRectangle;
-		using internal::NeighbourVertexVisitor;
-		using internal::PackedCellFlowField;
+		using Internal::FlowFieldAlgorithm;
+		using Internal::inf;
+		using Internal::IsInsideRectangle;
+		using Internal::NeighbourVertexVisitor;
+		using Internal::PackedCellFlowField;
 
 		int NaiveFlowFieldPathFinder::Compute(const NaiveGridMap* m, int x2, int y2,
 			const Rectangle& qrange, FinalFlowField& field)

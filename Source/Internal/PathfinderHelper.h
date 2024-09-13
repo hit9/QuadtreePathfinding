@@ -13,7 +13,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		// Collects the neighbor vertices from u.
@@ -50,7 +50,7 @@ namespace qdpf
 			void ConnectCellsOnTmpGraph(int u, int v);
 		};
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf
 
 #endif

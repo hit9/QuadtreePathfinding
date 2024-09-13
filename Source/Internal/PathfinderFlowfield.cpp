@@ -11,7 +11,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		///////////////////////////////
@@ -607,5 +607,5 @@ namespace qdpf
 			ComputeStraightLine(x, y, x1, y1, collector, 2);
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf

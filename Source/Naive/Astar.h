@@ -19,7 +19,7 @@ namespace qdpf
 	namespace naive
 	{
 
-		using internal::Cell;
+		using Internal::Cell;
 
 		using Path = std::vector<Cell>;
 		using PathCollector = std::function<void(int x, int y, int cost)>;

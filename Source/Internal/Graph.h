@@ -14,7 +14,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		// NeighbourVertexVisitor is the type of the function that visits neighbor vertices of a given
@@ -227,6 +227,6 @@ namespace qdpf
 			}
 		}
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf
 #endif

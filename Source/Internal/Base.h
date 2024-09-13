@@ -11,7 +11,7 @@
 
 namespace qdpf
 {
-	namespace internal
+	namespace Internal
 	{
 
 		const int inf = 0x3f3f3f3f;
@@ -235,7 +235,7 @@ namespace qdpf
 		template <bool DefaultValue>
 		using DefaultedVectorBool = DefaultedVector<unsigned char, DefaultValue>;
 
-	} // namespace internal
+	} // namespace Internal
 } // namespace qdpf
 
 #endif

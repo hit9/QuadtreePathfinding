@@ -292,7 +292,7 @@ enum class PathFinderFlag
 
 // Compare to Naive Astar and FlowField.
 using NaiveGraph =
-	qdpf::internal::SimpleUnorderedMapDirectedGraph<Cell, qdpf::internal::PairHasher<int, int>>;
+	qdpf::Internal::SimpleUnorderedMapDirectedGraph<Cell, qdpf::Internal::PairHasher<int, int>>;
 
 class Visualizer
 {
@@ -440,7 +440,7 @@ private:
 
 	// ~~~~~~ util ~~~~~~~
 	std::pair<int, int>				   getCellAtPixelPosition(int x, int y) const;
-	const qdpf::internal::QuadtreeMap* getCurrentQuadtreeMapByAgent() const;
+	const qdpf::Internal::QuadtreeMap* getCurrentQuadtreeMapByAgent() const;
 };
 
 #endif

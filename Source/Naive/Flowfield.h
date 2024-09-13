@@ -17,8 +17,8 @@ namespace qdpf
 	namespace naive
 	{
 
-		using internal::FinalFlowField;
-		using internal::Rectangle;
+		using Internal::FinalFlowField;
+		using Internal::Rectangle;
 
 		class NaiveFlowFieldPathFinder
 		{
