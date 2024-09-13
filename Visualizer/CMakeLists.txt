@@ -11,9 +11,9 @@ find_package(SDL2)
 find_package(argparse)
 
 # ----- library imgui ------
-file(GLOB IMGUI_SOURCES 3rd-party/imgui/*.cpp)
+file(GLOB IMGUI_SOURCES 3rdParty/imgui/*.cpp)
 add_library(imgui ${IMGUI_SOURCES})
-target_include_directories(imgui PUBLIC "3rd-party/imgui")
+target_include_directories(imgui PUBLIC "3rdParty/imgui")
 target_include_directories(imgui PUBLIC ${SDL2_INCLUDE_DIRS})
 
 # ----- library qdpf ------

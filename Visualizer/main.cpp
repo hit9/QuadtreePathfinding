@@ -43,7 +43,7 @@ int ParseCommandlineOptions(int argc, char* argv[])
 		.store_into(options.step);
 	program.add_argument("-fonts", "--fonts-dir-path")
 		.help("the relative fonts dir path")
-		.default_value(std::string("./visualizer/fonts"))
+		.default_value(std::string("./Visualizer/Fonts"))
 		.store_into(options.fontsPath);
 	program.add_argument("-cf", "--clearance-field")
 		.help(

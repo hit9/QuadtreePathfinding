@@ -74,12 +74,10 @@ API list can be found at [qdpf.hpp](qdpf.hpp).
 Visualizer
 ----------
 
-Install SDL and build:
+Install conan, and build:
 
 ```bash
-make -C Visualizer install
-make -C Visualizer cmake
-make -C Visualizer build
+make -C Visualizer
 ```
 
 Run the Visualizer:
