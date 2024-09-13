@@ -1,4 +1,4 @@
-quadtree-pathfinding
+Quadtree Pathfinding
 ====================
 
 May unstable before version 1.0.0! Still in dev!
