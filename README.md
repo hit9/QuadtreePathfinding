@@ -61,7 +61,7 @@ Source Files
 
 To use it, copy away files under `Source` folder
 
-API list can be found at [QDPF.h](QDPF.h).
+API list can be found at [Source/QDPF.h](Source/QDPF.h).
 
 Visualizer
 ----------
