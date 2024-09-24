@@ -28,6 +28,9 @@ namespace QDPF
 		public:
 			NaiveGridMap(int w, int h, ObstacleChecker isObstacle, DistanceCalculator distance);
 
+			int W() const { return w; }
+			int H() const { return h; }
+
 			bool IsObstacle(int x, int y) const;
 			bool IsObstacle(const Cell& c) const;
 

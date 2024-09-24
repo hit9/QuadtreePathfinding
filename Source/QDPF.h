@@ -1,9 +1,10 @@
 // Hierarchical path finding on quadtree for equal-weighted 2D grid map.
-// License: BSD. Version: 0.3.6. Author: Chao Wang, hit9[At]icloud.com.
+// License: BSD. Author: Chao Wang, hit9[At]icloud.com.
 // Source Code: https://github.com/hit9/quadtree-pathfinding
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
 // Changes:
+// 2024/09/24 v0.5.1: shrink the query range for flowfield by the map size.
 // 2024/09/13 v0.5.0: **Breaking change !!**: Use UE coding style
 // 2024/09/10 v0.4.0: **Breaking change !!**: Invert the coordinates, to match the
 //                     main stream conventions.

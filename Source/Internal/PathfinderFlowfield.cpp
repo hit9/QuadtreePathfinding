@@ -113,8 +113,14 @@ namespace QDPF
 			if (!(qrange.x1 <= qrange.x2 && qrange.y1 <= qrange.y2))
 				return;
 
-			this->qrangeCenterX = (qrange.x1 + (qrange.x2 - qrange.x1) / 2);
-			this->qrangeCenterY = (qrange.y1 + (qrange.y2 - qrange.y1) / 2);
+			// shrink the qrange by the map
+			this->qrange.x1 = std::max(0, this->qrange.x1);
+			this->qrange.y1 = std::max(0, this->qrange.y1);
+			this->qrange.x2 = std::min(m->W() - 1, this->qrange.x2);
+			this->qrange.y2 = std::min(m->H() - 1, this->qrange.y2);
+
+			this->qrangeCenterX = (this->qrange.x1 + (this->qrange.x2 - this->qrange.x1) / 2);
+			this->qrangeCenterY = (this->qrange.y1 + (this->qrange.y2 - this->qrange.y1) / 2);
 
 			t = m->PackXY(x2, y2);
 			tNode = m->FindNode(x2, y2);
@@ -124,7 +130,7 @@ namespace QDPF
 
 			// find all nodes overlapping with qrange.
 			nodesOverlappingQueryRange.clear();
-			m->NodesInRange(qrange, nodesOverlappingQueryRangeCollector);
+			m->NodesInRange(this->qrange, nodesOverlappingQueryRangeCollector);
 
 			// find all gates inside nodesOverlappingQueryRange.
 			gatesInNodesOverlappingQueryRange.clear();
@@ -147,7 +153,7 @@ namespace QDPF
 				// t is a virtual gate cell now.
 				// we should check if it is inside the qrange,
 				// and add it to gatesInNodesOverlappingQueryRange if it is.
-				if (x2 >= qrange.x1 && x2 <= qrange.x2 && y2 >= qrange.y1 && y2 <= qrange.y2)
+				if (x2 >= this->qrange.x1 && x2 <= this->qrange.x2 && y2 >= this->qrange.y1 && y2 <= this->qrange.y2)
 				{
 					gatesInNodesOverlappingQueryRange.insert(t);
 				}
@@ -159,7 +165,7 @@ namespace QDPF
 			Rectangle tNodeRectangle{ tNode->x1, tNode->y1, tNode->x2, tNode->y2 };
 			Rectangle overlap;
 
-			auto hasOverlap = GetOverlap(tNodeRectangle, qrange, overlap);
+			auto hasOverlap = GetOverlap(tNodeRectangle, this->qrange, overlap);
 
 			if (hasOverlap)
 			{

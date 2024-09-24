@@ -3,6 +3,7 @@
 
 #include "Flowfield.h"
 
+#include <algorithm>
 #include <cassert>
 
 #include "../Internal/Base.h"
@@ -29,6 +30,11 @@ namespace QDPF
 			if (!(qrange.x1 <= qrange.x2 && qrange.y1 <= qrange.y2))
 				return -1;
 
+			// Shrink the qrange by the map size.
+			int		  qx1 = std::max(0, qrange.x1), qy1 = std::max(0, qrange.y1);
+			int		  qx2 = std::min(m->W() - 1, qrange.x2), qy2 = std::min(m->H() - 1, qrange.y2);
+			Rectangle qr{ qx1, qy1, qx2, qy2 };
+
 			int t = m->PackXY(x2, y2);
 
 			using FFA = FlowFieldAlgorithm<int, inf>;
@@ -45,16 +51,16 @@ namespace QDPF
 			};
 
 			// how many grids should check.
-			int n = (qrange.x2 - qrange.x1 + 1) * (qrange.y2 - qrange.y1 + 1);
+			int n = (qx2 - qx1 + 1) * (qy2 - qy1 + 1);
 			// how many grids already checked.
 			int numChecked = 0;
 
 			// We check if there's n cells are checked bu ffa.
 			// actually we should count the non-obstacle cells, but we may need to count the obstacles inside
 			// qrange, which may be slow, so we may stop later, just using n instead of nNonObstacles.
-			FFA::StopAfterFunction stopf = [n, &numChecked, &qrange, m](int u) {
+			FFA::StopAfterFunction stopf = [n, &numChecked, &qr, m](int u) {
 				auto [x, y] = m->UnpackXY(u);
-				if (IsInsideRectangle(x, y, qrange))
+				if (IsInsideRectangle(x, y, qr))
 					++numChecked;
 				return numChecked >= n;
 			};
