@@ -4,6 +4,7 @@
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
 // Changes:
+// 2024/09/27 v0.5.3: Update 3rdParty/ClearanceField
 // 2024/09/26 v0.5.2: Add MapX.W() and MapX.H().
 // 2024/09/24 v0.5.1: shrink the query range for flowfield by the map size.
 // 2024/09/13 v0.5.0: **Breaking change !!**: Use UE coding style

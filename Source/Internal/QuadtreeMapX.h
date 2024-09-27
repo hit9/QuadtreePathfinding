@@ -61,6 +61,7 @@ namespace QDPF
 			// Update should be called if cell (x,y)'s terrain is changed.
 			// If the (x,y) is out of bound, nothing happens.
 			void Update(int x, int y);
+
 			// Compute should be called after one or more Update calls, to apply the changes to all related
 			// quadtree maps.
 			void Compute();

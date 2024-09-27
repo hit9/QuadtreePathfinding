@@ -261,7 +261,7 @@ namespace QDPF
 				// when a terrain value is changed, it may affect the clearan values of cells around.
 				// so we make a listener to collect them, and they will be applied to quadtree map's Updates in
 				// the later Compute() call.
-				cf->SetUpdatedCellVisistor([this, t](int x, int y) { dirties[t].push_back({ x, y }); });
+				cf->SetUpdatedCellVisitor([this, t](int x, int y) { dirties[t].push_back({ x, y }); });
 			}
 		}
 
