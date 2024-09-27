@@ -4,6 +4,7 @@ project(QDPF)
 
 include(FetchContent)
 
+message(STATUS "Fetching https://github.com/hit9/ClearanceField.git...")
 FetchContent_Declare(
   ClearanceField
   GIT_REPOSITORY https://github.com/hit9/ClearanceField.git
@@ -11,6 +12,7 @@ FetchContent_Declare(
   SOURCE_SUBDIR Source SOURCE_DIR
   ${CMAKE_CURRENT_BINARY_DIR}/_deps/ClearanceField)
 
+message(STATUS "Fetching https://github.com/hit9/Quadtree-hpp.git...")
 FetchContent_Declare(
   Quadtree
   GIT_REPOSITORY https://github.com/hit9/Quadtree-hpp.git
