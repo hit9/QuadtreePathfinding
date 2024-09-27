@@ -21,7 +21,7 @@ namespace QDPF
 			: w(w), h(h), step(step), s(std::max(w, h)), // hint: checks comments for "Cell Id Packing"
 			maxNodeWidth(maxNodeWidth == -1 ? w : maxNodeWidth)
 			, maxNodeHeight(maxNodeHeight == -1 ? h : maxNodeHeight)
-			, isObstacle(isObstacle)
+			, obstacleChecker(isObstacle)
 			, distance(distance)
 			, stepf(stepf)
 			, tree(QdTree(w, h))
@@ -131,7 +131,7 @@ namespace QDPF
 		{
 			if (!(x >= 0 && x < w && y >= 0 && y < h))
 				return true;
-			return isObstacle(x, y);
+			return obstacleChecker(x, y).first;
 		}
 
 		QdNode* QuadtreeMap::FindNode(int x, int y) const
@@ -200,7 +200,7 @@ namespace QDPF
 			// build the empty tree, which creates the root node.
 			tree.Build();
 
-			std::vector<Quadtree::BatchOperationItem<bool>> items;
+			std::vector<Quadtree::BatchOperationItem<void*>> items;
 
 			for (int y = 0; y < h; y++)
 			{ // iterates by row firstly
@@ -209,15 +209,18 @@ namespace QDPF
 					// On the first build, we care only about the obstacles.
 					// the grid map will be splited into multiple sections,
 					// and gates will be created for the first time.
-					if (isObstacle(x, y))
-						items.push_back({ x, y, true });
+					auto [b, data] = obstacleChecker(x, y);
+					if (b)
+					{
+						items.push_back({ x, y, data });
+					}
 				}
 			}
 
 			tree.BatchAddToLeafNode(tree.GetRootNode(), items);
 		}
 
-		void QuadtreeMap::Update(int x, int y)
+		void QuadtreeMap::Update(int x, int y, void* data)
 		{
 			// ndebug, let's do nothing, don't crash the program.
 			// since the (x,y) is passed in by a user-level programmer.
@@ -232,14 +235,15 @@ namespace QDPF
 			//   determines this fact. In this case, we should call handleNewNode and handleRemovedNode
 			//   manually to ensure the gates are still maintained in this scenario, as if this node is
 			//   removed or created.
-			auto b = isObstacle(x, y);
+			auto [b, existingData] = obstacleChecker(x, y);
 			auto node = tree.Find(x, y);
+
 			// Is it 1x1 node before?
 			auto before1x1 = (node->x1 == node->x2 && node->y1 == node->y2);
 			if (b)
-				tree.Add(x, y, true);
+				tree.Add(x, y, data);
 			else
-				tree.Remove(x, y, true);
+				tree.Remove(x, y, existingData);
 
 			// Refresh the node it locates.
 			node = tree.Find(x, y);
@@ -417,13 +421,16 @@ namespace QDPF
 
 			// format: neighbours[direction] => list of neighbour nodes
 			std::vector<QdNode*> neighbours[8];
+
 			// direction: 0~3 NESW; 4~7 Diagonal
-			int						d;
-			Quadtree::Visitor<bool> visitor = [this, &neighbours, &d](QdNode* bNode) {
+			int d;
+
+			Quadtree::Visitor<void*> visitor = [this, &neighbours, &d](QdNode* bNode) {
 				// cares only about non-obstacle nodes.
 				if (bNode->objects.empty())
 					neighbours[d].push_back(bNode);
 			};
+
 			for (d = 0; d < 8; d++)
 			{
 				tree.FindNeighbourLeafNodes(aNode, d, visitor);

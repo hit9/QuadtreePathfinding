@@ -22,7 +22,7 @@ namespace QDPF
 
 		// ObstacleChecker is the type of the function that returns true if the given
 		// cell (x,y) is an obstacle.
-		using ObstacleChecker = std::function<bool(int x, int y)>;
+		using ObstacleChecker = std::function<std::pair<bool, void*>(int x, int y)>;
 
 		// DistanceCalculator calculates the distance between cell (x1,y1) and (x2,y2);
 		using DistanceCalculator = std::function<int(int x1, int y1, int x2, int y2)>;
@@ -32,9 +32,9 @@ namespace QDPF
 		using StepFunction = std::function<int(int length)>;
 
 		// QdTree is the type alias of a quadtree.
-		using QdTree = Quadtree::Quadtree<bool>;
+		using QdTree = Quadtree::Quadtree<void*>;
 		// QdNode is the type alias of a quadtree node.
-		using QdNode = Quadtree::Node<bool>;
+		using QdNode = Quadtree::Node<void*>;
 		// QdNodeVisitor is the type of the function that visits quadtree nodes of the path finder.
 		using QdNodeVisitor = std::function<void(QdNode* node)>;
 
@@ -141,14 +141,15 @@ namespace QDPF
 			void Build();
 
 			// Update should be called after any cell (x,y)'s value is changed.
-			void Update(int x, int y);
+			// The data pointer is optional to store.
+			void Update(int x, int y, void* data = nullptr);
 
 		private:
 			const int w, h, step;
 			const int s; // max side of (w,h)
 			const int maxNodeWidth, maxNodeHeight;
 
-			ObstacleChecker	   isObstacle;
+			ObstacleChecker	   obstacleChecker;
 			DistanceCalculator distance;
 			StepFunction	   stepf;
 
