@@ -9,7 +9,7 @@
 #include <unordered_set>
 
 #include "Base.h"
-#include "ClearanceField/ClearanceField.h"
+#include "ClearanceField.h"
 #include "QuadtreeMapX.h"
 
 namespace QDPF

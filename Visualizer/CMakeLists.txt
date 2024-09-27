@@ -16,16 +16,15 @@ add_library(imgui ${IMGUI_SOURCES})
 target_include_directories(imgui PUBLIC "3rdParty/imgui")
 target_include_directories(imgui PUBLIC ${SDL2_INCLUDE_DIRS})
 
-# ----- library qdpf ------
-file(GLOB_RECURSE QDPF_SOURCES ../Source/*.cpp)
-add_library(QDPF ${QDPF_SOURCES})
-target_include_directories(QDPF PUBLIC ../Source/3rdParty)
+# ------ QDPF ---------
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Source
+                 ${CMAKE_CURRENT_BINARY_DIR}/Source)
 
 # ----- QuadtreePathfindingVisualizer ------
 file(GLOB VISUALIZER_SOURCES *.cpp)
 add_executable(QuadtreePathfindingVisualizer ${VISUALIZER_SOURCES})
-target_include_directories(QuadtreePathfindingVisualizer
-                           PUBLIC "../Source" "../Source/3rdParty")
+target_include_directories(QuadtreePathfindingVisualizer PUBLIC "../Source"
+                                                                "3rdParty")
 
 target_link_libraries(
   QuadtreePathfindingVisualizer

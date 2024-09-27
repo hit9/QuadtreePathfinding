@@ -11,7 +11,7 @@
 #include <initializer_list>
 #include <unordered_map>
 
-#include "ClearanceField/ClearanceField.h"
+#include "ClearanceField.h"
 #include "QuadtreeMap.h"
 
 namespace QDPF

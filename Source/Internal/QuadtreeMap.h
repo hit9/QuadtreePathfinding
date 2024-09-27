@@ -8,7 +8,7 @@
 
 #include "Base.h"
 #include "Graph.h"
-#include "Quadtree-hpp/Quadtree.hpp"
+#include "Quadtree.hpp"
 
 // QuadtreeMap
 // ~~~~~~~~~~~
