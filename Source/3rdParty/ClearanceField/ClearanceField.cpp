@@ -153,9 +153,9 @@ namespace ClearanceField
 	}
 
 	// Proxy the algorithm's functions.
-	void ClearanceFieldBase::SetUpdatedCellVisistor(CellVisitor f)
+	void ClearanceFieldBase::SetUpdatedCellVisitor(CellVisitor f)
 	{
-		lpa->SetUpdatedCellVisistor(f);
+		lpa->SetUpdatedCellVisitor(f);
 	}
 	int ClearanceFieldBase::Compute()
 	{
