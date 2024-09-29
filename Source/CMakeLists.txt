@@ -8,7 +8,7 @@ message(STATUS "Fetching https://github.com/hit9/ClearanceField.git...")
 FetchContent_Declare(
   ClearanceField
   GIT_REPOSITORY https://github.com/hit9/ClearanceField.git
-  GIT_TAG master
+  GIT_TAG v0.4.1
   SOURCE_SUBDIR Source SOURCE_DIR
   ${CMAKE_CURRENT_BINARY_DIR}/_deps/ClearanceField)
 
@@ -16,7 +16,7 @@ message(STATUS "Fetching https://github.com/hit9/Quadtree-hpp.git...")
 FetchContent_Declare(
   Quadtree
   GIT_REPOSITORY https://github.com/hit9/Quadtree-hpp.git
-  GIT_TAG master
+  GIT_TAG v0.4.1
   SOURCE_SUBDIR Source SOURCE_DIR
   ${CMAKE_CURRENT_BINARY_DIR}/_deps/Quadtree-hpp)
 
