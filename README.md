@@ -82,7 +82,7 @@ Problems Unsolved (Plan)
 ------------------------
 
 1. Dynamical weighted A*.
-
+2. Height Map.
 
 License
 -------
