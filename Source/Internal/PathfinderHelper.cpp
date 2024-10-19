@@ -21,7 +21,7 @@ namespace QDPF
 			assert(m != nullptr);
 			if (u != v)
 			{
-				int dist = m->Distance(u, v);
+				float dist = m->Distance(u, v);
 				tmp.AddEdge(u, v, dist);
 				tmp.AddEdge(v, u, dist);
 			}

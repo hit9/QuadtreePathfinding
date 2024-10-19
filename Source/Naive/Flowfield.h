@@ -18,14 +18,16 @@ namespace QDPF
 	{
 
 		using Internal::FinalFlowField;
+		using Internal::FlowFieldResult;
 		using Internal::Rectangle;
 
 		class NaiveFlowFieldPathFinder
 		{
 		public:
 			// Computes a flowfield inside given rectangle range.
-			// Returns -1 if unreachable.
-			int Compute(const NaiveGridMap* m, int x2, int y2, const Rectangle& qrange,
+			// Returns { Unreachable } if unreachable.
+			// Returns { Ok } if success.
+			FlowFieldResult Compute(const NaiveGridMap* m, int x2, int y2, const Rectangle& qrange,
 				FinalFlowField& field);
 		};
 

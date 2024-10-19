@@ -20,10 +20,10 @@ namespace QDPF
 		// NeighbourVertexVisitor is the type of the function that visits neighbor vertices of a given
 		// vertex in a directed graph.
 		template <typename Vertex>
-		using NeighbourVertexVisitor = std::function<void(Vertex v, int cost)>;
+		using NeighbourVertexVisitor = std::function<void(Vertex v, float cost)>;
 
 		template <typename Vertex>
-		using EdgeVisitor = std::function<void(Vertex u, Vertex v, int cost)>;
+		using EdgeVisitor = std::function<void(Vertex u, Vertex v, float cost)>;
 
 		// IDirectedGraph is the interface of a directed graph.
 		// The parameter Vertex is the type of vertex (e.g. int).
@@ -36,7 +36,7 @@ namespace QDPF
 			virtual void Init() = 0;
 
 			// Add an edge from vertex u to v with given cost.
-			virtual void AddEdge(Vertex u, Vertex v, int cost) = 0;
+			virtual void AddEdge(Vertex u, Vertex v, float cost) = 0;
 
 			// Remove an edge from vertex u to v.
 			virtual void RemoveEdge(Vertex u, Vertex v) = 0;
@@ -65,7 +65,7 @@ namespace QDPF
 
 			// ~~~~~~~~~~ Implements IDirectedGraph ~~~~~~~~~~~~~~~~
 			void Init() override;
-			void AddEdge(int u, int v, int cost) override;
+			void AddEdge(int u, int v, float cost) override;
 			void RemoveEdge(int u, int v) override;
 			void ClearEdgeFrom(int u) override;
 			void ClearEdgeTo(int v) override;
@@ -87,7 +87,7 @@ namespace QDPF
 		{
 		public:
 			void Init() override;
-			void AddEdge(Vertex u, Vertex v, int cost) override;
+			void AddEdge(Vertex u, Vertex v, float cost) override;
 			void RemoveEdge(Vertex u, Vertex v) override;
 			void ClearEdgeFrom(Vertex u) override;
 			void ClearEdgeTo(Vertex v) override;
@@ -111,7 +111,7 @@ namespace QDPF
 		void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::Init() {}
 
 		template <typename Vertex, typename VertexHasher>
-		void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::AddEdge(Vertex u, Vertex v, int cost)
+		void SimpleUnorderedMapDirectedGraph<Vertex, VertexHasher>::AddEdge(Vertex u, Vertex v, float cost)
 		{
 			edges[u].insert({ v, cost });
 			predecessors[v].insert(u);

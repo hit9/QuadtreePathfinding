@@ -34,12 +34,13 @@ namespace QDPF
 		{
 		public:
 			// { Next, Cost }
-			using P = std::pair<Vertex, int>;
+			using P = std::pair<Vertex, float>;
+
 			// The underlying unordered map.
 			using UnderlyingMap = std::unordered_map<Vertex, P, Hasher>;
 
 			// The default P.
-			static const inline P NullP = { NullVertex, inf };
+			static const inline P NullP = { NullVertex, static_cast<float>(inf) };
 
 			// Is given vertex exist in this flow field?
 			bool Exist(const Vertex& v) const { return m.find(v) != m.end(); }
@@ -69,8 +70,8 @@ namespace QDPF
 			const Vertex& Next(const Vertex& v) const { return this->operator[](v).first; }
 
 			// Returns the cost to target of given vertex.
-			// Returns inf if not found.
-			int Cost(const Vertex& v) const { return this->operator[](v).second; }
+			// Returns inf if not found (float number!).
+			float Cost(const Vertex& v) const { return this->operator[](v).second; }
 
 			// Gets a const reference to the underlying map.
 			const UnderlyingMap& GetUnderlyingMap() const { return m; }
@@ -89,8 +90,8 @@ namespace QDPF
 		public:
 			// P is the underlying stored item.
 			// Format: { Next Cell, Cost to target }
-			using P = std::pair<Cell, int>;
-			static const inline P NullP = { { -1, -1 }, inf };
+			using P = std::pair<Cell, float>;
+			static const inline P NullP = { { -1, -1 }, static_cast<float>(inf) };
 
 			// The underlying unordered map.
 			// { x, y }  => P
@@ -119,7 +120,7 @@ namespace QDPF
 
 			// Returns the cost to target of given vertex.
 			// Returns inf if not found.
-			int Cost(const Cell& v) const;
+			float Cost(const Cell& v) const;
 
 			// Gets a const reference to the underlying map.
 			const UnderlyingMap& GetUnderlyingMap() const;
@@ -148,6 +149,11 @@ namespace QDPF
 		// 1. Compute the cost field by reverse-traversing from the target, using the astar algorithm.
 		// 2. Compute the flow field by comparing each vertex with its neighours vertices.
 
+		struct FlowFieldResult
+		{
+			ErrorCode code;
+		};
+
 		template <typename Vertex, Vertex NullVertex>
 		class FlowFieldAlgorithm
 		{
@@ -160,7 +166,7 @@ namespace QDPF
 			using StopAfterFunction = std::function<bool(Vertex)>;
 
 			// The heuristic function for astar, it's optional.
-			using HeuristicFunction = std::function<int(Vertex u)>;
+			using HeuristicFunction = std::function<float(Vertex u)>;
 
 			// Compute flowfield on given graph to target t.
 			// Parameters:
@@ -200,17 +206,15 @@ namespace QDPF
 			void Reset(const QuadtreeMap* m, int x2, int y2, const Rectangle& qrange);
 
 			// Computes the node flow field.
-			// Returns -1 on failure (unreachable).
-			int ComputeNodeFlowField(NodeFlowField& nodeFlowField);
+			FlowFieldResult ComputeNodeFlowField(NodeFlowField& nodeFlowField);
 
 			// Computes the gate cell flow field.
-			// Returns -1 on failure (unreachable).
-			int ComputeGateFlowField(GateFlowField& gateFlowField, const NodeFlowField& nodeFlowField);
-			int ComputeGateFlowField(GateFlowField& gateFlowField);
+			FlowFieldResult ComputeGateFlowField(GateFlowField& gateFlowField, const NodeFlowField& nodeFlowField);
+			FlowFieldResult ComputeGateFlowField(GateFlowField& gateFlowField);
 
 			// Computes the final cell flow field for the query range.
 			// Returns -1 on failure (unreachable).
-			int ComputeFinalFlowField(FinalFlowField& finalFlowField, const GateFlowField& gateFlowField);
+			FlowFieldResult ComputeFinalFlowField(FinalFlowField& finalFlowField, const GateFlowField& gateFlowField);
 
 		private:
 			// ~~~~~~~  algorithm handlers ~~~~~~~~
@@ -229,7 +233,7 @@ namespace QDPF
 			// the quadtree map current working on
 			const QuadtreeMap* m = nullptr;
 
-			// final compution results ared limited within this rectangle.
+			// final compution results are limited within this rectangle.
 			Rectangle qrange;
 			int		  qrangeCenterX, qrangeCenterY;
 			// target.
@@ -271,7 +275,7 @@ namespace QDPF
 			void ShrinkNodeFlowField(NodeFlowField& nodeFlowField);
 
 			// DP value container of f for ComputeFinalFlowFieldInQueryRange()
-			using Final_F = NestedDefaultedUnorderedMap<int, int, int, inf>;
+			using Final_F = NestedDefaultedUnorderedMap<int, int, float, static_cast<float>(inf)>;
 			// DP value container of from for ComputeFinalFlowFieldInQueryRange()
 			using Final_From = NestedDefaultedUnorderedMap<int, int, int, inf>;
 			// B[x][y] is the container indicates that whether cell (x,y) is on the computed gate flow field.
@@ -281,9 +285,9 @@ namespace QDPF
 			void FindNeighbourCellByNext(int x, int y, int x1, int y1, int& x2, int& y2);
 
 			void ComputeFinalFlowFieldDP1(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
-				int c1, int c2);
+				float c1, float c2);
 			void ComputeFinalFlowFieldDP2(const QdNode* node, Final_F& f, Final_From& from, Final_B& b,
-				int c1, int c2);
+				float c1, float c2);
 		};
 
 		// ~~~~~~~~~~~~~~~ Implements FlowField Algorithm ~~~~~~~~~~~
@@ -296,9 +300,9 @@ namespace QDPF
 			StopAfterFunction&	   stopAfterTester)
 		{
 			// Pair of { cost, vertex}.
-			using P = std::pair<int, Vertex>;
+			using P = std::pair<float, Vertex>;
 
-			// astar
+			// visit
 			DefaultedUnorderedMapBool<Vertex, false> vis;
 
 			// smallest-first queue, where P is { cost, vertex }
@@ -312,13 +316,13 @@ namespace QDPF
 
 			// expand from u to v with cost c
 			NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &f, &heuristic](Vertex v,
-														int												 c) {
+														float											 c) {
 				if (neighborTester != nullptr && !neighborTester(v))
 					return;
-				int	 fu = f.Cost(u); // readonly
-				int	 fv = f.Cost(v); // readonly
-				auto g = fu + c;	 // existing real cost
-				auto cost = g;		 // future estimation cost
+				float fu = f.Cost(u); // readonly
+				float fv = f.Cost(v); // readonly
+				float g = fu + c;	  // existing real cost
+				float cost = g;		  // future estimation cost
 				if (heuristic != nullptr)
 					cost += heuristic(v);
 				if (fv > g)

@@ -50,28 +50,28 @@ namespace QDPF
 		return 0;
 	}
 
-	int AStarPathFinder::ComputeNodeRoutes(NodePath& nodePath)
+	AstarResult AStarPathFinder::ComputeNodeRoutes(NodePath& nodePath)
 	{
 		return impl.ComputeNodeRoutes(nodePath);
 	}
 
-	int AStarPathFinder::ComputeGateRoutes(GateRouteCollector& collector, const NodePath& nodePath)
+	AstarResult AStarPathFinder::ComputeGateRoutes(GateRouteCollector& collector, const NodePath& nodePath)
 	{
 		return impl.ComputeGateRoutes(collector, nodePath);
 	}
 
-	int AStarPathFinder::ComputeGateRoutes(GateRouteCollector& collector)
+	AstarResult AStarPathFinder::ComputeGateRoutes(GateRouteCollector& collector)
 	{
 		return impl.ComputeGateRoutes(collector);
 	}
 
-	int AStarPathFinder::ComputeGateRoutes(GatePath& path, const NodePath& nodePath)
+	AstarResult AStarPathFinder::ComputeGateRoutes(GatePath& path, const NodePath& nodePath)
 	{
 		GateRouteCollector collector = [&path](int x, int y, int cost) { path.push_back({ x, y, cost }); };
 		return ComputeGateRoutes(collector, nodePath);
 	}
 
-	int AStarPathFinder::ComputeGateRoutes(GatePath& path)
+	AstarResult AStarPathFinder::ComputeGateRoutes(GatePath& path)
 	{
 		GateRouteCollector collector = [&path](int x, int y, int cost) { path.push_back({ x, y, cost }); };
 		return ComputeGateRoutes(collector);
@@ -94,24 +94,24 @@ namespace QDPF
 		return 0;
 	}
 
-	int FlowFieldPathFinder::ComputeNodeFlowField(NodeFlowField& nodeFlowfield)
+	FlowFieldResult FlowFieldPathFinder::ComputeNodeFlowField(NodeFlowField& nodeFlowfield)
 	{
 		return impl.ComputeNodeFlowField(nodeFlowfield);
 	}
 
-	int FlowFieldPathFinder::ComputeGateFlowField(GateFlowField& gateFlowField)
+	FlowFieldResult FlowFieldPathFinder::ComputeGateFlowField(GateFlowField& gateFlowField)
 	{
 		return impl.ComputeGateFlowField(gateFlowField);
 	}
 
-	int FlowFieldPathFinder::ComputeGateFlowField(GateFlowField& gateFlowField,
-		const NodeFlowField&									 nodeFlowField)
+	FlowFieldResult FlowFieldPathFinder::ComputeGateFlowField(GateFlowField& gateFlowField,
+		const NodeFlowField&												 nodeFlowField)
 	{
 		return impl.ComputeGateFlowField(gateFlowField, nodeFlowField);
 	}
 
-	int FlowFieldPathFinder::ComputeFinalFlowField(FinalFlowField& finalFlowfield,
-		const GateFlowField&									   gateFlowField)
+	FlowFieldResult FlowFieldPathFinder::ComputeFinalFlowField(FinalFlowField& finalFlowfield,
+		const GateFlowField&												   gateFlowField)
 	{
 		return impl.ComputeFinalFlowField(finalFlowfield, gateFlowField);
 	}

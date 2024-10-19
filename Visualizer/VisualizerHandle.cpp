@@ -243,11 +243,11 @@ void Visualizer::ComputeAstarNodePath()
 	std::chrono::high_resolution_clock::time_point startAt, endAt;
 
 	startAt = std::chrono::high_resolution_clock::now();
-	int cost = astar.pf->ComputeNodeRoutes(astar.nodePath);
+	auto [code, cost] = astar.pf->ComputeNodeRoutes(astar.nodePath);
 	endAt = std::chrono::high_resolution_clock::now();
 
 	state = State::AStarNodePathComputed;
-	if (cost == -1)
+	if (code != QDPF::ErrorCode::Ok)
 	{
 		SetMessageHint("A*: unreachable!", ImRed);
 		return;
@@ -281,11 +281,11 @@ void Visualizer::ComputeAstarGatePath()
 	std::chrono::high_resolution_clock::time_point startAt, endAt;
 
 	startAt = std::chrono::high_resolution_clock::now();
-	int cost = astar.pf->ComputeGateRoutes(astar.gatePath, astar.nodePath);
+	auto [code, cost] = astar.pf->ComputeGateRoutes(astar.gatePath, astar.nodePath);
 	endAt = std::chrono::high_resolution_clock::now();
 
 	state = State::AStarGatePathComputed;
-	if (cost == -1)
+	if (code != QDPF::ErrorCode::Ok)
 	{
 		SetMessageHint("A*: unreachable!", ImRed);
 		return;
@@ -356,7 +356,7 @@ void Visualizer::ComputeAStarNaive()
 		return;
 	}
 
-	if (agent.size != COST_UNIT || agent.capability != Terrain::Land)
+	if (agent.size != 1 || agent.capability != Terrain::Land)
 	{
 		SetMessageHint("NaiveAstar works only for agent {1x1,Land}", ImRed);
 		return;
@@ -368,10 +368,10 @@ void Visualizer::ComputeAStarNaive()
 	std::chrono::high_resolution_clock::time_point startAt, endAt;
 
 	startAt = std::chrono::high_resolution_clock::now();
-	auto ret =
+	auto [code, cost] =
 		astarNaive.pf.Compute(map.naiveMap, astar.x1, astar.y1, astar.x2, astar.y2, astarNaive.path);
 	endAt = std::chrono::high_resolution_clock::now();
-	if (-1 == ret)
+	if (code != QDPF::ErrorCode::Ok)
 	{
 		SetMessageHint("Naive A*: failed!", ImRed);
 		return;
@@ -394,7 +394,7 @@ void Visualizer::ComputeFlowFieldNaive()
 		return;
 	}
 
-	if (agent.size != COST_UNIT || agent.capability != Terrain::Land)
+	if (agent.size != 1 || agent.capability != Terrain::Land)
 	{
 		SetMessageHint("NaiveFlowField works only for agent {1x1,Land}", ImRed);
 		return;
@@ -407,9 +407,9 @@ void Visualizer::ComputeFlowFieldNaive()
 
 	startAt = std::chrono::high_resolution_clock::now();
 
-	auto ret = flowfieldNaive.pf.Compute(map.naiveMap, flowfield.x2, flowfield.y2, flowfield.qrange,
+	auto [code] = flowfieldNaive.pf.Compute(map.naiveMap, flowfield.x2, flowfield.y2, flowfield.qrange,
 		flowfieldNaive.finalFlowField);
-	if (-1 == ret)
+	if (code != QDPF::ErrorCode::Ok)
 	{
 		SetMessageHint("Naive FlowField: failed!", ImRed);
 		return;
@@ -456,11 +456,11 @@ void Visualizer::ComputeNodeFlowField()
 	std::chrono::high_resolution_clock::time_point startAt, endAt;
 
 	startAt = std::chrono::high_resolution_clock::now();
-	int ret = flowfield.pf->ComputeNodeFlowField(flowfield.nodeFlowField);
+	auto [code] = flowfield.pf->ComputeNodeFlowField(flowfield.nodeFlowField);
 	endAt = std::chrono::high_resolution_clock::now();
 
 	state = State::FlowFieldNodeLevelComputed;
-	if (ret == -1)
+	if (code != QDPF::Internal::ErrorCode::Ok)
 	{
 		SetMessageHint("FlowField: unreachable!", ImRed);
 		return;
@@ -496,12 +496,12 @@ void Visualizer::ComputeGateFlowField()
 		flowfield.gateFlowField.Clear();
 
 	startAt = std::chrono::high_resolution_clock::now();
-	int ret = flowfield.pf->ComputeGateFlowField(flowfield.gateFlowField, flowfield.nodeFlowField);
+	auto [code] = flowfield.pf->ComputeGateFlowField(flowfield.gateFlowField, flowfield.nodeFlowField);
 	endAt = std::chrono::high_resolution_clock::now();
 
 	state = State::FlowFieldGateLevelComputed;
 
-	if (-1 == ret)
+	if (code != QDPF::Internal::ErrorCode::Ok)
 	{
 		SetMessageHint("FlowField: unreachable!", ImRed);
 		return;
@@ -534,11 +534,11 @@ void Visualizer::ComputeFinalFlowField()
 		flowfield.finalFlowField.Clear();
 
 	startAt = std::chrono::high_resolution_clock::now();
-	int ret = flowfield.pf->ComputeFinalFlowField(flowfield.finalFlowField, flowfield.gateFlowField);
+	auto [code] = flowfield.pf->ComputeFinalFlowField(flowfield.finalFlowField, flowfield.gateFlowField);
 	endAt = std::chrono::high_resolution_clock::now();
 	state = State::FlowFieldFinalLevelComputed;
 
-	if (-1 == ret)
+	if (code != QDPF::Internal::ErrorCode::Ok)
 	{
 		SetMessageHint("FlowField: unreachable!", ImRed);
 		return;

@@ -51,27 +51,27 @@ namespace QDPF
 				ConnectCellsOnTmpGraph(s, t);
 		}
 
-		int AStarPathFinderImpl::ComputeNodeRoutes(NodePath& nodePath)
+		AstarResult AStarPathFinderImpl::ComputeNodeRoutes(NodePath& nodePath)
 		{
 			nodePath.clear();
 
 			// any one of start and target are out of map bounds.
 			if (sNode == nullptr || tNode == nullptr)
-				return -1;
+				return { ErrorCode::Unreachable, 0 };
 
 			// Can't route to or start from obstacles.
 			if (m->IsObstacle(x1, y1) || m->IsObstacle(x2, y2))
-				return -1;
+				return { ErrorCode::Unreachable, 0 };
 
 			// Same node.
 			if (sNode == tNode)
 			{
 				nodePath.push_back({ sNode, 0 });
-				return 0;
+				return { ErrorCode::Ok, 0 };
 			}
 
 			// collector for path result.
-			A1::PathCollector collector = [this, &nodePath](QdNode* node, int cost) {
+			A1::PathCollector collector = [this, &nodePath](QdNode* node, float cost) {
 				nodePath.push_back({ node, cost });
 			};
 
@@ -82,7 +82,7 @@ namespace QDPF
 			};
 
 			// Distance function
-			A1::Distance distance = [this](QdNode* a, QdNode* b) {
+			A1::Distance distance = [this](QdNode* a, QdNode* b) -> float {
 				return this->m->DistanceBetweenNodes(a, b);
 			};
 
@@ -114,22 +114,22 @@ namespace QDPF
 				m->ForEachGateInNode(nodePath[i].first, visitor);
 		}
 
-		int AStarPathFinderImpl::ComputeGateRoutes(GateRouteCollector& collector,
-			const NodePath&											   nodePath)
+		AstarResult AStarPathFinderImpl::ComputeGateRoutes(GateRouteCollector& collector,
+			const NodePath&													   nodePath)
 		{
 			// any one of start and target are out of map bounds.
 			if (sNode == nullptr || tNode == nullptr)
-				return -1;
+				return { ErrorCode::Unreachable, 0 };
 
 			// Can't route to or start from obstacles.
 			if (m->IsObstacle(x1, y1) || m->IsObstacle(x2, y2))
-				return -1;
+				return { ErrorCode::Unreachable, 0 };
 
 			// Same point.
 			if (x1 == x2 && y1 == y2)
 			{
 				collector(x1, y1, 0);
-				return 0;
+				return { ErrorCode::Ok, 0 };
 			}
 
 			// If useNodePath then collect all gate cells for these node.
@@ -138,7 +138,7 @@ namespace QDPF
 				CollectGateCellsOnNodePath(gateCellsOnNodePath, nodePath);
 
 			// Collector for path result.
-			A2::PathCollector collector1 = [this, &collector](int u, int cost) {
+			A2::PathCollector collector1 = [this, &collector](int u, float cost) {
 				auto [x, y] = m->UnpackXY(u);
 				collector(x, y, cost);
 			};
@@ -158,14 +158,14 @@ namespace QDPF
 			};
 
 			// Distance function
-			A2::Distance distance = [this](int u, int v) { return this->m->Distance(u, v); };
+			A2::Distance distance = [this](int u, int v) -> float { return this->m->Distance(u, v); };
 
 			// Compute
 			return astar2.Compute(s, t, collector1, distance, neighborsCollector, neighbourTester);
 		}
 
 		// ComputeGateRoutes, not using a computed nodePath.
-		int AStarPathFinderImpl::ComputeGateRoutes(GateRouteCollector& collector)
+		AstarResult AStarPathFinderImpl::ComputeGateRoutes(GateRouteCollector& collector)
 		{
 			NodePath emptyNodePath;
 			return ComputeGateRoutes(collector, emptyNodePath);

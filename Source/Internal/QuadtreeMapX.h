@@ -19,6 +19,8 @@ namespace QDPF
 	namespace Internal
 	{
 
+		const float kClearanceFieldCostUnitScaleFactor = 1e4;
+
 		struct QuadtreeMapXSetting
 		{
 			int AgentSize;
@@ -92,7 +94,7 @@ namespace QDPF
 
 			// ~~~~~ clearance fields ~~~~~~~
 			void CreateClearanceFields();
-			void CreateClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit, int costUnitDiagonal,
+			void CreateClearanceFieldForTerrainTypes(int agentSizeBound, float costUnit, float costUnitDiagonal,
 				int terrainTypes);
 			void BuildClearanceFields();
 

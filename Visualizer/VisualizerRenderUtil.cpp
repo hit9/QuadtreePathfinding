@@ -80,7 +80,7 @@ void Visualizer::RenderFillCell(int x, int y, const SDL_Color& color)
 
 void Visualizer::RenderFillAgent(int x, int y, const SDL_Color& color)
 {
-	int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
+	int agentSizeInPixels = agent.size * map.gridSize;
 
 	int px = x * map.gridSize, py = y * map.gridSize;
 
