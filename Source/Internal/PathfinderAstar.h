@@ -133,9 +133,9 @@ namespace QDPF
 			NeighboursCollectorT&  neighborsCollector,
 			NeighbourFilterTesterT neighborTester)
 		{
-			DefaultedUnorderedMapFloat<Vertex, inf * 1.f>	  f;
-			DefaultedUnorderedMapBool<Vertex, false>		  vis;
-			DefaultedUnorderedMap<Vertex, Vertex, NullVertex> from;
+			DefaultedUnorderedMapFloat<Vertex, static_cast<float>(inf)> f;
+			DefaultedUnorderedMapBool<Vertex, false>					vis;
+			DefaultedUnorderedMap<Vertex, Vertex, NullVertex>			from;
 
 			// A* smallest-first queue, where P is { cost, vertex }
 			std::priority_queue<P, std::vector<P>, std::greater<P>> q;
@@ -146,7 +146,7 @@ namespace QDPF
 
 			// Expand from u to v with cost c
 			NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &f, &from, &distance](
-														Vertex v, int c) {
+														Vertex v, float c) {
 				if (neighborTester != nullptr && !neighborTester(v))
 					return;
 				auto g = f[u] + c;

@@ -309,7 +309,7 @@ namespace QDPF
 			std::priority_queue<P, std::vector<P>, std::greater<P>> q;
 
 			// Notes that the target's next is itself.
-			f[t] = { t, 0 };
+			f[t] = { t, 0.f };
 			q.push({ 0, t });
 
 			Vertex u;

@@ -128,7 +128,7 @@ namespace QDPF
 	// struct {
 	//   // the size of pathfinding agent, usually set to the maximum side length of the agent.
 	//   // Note that it is relative to the unit of the distance function structure, not the number of
-	//   // cells.
+	//   // cells. If the CostUnit is set to 1.f, then the AgentSize is the size in number of cells.
 	//   int AgentSize;
 	//
 	//   // the terrain types to support, represented as the OR sum result of terrain type integers.
