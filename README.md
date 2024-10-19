@@ -5,6 +5,8 @@ May unstable before version 1.0.0! Still in dev!
 
 Hierarchical path finding on quadtree for equal-weighted 2D grid map.
 
+Reqiures: c++ >= 20
+
 Idea
 ----
 
