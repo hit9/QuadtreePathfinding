@@ -67,13 +67,13 @@ namespace QDPF
 
 	AstarResult AStarPathFinder::ComputeGateRoutes(GatePath& path, const NodePath& nodePath)
 	{
-		GateRouteCollector collector = [&path](int x, int y, int cost) { path.push_back({ x, y, cost }); };
+		GateRouteCollector collector = [&path](int x, int y, float cost) { path.push_back({ x, y, cost }); };
 		return ComputeGateRoutes(collector, nodePath);
 	}
 
 	AstarResult AStarPathFinder::ComputeGateRoutes(GatePath& path)
 	{
-		GateRouteCollector collector = [&path](int x, int y, int cost) { path.push_back({ x, y, cost }); };
+		GateRouteCollector collector = [&path](int x, int y, float cost) { path.push_back({ x, y, cost }); };
 		return ComputeGateRoutes(collector);
 	}
 
