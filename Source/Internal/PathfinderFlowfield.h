@@ -40,7 +40,7 @@ namespace QDPF
 			using UnderlyingMap = std::unordered_map<Vertex, P, Hasher>;
 
 			// The default P.
-			static const inline P NullP = { NullVertex, static_cast<float>(inf) };
+			static const inline P NullP = { NullVertex, inff };
 
 			// Is given vertex exist in this flow field?
 			bool Exist(const Vertex& v) const { return m.find(v) != m.end(); }
@@ -91,7 +91,7 @@ namespace QDPF
 			// P is the underlying stored item.
 			// Format: { Next Cell, Cost to target }
 			using P = std::pair<Cell, float>;
-			static const inline P NullP = { { -1, -1 }, static_cast<float>(inf) };
+			static const inline P NullP = { { -1, -1 }, inff };
 
 			// The underlying unordered map.
 			// { x, y }  => P

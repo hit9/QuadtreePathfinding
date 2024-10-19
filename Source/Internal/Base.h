@@ -15,6 +15,7 @@ namespace QDPF
 	{
 
 		const int	inf = 0x3f3f3f3f;
+		const float inff = static_cast<float>(inf);
 		const float epsilon = 1e-10;
 
 		// Cell {x, y} in pair format.

@@ -254,7 +254,7 @@ namespace QDPF
 				if (f.Exist(node))
 					continue;
 				auto [next, cost] = nodeFlowField[node];
-				if (cost >= static_cast<float>(inf) - epsilon)
+				if (cost >= inff - epsilon)
 					continue;
 				q.push(next);
 				f[node] = { next, cost };
@@ -481,7 +481,7 @@ namespace QDPF
 					// (x1,y1) is the next cell to go.
 					auto [x1, y1] = m->UnpackXY(from[x][y]);
 					// f is inf: unreachable
-					if (f[x][y] >= (static_cast<float>(inf) - epsilon) || from[x][y] == inf)
+					if (f[x][y] >= (inff - epsilon) || from[x][y] == inf)
 						continue;
 					// {x,y} => next{x1,y1}, cost
 					finalFlowField[{ x, y }] = { { x1, y1 }, f[x][y] };
