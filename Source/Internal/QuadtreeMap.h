@@ -25,7 +25,7 @@ namespace QDPF
 		using ObstacleChecker = std::function<bool(int x, int y)>;
 
 		// DistanceCalculator calculates the distance between cell (x1,y1) and (x2,y2);
-		using DistanceCalculator = std::function<int(int x1, int y1, int x2, int y2)>;
+		using DistanceCalculator = std::function<float(int x1, int y1, int x2, int y2)>;
 
 		// StepFunction specifics a dynamic step to pick gate cells.
 		// Where the length is the number of cells of the adjacent side of two neighbor nodes.
@@ -88,8 +88,8 @@ namespace QDPF
 			int H() const { return h; }
 
 			// Returns the distance between two vertices u and v.
-			int Distance(int u, int v) const;
-			int Distance(int x1, int y1, int x2, int y2) const;
+			float Distance(int u, int v) const;
+			float Distance(int x1, int y1, int x2, int y2) const;
 
 			// Returns true if the given cell (x,y) is an obstacle.
 			// if the given (x,y) is out of bounds, it's also considered an obstacle.
@@ -97,7 +97,7 @@ namespace QDPF
 
 			// Approximate distance between two quadtree nodes.
 			// Using the provided distance calculator on their center cells.
-			int DistanceBetweenNodes(QdNode* aNode, QdNode* bNode) const;
+			float DistanceBetweenNodes(QdNode* aNode, QdNode* bNode) const;
 
 			// Returns the gates's graph.
 			const GateGraph& GetGateGraph() const { return g2; }

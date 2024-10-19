@@ -51,7 +51,7 @@ namespace QDPF
 			return this->operator[](v).first;
 		}
 
-		int UnpackedCellFlowField::Cost(const Cell& v) const
+		float UnpackedCellFlowField::Cost(const Cell& v) const
 		{
 			return this->operator[](v).second;
 		}
@@ -191,18 +191,18 @@ namespace QDPF
 		// Computes node flow field.
 		// 1. Perform flowfield algorithm on the node graph.
 		// 2. Stops earlier if all nodes overlapping the query range are checked.
-		int FlowFieldPathFinderImpl::ComputeNodeFlowField(NodeFlowField& nodeFlowField)
+		FlowFieldResult FlowFieldPathFinderImpl::ComputeNodeFlowField(NodeFlowField& nodeFlowField)
 		{
 			if (nodeFlowField.Size())
 				nodeFlowField.Clear();
 
 			// unreachable
 			if (tNode == nullptr)
-				return -1;
+				return { ErrorCode::Unreachable };
 
 			// the target is an obstacle, unreachable
 			if (m->IsObstacle(x2, y2))
-				return -1;
+				return { ErrorCode::Unreachable };
 
 			// stops earlier if all nodes overlapping with the query range are checked.
 
@@ -221,7 +221,7 @@ namespace QDPF
 
 			// Heuristic function for node level astar.
 			// node's center to qrange's center.
-			FFA1::HeuristicFunction ffa1Heuristic = [this](QdNode* node) {
+			FFA1::HeuristicFunction ffa1Heuristic = [this](QdNode* node) -> float {
 				// node's center
 				int nodeCenterX = node->x1 + (node->x2 - node->x1) / 2;
 				int nodeCenterY = node->y1 + (node->y2 - node->y1) / 2;
@@ -232,7 +232,7 @@ namespace QDPF
 			ffa1.Compute(tNode, nodeFlowField, ffa1Heuristic, ffa1NeighborsCollector, nullptr, stopf);
 
 			ShrinkNodeFlowField(nodeFlowField);
-			return 0;
+			return { ErrorCode::Ok };
 		}
 
 		// Shrink the computed node flowfield.
@@ -254,7 +254,7 @@ namespace QDPF
 				if (f.Exist(node))
 					continue;
 				auto [next, cost] = nodeFlowField[node];
-				if (cost == inf)
+				if (cost >= inff - epsilon)
 					continue;
 				q.push(next);
 				f[node] = { next, cost };
@@ -270,7 +270,7 @@ namespace QDPF
 			gateCellsOnNodeFields.insert(t);
 
 			// We have to add all non-gate neighbours of t on the tmp graph.
-			NeighbourVertexVisitor<int> tmpNeighbourVisitor = [this](int v, int cost) {
+			NeighbourVertexVisitor<int> tmpNeighbourVisitor = [this](int v, float cost) {
 				if (!m->IsGateCell(tNode, v))
 					gateCellsOnNodeFields.insert(v);
 			};
@@ -305,16 +305,16 @@ namespace QDPF
 		// 1. Perform flowfield algorithm on the gate graph.
 		// 2. Stops earlier if all gate inside the nodes overlapping the query range are checked.
 		// 3. If there's a previous ComputeNodeFlowField() call, use only the gates on the node field.
-		int FlowFieldPathFinderImpl::ComputeGateFlowField(GateFlowField& gateFlowField,
-			const NodeFlowField&										 nodeFlowField)
+		FlowFieldResult FlowFieldPathFinderImpl::ComputeGateFlowField(GateFlowField& gateFlowField,
+			const NodeFlowField&													 nodeFlowField)
 		{
 			if (gateFlowField.Size())
 				gateFlowField.Clear();
 
 			if (tNode == nullptr)
-				return -1;
+				return { ErrorCode::Unreachable };
 			if (m->IsObstacle(x2, y2))
-				return -1;
+				return { ErrorCode::Unreachable };
 
 			// Collects the gate cells between nodes.
 			if (nodeFlowField.Size())
@@ -345,7 +345,7 @@ namespace QDPF
 
 			// Heuristic function for gate level astar.
 			// gate cell to qrange's center.
-			FFA2::HeuristicFunction ffa2Heuristic = [this](int u) {
+			FFA2::HeuristicFunction ffa2Heuristic = [this](int u) -> float {
 				auto [x, y] = m->UnpackXY(u);
 				return m->Distance(x, y, qrangeCenterX, qrangeCenterY);
 			};
@@ -366,10 +366,10 @@ namespace QDPF
 				auto [x1, y1] = m->UnpackXY(next);
 				gateFlowField[{ x, y }] = { { x1, y1 }, cost };
 			}
-			return 0;
+			return { ErrorCode::Ok };
 		}
 
-		int FlowFieldPathFinderImpl::ComputeGateFlowField(GateFlowField& gateFlowField)
+		FlowFieldResult FlowFieldPathFinderImpl::ComputeGateFlowField(GateFlowField& gateFlowField)
 		{
 			NodeFlowField emptyNodeFlowField;
 			return ComputeGateFlowField(gateFlowField, emptyNodeFlowField);
@@ -395,17 +395,17 @@ namespace QDPF
 		// O(M*N) vs O(M*N*logMN), since the optimal path will always come from a cell on the
 		// node's borders. The optimal path should be a straight line, but there's no better
 		// algorithm than O(M*N).
-		int FlowFieldPathFinderImpl::ComputeFinalFlowField(FinalFlowField& finalFlowField,
-			const GateFlowField&										   gateFlowField)
+		FlowFieldResult FlowFieldPathFinderImpl::ComputeFinalFlowField(FinalFlowField& finalFlowField,
+			const GateFlowField&													   gateFlowField)
 		{
 			// ensures the finalFlowField is empty
 			if (finalFlowField.Size())
 				finalFlowField.Clear();
 
 			if (tNode == nullptr)
-				return -1;
+				return { ErrorCode::Unreachable };
 			if (m->IsObstacle(x2, y2))
-				return -1;
+				return { ErrorCode::Unreachable };
 
 			// f[x][y] is the cost from the cell (x,y) to the target, all cells are initialized to inf.
 			Final_F f;
@@ -459,7 +459,7 @@ namespace QDPF
 			}
 
 			// cost unit on HV(horizonal and vertical) and diagonal directions.
-			int c1 = m->Distance(0, 0, 0, 1), c2 = m->Distance(0, 0, 1, 1);
+			float c1 = m->Distance(0, 0, 0, 1), c2 = m->Distance(0, 0, 1, 1);
 
 			// computes dp for each node, from node borders to inner.
 			// why dp works: every node is empty (without obstacles inside it).
@@ -481,22 +481,22 @@ namespace QDPF
 					// (x1,y1) is the next cell to go.
 					auto [x1, y1] = m->UnpackXY(from[x][y]);
 					// f is inf: unreachable
-					if (f[x][y] == inf || from[x][y] == inf)
+					if (f[x][y] >= (inff - epsilon) || from[x][y] == inf)
 						continue;
 					// {x,y} => next{x1,y1}, cost
 					finalFlowField[{ x, y }] = { { x1, y1 }, f[x][y] };
 				}
 			}
 
-			return 0;
+			return { ErrorCode::Ok };
 		}
 
 		// DP 1 of ComputeFinalFlowFieldInQueryRange inside a single leaf node.
 		// From left-top corner to right-bottom corner.
 		// c1 and c2 is the unit cost for HV and diagonal directions.
 		void FlowFieldPathFinderImpl::ComputeFinalFlowFieldDP1(const QdNode* node, Final_F& f,
-			Final_From& from, Final_B& b, int c1,
-			int c2)
+			Final_From& from, Final_B& b, float c1,
+			float c2)
 		{
 			int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
 			for (int y = y1; y <= y2; ++y)
@@ -539,8 +539,8 @@ namespace QDPF
 		// From right-bottom corner to left-top corner.
 		// c1 and c2 is the unit cost for HV and diagonal directions.
 		void FlowFieldPathFinderImpl::ComputeFinalFlowFieldDP2(const QdNode* node, Final_F& f,
-			Final_From& from, Final_B& b, int c1,
-			int c2)
+			Final_From& from, Final_B& b, float c1,
+			float c2)
 		{
 			int x1 = node->x1, y1 = node->y1, x2 = node->x2, y2 = node->y2;
 			for (int y = y2; y >= y1; --y)

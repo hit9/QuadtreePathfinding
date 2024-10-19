@@ -196,7 +196,7 @@ void Visualizer::RenderHighlightedNodesFlowField()
 
 void Visualizer::RenderPathfindingAStar()
 {
-	int agentSizeInPixels = agent.size * map.gridSize / COST_UNIT;
+	int agentSizeInPixels = agent.size * map.gridSize;
 
 	switch (state)
 	{

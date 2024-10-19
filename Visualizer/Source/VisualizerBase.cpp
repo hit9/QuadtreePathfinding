@@ -11,7 +11,7 @@ using QDPF::Internal::IsInsideRectangle;
 
 void Agent::Reset()
 {
-	size = COST_UNIT;
+	size = 1;
 	capability = Terrain::Land;
 }
 
@@ -66,17 +66,17 @@ void Map::Build()
 	// Build QuadtreeMapX.
 	auto					   stepf = (step == -1) ? [](int z) -> int { return z / 8 + 1; } : nullptr;
 	QDPF::QuadtreeMapXSettings settings{
-		{ COST_UNIT, Terrain::Land },
-		{ 2 * COST_UNIT, Terrain::Land },
-		{ 3 * COST_UNIT, Terrain::Land },
-		{ COST_UNIT, Terrain::Water },
-		{ 2 * COST_UNIT, Terrain::Water },
-		{ 3 * COST_UNIT, Terrain::Water },
-		{ COST_UNIT, Terrain::Land | Terrain::Water },
-		{ 2 * COST_UNIT, Terrain::Land | Terrain::Water },
-		{ 3 * COST_UNIT, Terrain::Land | Terrain::Water },
+		{ 1, Terrain::Land },
+		{ 2, Terrain::Land },
+		{ 3, Terrain::Land },
+		{ 1, Terrain::Water },
+		{ 2, Terrain::Water },
+		{ 3, Terrain::Water },
+		{ 1, Terrain::Land | Terrain::Water },
+		{ 2, Terrain::Land | Terrain::Water },
+		{ 3, Terrain::Land | Terrain::Water },
 	};
-	auto distance = QDPF::EuclideanDistance<COST_UNIT>;
+	auto distance = QDPF::EuclideanDistance<1.f>;
 	auto terrianChecker = [this](int x, int y) { return grids[y][x]; };
 	auto clearanceFieldKind = (options.clearanceFieldFlag == 0)
 		? QDPF::ClearanceFieldKind::TrueClearanceField

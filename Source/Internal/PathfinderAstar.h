@@ -27,6 +27,12 @@ namespace QDPF
 		/// Algorithm AStar
 		//////////////////////////////////////
 
+		struct AstarResult
+		{
+			ErrorCode code;
+			float	  cost;
+		};
+
 		// AStar algorithm on a directed graph.
 		template <typename Vertex, Vertex NullVertex>
 		class AStar
@@ -36,20 +42,20 @@ namespace QDPF
 			using NeighbourFilterTesterT = NeighbourFilterTester<Vertex>;
 
 			// Collects the result path and total cost to it.
-			using PathCollector = std::function<void(Vertex v, int cost)>;
+			using PathCollector = std::function<void(Vertex v, float cost)>;
 
 			// Returns the distance between two vertices u and v.
-			using Distance = std::function<int(Vertex u, Vertex v)>;
+			using Distance = std::function<float(Vertex u, Vertex v)>;
 
 			// Pair of { cost, vertex}.
-			using P = std::pair<int, Vertex>;
+			using P = std::pair<float, Vertex>;
 
 			// Computes astar shortest path on given graph from start s to target t.
 			// The collector will be called with each vertex on the result path,
 			// along with the cost walking to it.
-			// Returns -1 if the target is unreachable.
-			// Returns the total cost to the target on success.
-			int Compute(Vertex s, Vertex t, PathCollector& collector, Distance& distance,
+			// Returns { Unreachable, 0 } if the target is unreachable.
+			// Returns { Ok, the total cost to the target } on success.
+			AstarResult Compute(Vertex s, Vertex t, PathCollector& collector, Distance& distance,
 				NeighboursCollectorT& neighborsCollector, NeighbourFilterTesterT neighborTester);
 		};
 
@@ -58,10 +64,10 @@ namespace QDPF
 		//////////////////////////////////////
 
 		// the type of node path, a vector if { node, cost to target }.
-		using NodePath = std::vector<std::pair<QdNode*, int>>;
+		using NodePath = std::vector<std::pair<QdNode*, float>>;
 
 		// the type of the function to collect computed gate cells.
-		using GateRouteCollector = std::function<void(int x, int y, int cost)>;
+		using GateRouteCollector = std::function<void(int x, int y, float cost)>;
 
 		// AStar PathFinder.
 		// how to:
@@ -79,19 +85,19 @@ namespace QDPF
 			void Reset(const QuadtreeMap* m, int x1, int y1, int x2, int y2);
 
 			// Compute the node path.
-			// Returns 0 on success.
-			// Returns -1 on failure (unreachable).
-			int ComputeNodeRoutes(NodePath& nodePath);
+			// Returns {Ok, Cost} on success.
+			// Returns {Unreachable, 0} on failure.
+			AstarResult ComputeNodeRoutes(NodePath& nodePath);
 
 			// Compute the gate cell path.
-			// Returns 0 on success.
-			// Returns -1 on failure (unreachable).
-			int ComputeGateRoutes(GateRouteCollector& collector);
+			// Returns {Ok, Cost} on success.
+			// Returns {Unreachable, 0} on failure.
+			AstarResult ComputeGateRoutes(GateRouteCollector& collector);
 
 			// Compute the gate cell path, based on computed node path.
-			// Returns 0 on success.
-			// Returns -1 on failure (unreachable).
-			int ComputeGateRoutes(GateRouteCollector& collector, const NodePath& nodePath);
+			// Returns {Ok, Cost} on success.
+			// Returns {Unreachable, 0} on failure.
+			AstarResult ComputeGateRoutes(GateRouteCollector& collector, const NodePath& nodePath);
 
 		private:
 			// the quadtree map current working on
@@ -122,14 +128,14 @@ namespace QDPF
 
 		// A* search algorithm.
 		template <typename Vertex, Vertex NullVertex>
-		int AStar<Vertex, NullVertex>::Compute(Vertex s, Vertex t, PathCollector& collector,
+		AstarResult AStar<Vertex, NullVertex>::Compute(Vertex s, Vertex t, PathCollector& collector,
 			Distance&			   distance,
 			NeighboursCollectorT&  neighborsCollector,
 			NeighbourFilterTesterT neighborTester)
 		{
-			DefaultedUnorderedMapInt<Vertex, inf>			  f;
-			DefaultedUnorderedMapBool<Vertex, false>		  vis;
-			DefaultedUnorderedMap<Vertex, Vertex, NullVertex> from;
+			DefaultedUnorderedMapFloat<Vertex, static_cast<float>(inf)> f;
+			DefaultedUnorderedMapBool<Vertex, false>					vis;
+			DefaultedUnorderedMap<Vertex, Vertex, NullVertex>			from;
 
 			// A* smallest-first queue, where P is { cost, vertex }
 			std::priority_queue<P, std::vector<P>, std::greater<P>> q;
@@ -140,7 +146,7 @@ namespace QDPF
 
 			// Expand from u to v with cost c
 			NeighbourVertexVisitor<Vertex> expand = [&u, &neighborTester, &q, &t, &f, &from, &distance](
-														Vertex v, int c) {
+														Vertex v, float c) {
 				if (neighborTester != nullptr && !neighborTester(v))
 					return;
 				auto g = f[u] + c;
@@ -166,7 +172,7 @@ namespace QDPF
 				neighborsCollector(u, expand);
 			}
 			if (from[t] == NullVertex)
-				return -1; // fail
+				return { ErrorCode::Unreachable, 0.f }; // fail
 
 			// Collects the path backward on from.
 			std::vector<Vertex> path;
@@ -179,7 +185,7 @@ namespace QDPF
 			}
 			for (int i = path.size() - 1; i >= 0; --i)
 				collector(path[i], f[path[i]]);
-			return f[t];
+			return { ErrorCode::Ok, f[t] };
 		}
 
 	} // namespace Internal

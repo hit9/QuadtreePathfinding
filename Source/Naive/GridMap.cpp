@@ -31,8 +31,8 @@ namespace QDPF
 			g.Init();
 			g.Resize(s * s);
 
-			int costUnitHV = distance(0, 0, 0, 1);
-			int costUnitDiagonal = distance(0, 0, 1, 1);
+			float costUnitHV = distance(0, 0, 0, 1);
+			float costUnitDiagonal = distance(0, 0, 1, 1);
 
 			for (int i = 0; i < 8; ++i)
 			{
@@ -54,17 +54,17 @@ namespace QDPF
 			return IsObstacle(c.first, c.second);
 		}
 
-		int NaiveGridMap::Distance(int x1, int y1, int x2, int y2) const
+		float NaiveGridMap::Distance(int x1, int y1, int x2, int y2) const
 		{
 			return distance(x1, y1, x2, y2);
 		}
 
-		int NaiveGridMap::Distance(const Cell& c1, const Cell& c2) const
+		float NaiveGridMap::Distance(const Cell& c1, const Cell& c2) const
 		{
 			return distance(c1.first, c1.second, c2.first, c2.second);
 		}
 
-		int NaiveGridMap::Distance(int u, int v) const
+		float NaiveGridMap::Distance(int u, int v) const
 		{
 			auto [x1, y1] = UnpackXY(u);
 			auto [x2, y2] = UnpackXY(v);
@@ -109,7 +109,8 @@ namespace QDPF
 				for (int i = 0; i < maxd; ++i)
 				{
 					const auto& d = directions[i];
-					int			dx = d[0], dy = d[1], cost = d[2];
+					int			dx = d[0], dy = d[1];
+					float		cost = d[2];
 					int			x1 = x + dx, y1 = y + dy;
 
 					// can't walk from/to obstacles (including boundry).

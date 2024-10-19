@@ -213,14 +213,14 @@ void Visualizer::RenderImguiPanelSectionAgent()
 
 	ImGui::Text("Size: ");
 	ImGui::SameLine();
-	if (ImGui::RadioButton("1x1", agent.size == 1 * COST_UNIT))
-		HandleChangeAgentSize(COST_UNIT);
+	if (ImGui::RadioButton("1x1", agent.size == 1))
+		HandleChangeAgentSize(1);
 	ImGui::SameLine();
-	if (ImGui::RadioButton("2x2", agent.size == 2 * COST_UNIT))
-		HandleChangeAgentSize(2 * COST_UNIT);
+	if (ImGui::RadioButton("2x2", agent.size == 2))
+		HandleChangeAgentSize(2);
 	ImGui::SameLine();
-	if (ImGui::RadioButton("3x3", agent.size == 3 * COST_UNIT))
-		HandleChangeAgentSize(3 * COST_UNIT);
+	if (ImGui::RadioButton("3x3", agent.size == 3))
+		HandleChangeAgentSize(3);
 
 	ImGui::Text("Capability: ");
 	ImGui::SameLine();

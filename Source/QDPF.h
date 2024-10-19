@@ -4,6 +4,7 @@
 // Quadtree reference: https://github.com/hit9/quadtree-hpp
 
 // Changes:
+// 2024/10/19 v0.5.6: Using float costs instead of int, remove the cost unit concept.
 // 2024/09/29 v0.5.5: Upgrade deps Quadtree-hpp to v0.4.1
 // 2024/09/27 v0.5.4: Improve the cmake 3rdParty deps management
 // 2024/09/27 v0.5.3: Update 3rdParty/ClearanceField
@@ -67,6 +68,8 @@ namespace QDPF
 	using Internal::inf;
 	using Internal::Rectangle;
 
+	using Internal::ErrorCode;
+
 	// the quadtree node.
 	using Internal::QdNode;
 
@@ -103,10 +106,10 @@ namespace QDPF
 	using DistanceCalculator = Internal::DistanceCalculator;
 
 	// Euclidean distance calculator with a given cost unit.
-	template <int CostUnit>
-	int EuclideanDistance(int x1, int y1, int x2, int y2)
+	template <float CostUnit = 1.f>
+	float EuclideanDistance(int x1, int y1, int x2, int y2)
 	{
-		return std::round(std::hypot(x1 - x2, y1 - y2) * CostUnit);
+		return std::hypot(x1 - x2, y1 - y2) * CostUnit;
 	}
 
 	// StepFunction is the type of a function to specific a dynamic gate picking step.
@@ -125,7 +128,7 @@ namespace QDPF
 	// struct {
 	//   // the size of pathfinding agent, usually set to the maximum side length of the agent.
 	//   // Note that it is relative to the unit of the distance function structure, not the number of
-	//   // cells.
+	//   // cells. If the CostUnit is set to 1.f, then the AgentSize is the size in number of cells.
 	//   int AgentSize;
 	//
 	//   // the terrain types to support, represented as the OR sum result of terrain type integers.
@@ -148,9 +151,9 @@ namespace QDPF
 	//   };
 	//
 	//  qdpf::QuadtreeMapXSettings settings{
-	//      {1 * CostUnit, Terrain::Land},                   // e.g. soldiers
-	//      {1 * CostUnit, Terrain::Land | Terrain::Water},  // e.g. seals
-	//      {2 * CostUnit, Terrain::Water},                  // e.g. boats
+	//      {1, Terrain::Land},                   // e.g. soldiers
+	//      {1, Terrain::Land | Terrain::Water},  // e.g. seals
+	//      {2, Terrain::Water},                  // e.g. boats
 	//  };
 	//
 	using QuadtreeMapXSettings = Internal::QuadtreeMapXSettings;
@@ -185,8 +188,6 @@ namespace QDPF
 		// * distance is a function that calculates the distance between two given cells.
 		//    there's a builtin helper function template EuclideanDistance<CostUnit> to use
 		//    for euclidean distance.
-		//    If you prefer a float nunmber, it's better to scale the CostUnit larger (i.e. 1000 ) and
-		//    then scale it back when reading the path finding cost result.
 		// * settings is the list of agent sizes along with terrain types to support.
 		//    If you pass n settings, we will create n quadtree maps.
 		// * step is the number of interval cells when picking gate cells in a quadtree map.
@@ -246,16 +247,18 @@ namespace QDPF
 
 	// A vector to collect the node's path.
 	// Each item of the vector is a pair of { QdNode*, cost to target }.
-	// Signature: std::vector<std::pair<QdNode *, int>>
+	// Signature: std::vector<std::pair<QdNode *, float>>
 	using NodePath = Internal::NodePath;
 
 	// A vector to collect the gate route path.
 	// Each item: { x, y, cost }
-	using GatePath = std::vector<std::tuple<int, int, int>>;
+	using GatePath = std::vector<std::tuple<int, int, float>>;
 
 	// A function to collect the computed gate cell routes along with the cost to the target cell.
-	// Signature: std::function<void(int x, int y, int cost)>;
+	// Signature: std::function<void(int x, int y, float cost)>;
 	using GateRouteCollector = Internal::GateRouteCollector;
+
+	using Internal::AstarResult;
 
 	// A* path finder (stateful).
 	class AStarPathFinder
@@ -292,15 +295,15 @@ namespace QDPF
 		//    of which each item's structrue is a pair of { QdNode*, cost to target node }.
 		//
 		// Returns:
-		//  * Returns -1 if unreachable.
-		//  * Returns -1 if either of start and target cells are out of bound.
-		//  * Returns the approximate cost to target node on the node graph level.
+		//  * Returns { Unreachable, 0} if unreachable.
+		//  * Returns { Unreachable, 0} if either of start and target cells are out of bound.
+		//  * Returns { Ok, the approximate cost to target node on the node graph level } on success.
 		//
 		// This step is optional, the benefits to use it ahead of ComputeGateRoutes:
 		//   1. faster (but less optimal).
 		//   2. fast checking if the target is reachable.
 		//   3. optimize the following ComputeGateRoutes(useNodePath=true) call.
-		[[nodiscard]] int ComputeNodeRoutes(NodePath& nodePath);
+		[[nodiscard]] AstarResult ComputeNodeRoutes(NodePath& nodePath);
 
 		// ComputeGateRoutes computes the route cells from (x1,y1) to (x2,y2) on the gate graph.
 		//
@@ -315,16 +318,16 @@ namespace QDPF
 		//     faster, but less optimal.
 		//
 		// Returns:
-		//   * Returns -1 if the path finding is failed.
-		//   * Returns -1 if either of start and target cells are out of bound.
-		//   * Returns the distance of the shortest path on success (>=0).
-		[[nodiscard]] int ComputeGateRoutes(GateRouteCollector& collector, const NodePath& nodePath);
-		[[nodiscard]] int ComputeGateRoutes(GateRouteCollector& collector);
+		//   * Returns { Unreachable  0 } if the path finding is failed.
+		//   * Returns { Unreachable, 0 } if either of start and target cells are out of bound.
+		//   * Returns { Ok, the distance of the shortest path } on success.
+		[[nodiscard]] AstarResult ComputeGateRoutes(GateRouteCollector& collector, const NodePath& nodePath);
+		[[nodiscard]] AstarResult ComputeGateRoutes(GateRouteCollector& collector);
 
 		// Convenient functions to compute and collect gate route cells into a given vector.
 		// The behavour and returns are totally the same with ComputeGateRoutes with a collector.
-		[[nodiscard]] int ComputeGateRoutes(GatePath& path, const NodePath& nodePath);
-		[[nodiscard]] int ComputeGateRoutes(GatePath& path);
+		[[nodiscard]] AstarResult ComputeGateRoutes(GatePath& path, const NodePath& nodePath);
+		[[nodiscard]] AstarResult ComputeGateRoutes(GatePath& path);
 
 	private:
 		const QuadtreeMapX&			  mx;
@@ -341,7 +344,7 @@ namespace QDPF
 	// { CurrentNode => std::pair{ NextNode, Cost to target } }
 	//
 	// Where the CurrentNode and NextNode's type are both QdNode*;
-	// the cost's type is int.
+	// the cost's type is float.
 	//
 	// Note that the target node's next is itself.
 	using Internal::NodeFlowField;
@@ -362,6 +365,8 @@ namespace QDPF
 	//
 	// Note that the target cell's next is itself.
 	using Internal::FinalFlowField;
+
+	using Internal::FlowFieldResult;
 
 	// FlowField (stateful)
 	class FlowFieldPathFinder
@@ -402,7 +407,8 @@ namespace QDPF
 		// Computes the node flow field.
 		//
 		// Returns:
-		//   * Returns -1 if the target cell is out of bound.
+		//   * Returns { Unreachable } if the target cell is out of bound.
+		//   * Returns { Ok } on success.
 		//   * Reset() should be called in advance to call this api.
 		//
 		// In a node flow field, a node points to another node, finally points to the node where the
@@ -412,14 +418,15 @@ namespace QDPF
 		// 1. faster (but less optimal).
 		// 2. fast checking if the target is reachable for an agent.
 		// 3. optimize the following ComputeGateFlowField call.
-		[[nodiscard]] int ComputeNodeFlowField(NodeFlowField& nodeFlowfield);
+		[[nodiscard]] FlowFieldResult ComputeNodeFlowField(NodeFlowField& nodeFlowfield);
 
 		// ~~~~~~~~~~~~~~~~~~~~~~~ Gate Graph Level (Required) ~~~~~~~~~~~~~~
 
 		// Computes the gate flow field.
 		//
 		// Returns
-		//   * Returns -1 if the target cell is out of bound.
+		//   * Returns { Unreachable } if the target cell is out of bound.
+		//   * Returns { Ok } on success.
 		//   * Reset() should be called in advance to call this api.
 		//
 		// Setting a computed nodeFlowfield to use node flow field results of ComputeNodeFlowField().
@@ -433,9 +440,9 @@ namespace QDPF
 		// via qdpf::ComputeStraightLine() in the agent-moving stage,
 		//
 		// This step is required.
-		[[nodiscard]] int ComputeGateFlowField(GateFlowField& gateFlowField);
-		[[nodiscard]] int ComputeGateFlowField(GateFlowField& gateFlowField,
-			const NodeFlowField&							  nodeFlowField);
+		[[nodiscard]] FlowFieldResult ComputeGateFlowField(GateFlowField& gateFlowField);
+		[[nodiscard]] FlowFieldResult ComputeGateFlowField(GateFlowField& gateFlowField,
+			const NodeFlowField&										  nodeFlowField);
 
 		// ~~~~~~~~~~~~~~~~~~~~~~~  Grid Map Level  (Required) ~~~~~~~~~~~~~~
 
@@ -445,14 +452,15 @@ namespace QDPF
 		// gateFlowField.
 		//
 		// Returns:
-		//   * Returns -1 if the target cell is out of bound.
+		//   * Returns { Unreachable} if the target cell is out of bound.
+		//   * Returns { Ok } on success.
 		//   * Reset() should be called in advance to call this api.
 		//
 		// In this flow field:
 		//   1. It only contains the results of cells inside the query range.
 		//   2. A cell points to a neighbor cell (on at most 8 directions) to go.
-		[[nodiscard]] int ComputeFinalFlowField(FinalFlowField& finalFlowfield,
-			const GateFlowField&								gateFlowField);
+		[[nodiscard]] FlowFieldResult ComputeFinalFlowField(FinalFlowField& finalFlowfield,
+			const GateFlowField&											gateFlowField);
 
 	private:
 		const QuadtreeMapX&				  mx;

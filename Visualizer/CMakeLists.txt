@@ -21,7 +21,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Source
                  ${CMAKE_CURRENT_BINARY_DIR}/Source)
 
 # ----- QuadtreePathfindingVisualizer ------
-file(GLOB VISUALIZER_SOURCES *.cpp)
+file(GLOB VISUALIZER_SOURCES Source/*.cpp)
 add_executable(QuadtreePathfindingVisualizer ${VISUALIZER_SOURCES})
 target_include_directories(QuadtreePathfindingVisualizer PUBLIC "../Source"
                                                                 "3rdParty")

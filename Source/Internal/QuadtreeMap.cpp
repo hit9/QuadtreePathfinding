@@ -100,12 +100,12 @@ namespace QDPF
 
 		// ~~~~~~~~~~~~~~~ QuadtreeMap::Impl :: Basic methods ~~~~~~~~~~~
 
-		int QuadtreeMap::Distance(int x1, int y1, int x2, int y2) const
+		float QuadtreeMap::Distance(int x1, int y1, int x2, int y2) const
 		{
 			return distance(x1, y1, x2, y2);
 		}
 
-		int QuadtreeMap::Distance(int u, int v) const
+		float QuadtreeMap::Distance(int u, int v) const
 		{
 			if (u == v)
 				return 0; // avoid further calculation.
@@ -114,7 +114,7 @@ namespace QDPF
 			return distance(x1, y1, x2, y2);
 		}
 
-		int QuadtreeMap::DistanceBetweenNodes(QdNode* aNode, QdNode* bNode) const
+		float QuadtreeMap::DistanceBetweenNodes(QdNode* aNode, QdNode* bNode) const
 		{
 			if (aNode == bNode)
 				return 0;
@@ -273,7 +273,7 @@ namespace QDPF
 		// Connects given two cells in the gate graphs by establishing bidirectional edges between them.
 		void QuadtreeMap::ConnectCellsInGateGraphs(int u, int v)
 		{
-			int dist = Distance(u, v);
+			float dist = Distance(u, v);
 			g2.AddEdge(u, v, dist);
 			g2.AddEdge(v, u, dist);
 		}
@@ -339,7 +339,7 @@ namespace QDPF
 		void QuadtreeMap::ConnectNodesOnNodeGraph(QdNode* aNode, QdNode* bNode)
 		{
 			// use the distance betwen the two nodes's center cells
-			int dist = DistanceBetweenNodes(aNode, bNode);
+			float dist = DistanceBetweenNodes(aNode, bNode);
 			g1.AddEdge(aNode, bNode, dist);
 			g1.AddEdge(bNode, aNode, dist);
 		}

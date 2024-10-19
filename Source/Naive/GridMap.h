@@ -34,9 +34,9 @@ namespace QDPF
 			bool IsObstacle(int x, int y) const;
 			bool IsObstacle(const Cell& c) const;
 
-			int Distance(int x1, int y1, int x2, int y2) const;
-			int Distance(const Cell& c1, const Cell& c2) const;
-			int Distance(int u, int v) const;
+			float Distance(int x1, int y1, int x2, int y2) const;
+			float Distance(const Cell& c1, const Cell& c2) const;
+			float Distance(int u, int v) const;
 
 			const NaiveGridGraph& GetGraph() const { return g; }
 
@@ -55,7 +55,7 @@ namespace QDPF
 			DistanceCalculator distance;
 
 			// directions[i] => {dx, dy, cost}
-			int directions[8][3];
+			float directions[8][3];
 		};
 
 	} // namespace Naive

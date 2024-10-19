@@ -19,7 +19,7 @@ namespace QDPF
 
 		void SimpleDirectedGraph::Init() {}
 
-		void SimpleDirectedGraph::AddEdge(int u, int v, int cost)
+		void SimpleDirectedGraph::AddEdge(int u, int v, float cost)
 		{
 			edges[u].insert({ v, cost });
 			predecessors[v].insert(u);

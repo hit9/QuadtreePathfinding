@@ -35,12 +35,12 @@ int main(void)
 	// Setup a QuadtreeMapX.
 	// (Note that the y is the row, x is the column)
 	QDPF::TerrainTypesChecker  terrainChecker = [](int x, int y) { return grid[y][x]; };
-	auto					   distance = QDPF::EuclideanDistance<10>;
+	auto					   distance = QDPF::EuclideanDistance<1.f>;
 	QDPF::QuadtreeMapXSettings settings{
-		{ 10, Terrain::Land },					// e.g. soldiers
-		{ 20, Terrain::Land },					// e.g. tanks
-		{ 10, Terrain::Land | Terrain::Water }, // e.g. seals
-		{ 20, Terrain::Water },					// e.g. boats
+		{ 1, Terrain::Land },				   // e.g. soldiers
+		{ 2, Terrain::Land },				   // e.g. tanks
+		{ 1, Terrain::Land | Terrain::Water }, // e.g. seals
+		{ 2, Terrain::Water },				   // e.g. boats
 	};
 	QDPF::QuadtreeMapX mx(w, h, distance, terrainChecker, settings);
 	mx.Build();
@@ -54,8 +54,8 @@ int main(void)
 	mx.Compute();
 
 	// Resets the path finder.
-	// Find path from (0,0) to (7,7), agent size is 10, we can only walk on { Land }.
-	if (-1 == pf.Reset(0, 0, 7, 7, 10, Terrain::Land))
+	// Find path from (0,0) to (7,7), agent size is 1, we can only walk on { Land }.
+	if (0 != pf.Reset(0, 0, 7, 7, 1, Terrain::Land))
 	{
 		std::cout << "reset failed!" << std::endl;
 		return -1;
@@ -67,7 +67,7 @@ int main(void)
 	std::cout << "node route path:" << std::endl;
 	QDPF::NodePath nodePath;
 
-	if (pf.ComputeNodeRoutes(nodePath) == -1)
+	if (pf.ComputeNodeRoutes(nodePath).code != QDPF::ErrorCode::Ok)
 	{
 		std::cout << "unreachable!" << std::endl;
 		return -1;
@@ -84,9 +84,9 @@ int main(void)
 
 	// Using the computed nodePath will make the ComputeGateRoutes running much faster,
 	// but less optimal.
-	int cost = pf.ComputeGateRoutes(routes, nodePath);
+	auto result = pf.ComputeGateRoutes(routes, nodePath);
 
-	std::cout << "cost: " << cost << std::endl;
+	std::cout << "cost: " << result.cost << std::endl;
 
 	for (auto [x, y, cost] : routes)
 		std::cout << x << "," << y << " cost: " << cost << std::endl;

@@ -14,7 +14,9 @@ namespace QDPF
 	namespace Internal
 	{
 
-		const int inf = 0x3f3f3f3f;
+		const int	inf = 0x3f3f3f3f;
+		const float inff = static_cast<float>(inf);
+		const float epsilon = 1e-10;
 
 		// Cell {x, y} in pair format.
 		using Cell = std::pair<int, int>;
@@ -72,6 +74,12 @@ namespace QDPF
 			}
 		};
 
+		enum class ErrorCode
+		{
+			Ok,
+			Unreachable,
+		};
+
 		// ~~~~~~~~~~~ Util Containers ~~~~~~~~~~~~
 
 		// A simple simple unordered_map with default value.
@@ -116,6 +124,9 @@ namespace QDPF
 
 		template <typename K, int DefaultValue, typename Hasher = std::hash<K>>
 		using DefaultedUnorderedMapInt = DefaultedUnorderedMap<K, int, DefaultValue, Hasher>;
+
+		template <typename K, float DefaultValue, typename Hasher = std::hash<K>>
+		using DefaultedUnorderedMapFloat = DefaultedUnorderedMap<K, float, DefaultValue, Hasher>;
 
 		template <typename K, bool DefaultValue, typename Hasher = std::hash<K>>
 		using DefaultedUnorderedMapBool = DefaultedUnorderedMap<K, bool, DefaultValue, Hasher>;

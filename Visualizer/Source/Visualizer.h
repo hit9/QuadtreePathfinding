@@ -24,10 +24,6 @@ enum Terrain
 // Max value of w and h.
 const int N = 800;
 
-// Cost unit between neighour cells.
-// better to set a value > 10.
-const int COST_UNIT = 10;
-
 // {x,y}
 using Cell = std::pair<int, int>;
 
@@ -70,7 +66,7 @@ extern CommandlineOptions options;
 
 struct Agent
 {
-	int size = COST_UNIT;
+	int size = 1;
 	// the terrain capability for current agent.
 	int capability = Terrain::Land;
 

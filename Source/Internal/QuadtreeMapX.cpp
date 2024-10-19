@@ -132,8 +132,8 @@ namespace QDPF
 				maxAgentSize = std::max(agentSize, maxAgentSize);
 
 			// cost units.
-			int costUnit = distance(0, 0, 0, 1);
-			int costUnitDiagonal = distance(0, 0, 1, 1);
+			float costUnit = distance(0, 0, 0, 1);
+			float costUnitDiagonal = distance(0, 0, 1, 1);
 
 			// collects different unique terrainType
 			std::unordered_set<int> st;
@@ -150,9 +150,9 @@ namespace QDPF
 		// Creates a clearance field for given terrainTypes integer.
 		// We will create a clearance field, and bound it to all quadtree maps related to the given
 		// terrainTypes integer.
-		void QuadtreeMapXImpl::CreateClearanceFieldForTerrainTypes(int agentSizeBound, int costUnit,
-			int costUnitDiagonal,
-			int terrainTypes)
+		void QuadtreeMapXImpl::CreateClearanceFieldForTerrainTypes(int agentSizeBound, float costUnit,
+			float costUnitDiagonal,
+			int	  terrainTypes)
 		{
 			// rarely happens, but ensure that we won't reset an allocated clearance field, which makes
 			// memory leakings.
@@ -165,17 +165,22 @@ namespace QDPF
 				return (terrainChecker(x, y) & terrainTypes) == 0;
 			};
 			// creates a clearance field.
+
+			int costUnitInt = costUnit * kClearanceFieldCostUnitScaleFactor;
+			int costUnitDiagonalInt = costUnitDiagonal * kClearanceFieldCostUnitScaleFactor;
+			agentSizeBound *= kClearanceFieldCostUnitScaleFactor;
+
 			ClearanceField::IClearanceField* cf = nullptr;
 
 			switch (clearanceFieldKind)
 			{
 				case ClearanceFieldKind::TrueClearanceField:
-					cf = new ClearanceField::TrueClearanceField(w, h, agentSizeBound, costUnit,
-						costUnitDiagonal, isObstacle);
+					cf = new ClearanceField::TrueClearanceField(w, h, agentSizeBound, costUnitInt,
+						costUnitDiagonalInt, isObstacle);
 					break;
 				case ClearanceFieldKind::BrushfireClearanceField:
 					cf = new ClearanceField::BrushfireClearanceField(w, h, std::ceil(agentSizeBound / 2),
-						costUnit, costUnitDiagonal, isObstacle);
+						costUnitInt, costUnitDiagonalInt, isObstacle);
 					break;
 				default:
 					assert(0);
@@ -228,7 +233,7 @@ namespace QDPF
 					return true;
 				// If the clearance distance dismatches the agent's size, it's an obstacle, we can't walk into
 				// this cell.
-				if (cfs[terrainTypes]->Get(x, y) < agentSize)
+				if (cfs[terrainTypes]->Get(x, y) < agentSize * kClearanceFieldCostUnitScaleFactor)
 					return true;
 				return false;
 			};

@@ -14,21 +14,22 @@ namespace QDPF
 	namespace Naive
 	{
 
+		using Internal::ErrorCode;
 		using Internal::FlowFieldAlgorithm;
 		using Internal::inf;
 		using Internal::IsInsideRectangle;
 		using Internal::NeighbourVertexVisitor;
 		using Internal::PackedCellFlowField;
 
-		int NaiveFlowFieldPathFinder::Compute(const NaiveGridMap* m, int x2, int y2,
+		FlowFieldResult NaiveFlowFieldPathFinder::Compute(const NaiveGridMap* m, int x2, int y2,
 			const Rectangle& qrange, FinalFlowField& field)
 		{
 			assert(m != nullptr);
 
 			if (m->IsObstacle(x2, y2))
-				return -1;
+				return { ErrorCode::Unreachable };
 			if (!(qrange.x1 <= qrange.x2 && qrange.y1 <= qrange.y2))
-				return -1;
+				return { ErrorCode::Unreachable };
 
 			// Shrink the qrange by the map size.
 			int		  qx1 = std::max(0, qrange.x1), qy1 = std::max(0, qrange.y1);
@@ -40,7 +41,7 @@ namespace QDPF
 			using FFA = FlowFieldAlgorithm<int, inf>;
 			FFA ffa;
 
-			FFA::HeuristicFunction heuristic = [x2, y2, m](int v) {
+			FFA::HeuristicFunction heuristic = [x2, y2, m](int v) -> float {
 				auto [x, y] = m->UnpackXY(v);
 				return m->Distance(x, y, x2, y2);
 			};
@@ -80,7 +81,7 @@ namespace QDPF
 				field[{ x, y }] = { { x1, y1 }, cost };
 			}
 
-			return 0;
+			return { ErrorCode::Ok };
 		}
 
 	} // namespace Naive
