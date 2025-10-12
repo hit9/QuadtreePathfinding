@@ -1,4 +1,4 @@
-#include <spdlog/spdlog.h>
+#include <fmt/base.h>
 
 #include <argparse/argparse.hpp>
 
@@ -58,12 +58,12 @@ int ParseCommandlineOptions(int argc, char* argv[])
 	}
 	catch (const std::exception& e)
 	{
-		spdlog::error(e.what());
+		fmt::println("{}", e.what());
 		return 1;
 	}
 	if (options.w > N || options.h > N)
 	{
-		spdlog::error("w or h is too large");
+		fmt::println("w or h is too large");
 		return 2;
 	}
 	return 0;

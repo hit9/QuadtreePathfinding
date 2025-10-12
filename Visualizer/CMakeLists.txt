@@ -5,10 +5,10 @@ project(QuadtreePathfindingVisualizer)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
-find_package(spdlog)
 find_package(SDL2_ttf)
 find_package(SDL2)
 find_package(argparse)
+find_package(fmt)
 
 # ----- library imgui ------
 file(GLOB IMGUI_SOURCES 3rdParty/imgui/*.cpp)
@@ -30,7 +30,7 @@ target_link_libraries(
   QuadtreePathfindingVisualizer
   QDPF
   imgui
-  spdlog::spdlog
   sdl_ttf::sdl_ttf
+  fmt::fmt
   SDL2::SDL2main
   argparse::argparse)

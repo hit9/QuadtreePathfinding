@@ -4,7 +4,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
-#include <spdlog/spdlog.h>
+#include <fmt/format.h>
 
 #include "Visualizer.h"
 
@@ -32,15 +32,15 @@ int Visualizer::Init()
 		DestroySDL();
 		return -1;
 	}
-	spdlog::info("Visualizer Init done.");
+	fmt::println("Visualizer Init done.");
 
-	spdlog::info("Building map (may take some time...)");
+	fmt::println("Building map (may take some time...)");
 	// Build the map.
 	map.Build();
 	// Build the pfs;
 	astar.InitPf(map.qmx);
 	flowfield.InitPf(map.qmx);
-	spdlog::info("Visualizer's Init done");
+	fmt::println("Visualizer's Init done");
 	return 0;
 }
 
@@ -49,14 +49,14 @@ int Visualizer::InitSDL()
 	// Init SDL.
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
-		spdlog::error("Error: {}", SDL_GetError());
+		fmt::println("Error: {}", SDL_GetError());
 		return -1;
 	}
 
 	// Init ttf font
 	if (TTF_Init() == -1)
 	{
-		spdlog::error("SDL_ttf Error: {}", SDL_GetError());
+		fmt::println("SDL_ttf Error: {}", SDL_GetError());
 		SDL_Quit();
 		return -1;
 	}
@@ -65,7 +65,7 @@ int Visualizer::InitSDL()
 	SDL_Rect displayBounds;
 	if (SDL_GetDisplayBounds(0, &displayBounds) != 0)
 	{
-		spdlog::error("Failed to get display bounds: {}", SDL_GetError());
+		fmt::println("Failed to get display bounds: {}", SDL_GetError());
 		TTF_Quit();
 		SDL_Quit();
 		return 1;
@@ -80,7 +80,7 @@ int Visualizer::InitSDL()
 			SDL_WINDOWPOS_CENTERED, w, h, SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
 	if (window == nullptr)
 	{
-		spdlog::error("Create window error: {}", SDL_GetError());
+		fmt::println("Create window error: {}", SDL_GetError());
 		TTF_Quit();
 		SDL_Quit();
 		return -3;
@@ -91,7 +91,7 @@ int Visualizer::InitSDL()
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (renderer == nullptr)
 	{
-		spdlog::error("Create renderer error: {}", SDL_GetError());
+		fmt::println("Create renderer error: {}", SDL_GetError());
 		SDL_DestroyWindow(window);
 		TTF_Quit();
 		SDL_Quit();
@@ -125,7 +125,7 @@ int Visualizer::InitArrowsFont()
 	arrows.font = TTF_OpenFont(arrowsFontPath.c_str(), 18);
 	if (arrows.font == nullptr)
 	{
-		spdlog::error("Cannot open Arrows.ttf: {} {}", arrowsFontPath, SDL_GetError());
+		fmt::println("Cannot open Arrows.ttf: {} {}", arrowsFontPath, SDL_GetError());
 		return -1;
 	}
 
@@ -133,7 +133,7 @@ int Visualizer::InitArrowsFont()
 	SDL_Surface* ts = TTF_RenderUTF8_Solid(arrows.font, ARROWS_CHAR, { 0, 0, 0, 255 });
 	if (!ts)
 	{
-		spdlog::error("SDL_Surface: {}", TTF_GetError());
+		fmt::println("SDL_Surface: {}", TTF_GetError());
 		TTF_CloseFont(arrows.font);
 		return -1;
 	}
@@ -142,7 +142,7 @@ int Visualizer::InitArrowsFont()
 	arrows.texture = SDL_CreateTextureFromSurface(renderer, ts);
 	if (arrows.texture == nullptr)
 	{
-		spdlog::error("Create arrows font texture: {}", SDL_GetError());
+		fmt::println("Create arrows font texture: {}", SDL_GetError());
 		SDL_FreeSurface(ts);
 		TTF_CloseFont(arrows.font);
 		return -1;

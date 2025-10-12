@@ -1,4 +1,4 @@
-#include <spdlog/spdlog.h>
+#include <fmt/base.h>
 
 #include <chrono>
 
@@ -84,13 +84,13 @@ void Map::Build()
 	qmx = new QDPF::QuadtreeMapX(w, h, distance, terrianChecker, settings, step, stepf, -1, -1,
 		clearanceFieldKind);
 	qmx->Build();
-	spdlog::info("Build quadtree maps done");
+	fmt::println("Build quadtree maps done");
 
 	// Build naive map.
 	auto isObstacle = [this](int x, int y) { return grids[y][x] != Terrain::Land; };
 	naiveMap = new QDPF::Naive::NaiveGridMap(w, h, isObstacle, distance);
 	naiveMap->Build();
-	spdlog::info("Build naive map done");
+	fmt::println("Build naive map done");
 }
 
 void Map::WantChangeTerrain(const Cell& cell, Terrain to)
