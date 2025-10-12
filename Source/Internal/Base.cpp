@@ -61,7 +61,7 @@ namespace QDPF
 			return IsInsideRectangle(x, y, rect.x1, rect.y1, rect.x2, rect.y2);
 		}
 
-		// https://writings.sh/post/aabb
+		// https://hit9.dev/post/aabb
 		bool IsOverlap(const Rectangle& a, const Rectangle& b)
 		{
 			return a.x1 <= b.x2 && a.x2 >= b.x1 && a.y1 <= b.y2 && a.y2 >= b.y1;
